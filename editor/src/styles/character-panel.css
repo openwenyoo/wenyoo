@@ -1,0 +1,1340 @@
+/* Character Panel Styles - Consolidated from App.css */
+
+/* Character Panel - Full Overlay with Cards */
+.character-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.character-panel-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.character-panel {
+    width: 90%;
+    max-width: 1200px;
+    height: 85%;
+    background: var(--color-surface);
+    border: 3px solid var(--color-border);
+    box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    /* Removed default opacity/transform to fix right-panel visibility */
+}
+
+/* Modal specific styles - only apply when inside overlay */
+.character-panel-overlay .character-panel {
+    transform: translateY(20px);
+    opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s;
+}
+
+.character-panel-overlay.open .character-panel {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* View Transitions - Solid Bauhaus Style */
+.character-panel.editing .char-list-view {
+    /* No parallax, just stay put so editor can cover it completely */
+    transform: none;
+    pointer-events: none;
+}
+
+.character-panel.editing .char-editor-view {
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+/* Panel Header - Character Panel Specific Grid Layout */
+/* Panel Header - Character Panel Specific (Grid Implementation) */
+/* Grid ensures true centering of the title matching Parameter Panel style */
+.character-panel .panel-header {
+    display: grid;
+    grid-template-columns: 100px 1fr 100px;
+    align-items: center;
+    padding: 0 var(--spacing-md);
+    border-bottom: 3px solid var(--color-border);
+    background: var(--color-primary);
+    color: white;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+    height: 72px;
+}
+
+/* Character Panel specific title overrides */
+.character-panel .panel-header h3 {
+    grid-column: 2;
+    text-align: center;
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    padding: 0 4px;
+    /* Slight padding to prevent edge touches */
+}
+
+/* Button Group Wrapper */
+.character-panel .header-buttons-group {
+    grid-column: 3;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Specific button styling for the Orange Header */
+.character-panel .header-buttons-group .close-btn {
+    background: rgba(0, 0, 0, 0.1) !important;
+    border: none !important;
+    color: white !important;
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 1.5rem !important;
+}
+
+.character-panel .header-buttons-group .close-btn:hover {
+    background: white !important;
+    color: var(--color-danger) !important;
+}
+
+.character-panel .header-buttons-group .header-ai-btn {
+    background: rgba(255, 255, 255, 0.9) !important;
+    color: var(--color-primary) !important;
+    border: none !important;
+}
+
+.character-panel .header-buttons-group .header-ai-btn:hover {
+    background: white !important;
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2) !important;
+}
+
+.character-panel .back-btn {
+    grid-column: 1;
+    justify-self: start;
+    color: rgba(255, 255, 255, 0.9);
+    /* margin-right handled by grid placement */
+    margin-right: 0 !important;
+}
+
+.character-panel .back-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+
+/* Character List View */
+.char-list-view,
+.char-editor-view {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    /* Solid transition without opacity fade */
+    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    background: var(--color-bg);
+}
+
+.char-list-view {
+    z-index: 1;
+}
+
+.char-editor-view {
+    z-index: 2;
+    transform: translateX(100%);
+    /* Start off-screen right */
+    /* Removed border-left to prevent double border thickness */
+    box-shadow: -4px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Character Cards Container */
+.char-cards-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-lg);
+    display: grid;
+    /* Adjusted for rectangular cards */
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--spacing-lg);
+    align-content: start;
+    background: var(--color-bg);
+}
+
+/* Add Character Card */
+.add-char-card {
+    /* Rectangular shape */
+    aspect-ratio: 3/4;
+    border: 3px dashed var(--color-border);
+    background: var(--color-surface);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+    transition: all 0.2s;
+    color: var(--color-text);
+}
+
+.add-char-card:hover {
+    transform: translate(-4px, -4px);
+    box-shadow: 6px 6px 0 var(--color-border);
+    border-color: var(--color-primary);
+}
+
+.add-icon {
+    font-size: 3rem;
+    font-weight: 300;
+    color: var(--color-primary);
+}
+
+.add-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+/* Character Card */
+.char-card {
+    /* Rectangular shape */
+    aspect-ratio: 3/4;
+    border: 3px solid var(--color-border);
+    background: white;
+    cursor: pointer;
+    padding: var(--spacing-lg);
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.char-card:hover {
+    transform: translate(-4px, -4px);
+    box-shadow: 6px 6px 0 var(--color-primary);
+}
+
+.char-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-md);
+}
+
+.char-card-header h4 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--color-dark);
+    word-break: break-word;
+}
+
+.char-card-delete {
+    background: none;
+    border: 2px solid var(--color-border);
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.char-card-delete:hover {
+    background: #F44336;
+    color: white;
+    border-color: #F44336;
+}
+
+.char-card-description {
+    flex: 1;
+    color: #666;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: var(--spacing-md);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    /* Show a bit more text */
+    -webkit-box-orient: vertical;
+}
+
+.char-card-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: auto;
+    /* Push to bottom */
+}
+
+/* Character Editor View */
+.char-editor-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-lg);
+    background: var(--color-bg);
+}
+
+.char-name-input {
+    font-size: 1.5rem;
+    font-weight: 700;
+    border: 3px solid var(--color-border);
+    background: white;
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-xs);
+    transition: all 0.2s;
+}
+
+.char-name-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 4px 4px 0 var(--color-primary);
+    outline: none;
+}
+
+.char-inline-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.char-input-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    /* Bold as key */
+    color: #444;
+    /* Darker color */
+    text-transform: uppercase;
+    /* ID/NAME style */
+    min-width: 50px;
+    /* Align labels */
+}
+
+.char-input-field {
+    font-family: inherit;
+    /* Use default font for Name, or monospace if preferred. Let's use inherit but ensure ID is mono via override if needed, or just keep distinct. */
+    font-size: 0.9rem;
+    border: 1px solid var(--color-border);
+    padding: 4px 8px;
+    flex: 1;
+    background: #f9f9f9;
+}
+
+.char-input-field:focus {
+    border-color: var(--color-primary);
+    background: white;
+    outline: none;
+}
+
+.capabilities-section {
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid var(--color-border);
+    background: white;
+}
+
+.capabilities-section h4 {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.toggles {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid var(--color-border);
+    cursor: pointer;
+    background: white;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.toggle-btn:hover {
+    transform: translateY(-2px);
+}
+
+.toggle-btn.active {
+    background: var(--color-primary);
+    color: white;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-item label {
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.9rem;
+}
+
+.stat-item input {
+    padding: var(--spacing-sm);
+    border: 2px solid var(--color-border);
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.stat-item input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 3px 3px 0 var(--color-primary);
+    outline: none;
+}
+
+.logic-section,
+.stats-section {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 2px solid var(--color-border);
+}
+
+.logic-section h4,
+.stats-section h4 {
+    margin: 0 0 var(--spacing-md) 0;
+    font-weight: 700;
+}
+
+.delete-character-btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid #F44336;
+    background: white;
+    color: #F44336;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: var(--spacing-lg);
+    transition: all 0.2s;
+}
+
+.delete-character-btn:hover {
+    background: #F44336;
+    color: white;
+}
+
+/* Badges */
+.badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+}
+
+.badge.playable {
+    background: #4CAF50;
+}
+
+.badge.combat {
+    background: #F44336;
+}
+
+.badge.logic {
+    background: #2196F3;
+}
+
+.badge.placement {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+/* Character Panel - Right Side Edition */
+.character-panel.right-panel {
+    width: 100%;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    pointer-events: auto;
+    box-shadow: none;
+    border: none;
+    height: 100%;
+}
+
+.character-panel.right-panel .panel-header {
+    /* Inherit the grid layout from .panel-header */
+    display: grid;
+    grid-template-columns: 60px 1fr 60px;
+    align-items: center;
+    padding: 0 var(--spacing-md);
+    border-bottom: 3px solid var(--color-border);
+    background: var(--color-primary);
+    color: white;
+    flex-shrink: 0;
+    height: 72px;
+}
+
+.character-panel.right-panel .char-list-view {
+    flex: 1;
+    overflow-y: hidden;
+    /* Changed from auto to hidden to let children scroll */
+    padding: 0;
+    /* REMOVED PADDING to allow full-width header */
+}
+
+.character-panel.right-panel .char-cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+/* Character Placement Management - Bauhaus Style */
+.placement-manager {
+    border: 2px solid var(--color-border);
+    padding: var(--spacing-md);
+    background: white;
+    margin-bottom: var(--spacing-lg);
+}
+
+.placement-manager .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.placement-manager .section-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.placement-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.placement-item {
+    background: var(--color-bg);
+    border: 2px solid var(--color-border);
+    padding: var(--spacing-sm) var(--spacing-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.placement-item:hover {
+    box-shadow: 2px 2px 0 var(--color-border);
+}
+
+.placement-info {
+    flex: 1;
+}
+
+.placement-node {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+}
+
+.placement-config select {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    border: 2px solid var(--color-border);
+    background: white;
+    font-weight: 600;
+    margin-right: 8px;
+}
+
+.placement-config select:focus {
+    border-color: var(--color-primary);
+    outline: none;
+}
+
+.condition-input.small {
+    width: 100%;
+    margin-top: 8px;
+    font-size: 0.85rem;
+    padding: 6px 8px;
+    border: 2px solid var(--color-border);
+}
+
+.condition-input.small:focus {
+    border-color: var(--color-primary);
+    outline: none;
+}
+
+.empty-state.small {
+    font-size: 0.9rem;
+    color: var(--color-text-light);
+    text-align: center;
+    padding: var(--spacing-md);
+    border: 2px dashed var(--color-border);
+}
+
+/* Checkbox Style */
+.checkbox-group {
+    display: flex;
+    flex-direction: row;
+    gap: var(--spacing-lg);
+}
+
+/* Add Placement Dropdown */
+.add-placement-form {
+    margin-bottom: var(--spacing-sm);
+}
+
+.add-placement-form select {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 2px solid var(--color-border);
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: white;
+}
+
+.add-placement-form select:focus {
+    border-color: var(--color-primary);
+    outline: none;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+}
+
+.checkbox-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+}
+
+.checkbox-item label {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* AI Type Selector */
+.ai-type-section {
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    border: 2px solid var(--color-border);
+    background: white;
+}
+
+.ai-type-section h4 {
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.ai-type-options {
+    display: flex;
+    gap: 0;
+}
+
+.ai-type-option {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid var(--color-border);
+    background: white;
+    cursor: pointer;
+    text-align: center;
+    font-weight: 600;
+    transition: all 0.2s;
+    margin-right: -2px;
+    /* Overlap borders */
+}
+
+.ai-type-option:first-child {
+    border-right: none;
+}
+
+.ai-type-option:last-child {
+    margin-right: 0;
+    border-left: none;
+}
+
+.ai-type-option:hover {
+    background: var(--color-bg);
+}
+
+.ai-type-option.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+    z-index: 1;
+    position: relative;
+}
+
+/* LLM Configuration Section - inside ai-type-section */
+.llm-config-section {
+    margin-top: var(--spacing-md);
+}
+
+.llm-config-section h4 {
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.llm-config-section .form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.llm-config-section .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.llm-config-section textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: var(--spacing-sm);
+    border: 2px solid var(--color-border);
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+.llm-config-section textarea:focus {
+    border-color: var(--color-primary);
+    box-shadow: 3px 3px 0 var(--color-primary);
+    outline: none;
+}
+
+/* ===== Parameter Panel Styles ===== */
+.parameter-panel.right-panel {
+    width: 100%;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    height: 100%;
+}
+
+.parameter-panel .panel-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 60px;
+    align-items: center;
+    padding: 0 var(--spacing-md);
+    border-bottom: 3px solid var(--color-border);
+    background: #9C27B0;
+    color: white;
+    flex-shrink: 0;
+    height: 72px;
+}
+
+.parameter-panel .panel-header h3 {
+    grid-column: 2;
+    text-align: center;
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.param-table-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-md);
+}
+
+.param-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.param-table th {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 2px solid var(--color-border);
+    font-weight: 700;
+    background: #f5f5f5;
+}
+
+.param-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+}
+
+.param-key {
+    font-family: monospace;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 3px;
+    transition: background 0.2s;
+}
+
+.param-key:hover {
+    background: #e3f2fd;
+}
+
+.param-key-input {
+    font-family: monospace;
+    padding: 4px 8px;
+    border: 2px solid var(--color-primary);
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.param-type-select {
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    font-size: 0.85rem;
+    background: white;
+}
+
+.param-value-input {
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    font-size: 0.9rem;
+    width: 100%;
+    max-width: 200px;
+}
+
+.param-value-input.number {
+    width: 100px;
+}
+
+.param-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.param-delete-btn {
+    background: none;
+    border: 1px solid #ccc;
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #999;
+    transition: all 0.2s;
+}
+
+.param-delete-btn:hover {
+    background: #F44336;
+    color: white;
+    border-color: #F44336;
+}
+
+.add-param-btn {
+    margin-top: 16px;
+    padding: 10px 16px;
+    background: #9C27B0;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.add-param-btn:hover {
+    background: #7B1FA2;
+}
+
+/* ===== Object Panel Styles ===== */
+.object-panel.right-panel {
+    width: 100%;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    height: 100%;
+}
+
+.object-panel .panel-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 60px;
+    align-items: center;
+    padding: 0 var(--spacing-md);
+    border-bottom: 3px solid var(--color-border);
+    background: #FF9800;
+    color: white;
+    flex-shrink: 0;
+    height: 72px;
+}
+
+.object-panel .panel-header h3 {
+    grid-column: 2;
+    text-align: center;
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.object-list-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-md);
+}
+
+.object-item {
+    border: 2px solid var(--color-border);
+    margin-bottom: 8px;
+    background: white;
+    transition: all 0.2s;
+}
+
+.object-item.expanded {
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.object-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    cursor: pointer;
+    background: #fafafa;
+    gap: 8px;
+}
+
+.object-header:hover {
+    background: #f0f0f0;
+}
+
+.expand-icon {
+    font-size: 0.8rem;
+    color: #666;
+    width: 16px;
+}
+
+.object-id {
+    font-family: monospace;
+    font-weight: 600;
+    flex: 1;
+}
+
+.object-badges {
+    display: flex;
+    gap: 4px;
+}
+
+.object-badges .badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+}
+
+.object-delete-btn {
+    background: none;
+    border: 1px solid #ccc;
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #999;
+    transition: all 0.2s;
+}
+
+.object-delete-btn:hover {
+    background: #F44336;
+    color: white;
+    border-color: #F44336;
+}
+
+.object-content {
+    padding: 12px 16px;
+    border-top: 1px solid #eee;
+}
+
+.object-field {
+    margin-bottom: 12px;
+}
+
+.object-field label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.object-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    font-size: 0.9rem;
+}
+
+.object-input:focus {
+    border-color: var(--color-primary);
+    outline: none;
+}
+
+.object-toggles {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.object-states {
+    border: 1px solid #eee;
+    padding: 10px;
+    background: #fafafa;
+    border-radius: 4px;
+}
+
+.states-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.add-state-btn {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--color-primary);
+    background: white;
+    color: var(--color-primary);
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+}
+
+.add-state-btn:hover {
+    background: var(--color-primary);
+    color: white;
+}
+
+.state-item {
+    background: white;
+    border: 1px solid #ddd;
+    padding: 8px;
+    margin-bottom: 8px;
+    border-radius: 3px;
+}
+
+.state-header {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.state-name-input {
+    flex: 1;
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
+.delete-state-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #ccc;
+    background: white;
+    cursor: pointer;
+    border-radius: 3px;
+    color: #999;
+}
+
+.delete-state-btn:hover {
+    background: #F44336;
+    color: white;
+    border-color: #F44336;
+}
+
+.state-description {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+.add-object-btn {
+    margin-top: 16px;
+    padding: 10px 16px;
+    background: #FF9800;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+.add-object-btn:hover {
+    background: #F57C00;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 24px;
+    color: #999;
+    font-style: italic;
+}
+
+/* ============================================
+   Action Graph Editor Styles - Bauhaus Design
+   ============================================ */
+
+.action-graph-editor {
+    font-family: var(--font-primary, 'Inter', 'Roboto', sans-serif);
+}
+
+.action-graph-node {
+    font-family: inherit;
+}
+
+.action-graph-node .node-content {
+    background: var(--color-surface, #FFFFFF);
+}
+
+.action-graph-node .node-content input,
+.action-graph-node .node-content select,
+.action-graph-node .node-content textarea {
+    font-family: inherit;
+    border-radius: 0;
+    border: var(--border-width, 2px) solid var(--color-border, #1A1A1A);
+    padding: 6px 8px;
+    font-size: 0.8rem;
+}
+
+.action-graph-node .node-content input:focus,
+.action-graph-node .node-content select:focus,
+.action-graph-node .node-content textarea:focus {
+    outline: none;
+    border-color: var(--color-primary, #ee6744);
+    box-shadow: inset 0 0 0 1px var(--color-primary, #ee6744);
+}
+
+/* Character Actions Section - Bauhaus Style */
+.character-actions-section {
+    margin-top: var(--spacing-md, 16px);
+    padding-top: var(--spacing-md, 16px);
+    border-top: var(--border-width, 2px) solid var(--color-border, #1A1A1A);
+}
+
+.character-actions-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm, 8px);
+}
+
+.character-actions-section h4 {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.character-actions-section .add-button.small {
+    background: var(--color-primary, #ee6744);
+    color: #fff;
+    border: none;
+    width: 24px;
+    height: 24px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: var(--transition-retro, all 0.2s ease);
+}
+
+.character-actions-section .add-button.small:hover {
+    background: var(--color-dark, #1A1A1A);
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0 var(--color-primary, #ee6744);
+}
+
+/* Action list - no scrollbar, display all */
+.actions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Action item - horizontal layout with orange stripe */
+.action-item {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    border: var(--border-width, 2px) solid var(--color-border, #1A1A1A) !important;
+    border-radius: 0 !important;
+    box-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+    transition: var(--transition-retro, all 0.2s ease);
+    background: #fff;
+    padding: 0 !important;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.action-item:hover {
+    background: var(--color-bg, #FDFBF7) !important;
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px rgba(0,0,0,0.15);
+}
+
+/* Orange stripe on left of action */
+.action-item::before {
+    content: '';
+    display: block;
+    width: 6px;
+    min-width: 6px;
+    background: var(--color-primary, #ee6744);
+    flex-shrink: 0;
+}
+
+/* Action content area */
+.action-item .action-content {
+    flex: 1;
+    padding: 10px 12px;
+    min-width: 0;
+}
+
+/* Action buttons container (right side with delete button) */
+.action-item .action-buttons {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    padding: 0 !important;
+}
+
+/* GRAPH badge */
+.action-item .graph-badge {
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    background: var(--color-primary, #ee6744);
+    color: #fff;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+}
+
+/* Delete button with square border */
+.action-item .action-delete-btn {
+    background: transparent !important;
+    border: none !important;
+    border-left: 1px solid #eee !important;
+    color: #999 !important;
+    cursor: pointer !important;
+    font-size: 1.2rem !important;
+    font-weight: 400 !important;
+    width: 36px;
+    min-width: 36px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease;
+}
+
+.action-item .action-delete-btn:hover {
+    background: #F44336 !important;
+    color: white !important;
+}
+
+.action-item .action-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--color-dark, #1A1A1A);
+}
+
+.action-item .action-keywords {
+    font-size: 0.7rem;
+    color: var(--color-text-light, #666);
+    font-family: 'Courier New', monospace;
+    margin-top: 2px;
+}
+
+/* Empty state for actions */
+.actions-empty-state {
+    text-align: center;
+    padding: var(--spacing-md, 16px);
+    color: var(--color-text-light, #666);
+    font-size: 0.8rem;
+    border: var(--border-width, 2px) dashed var(--color-border, #1A1A1A);
+    background: var(--color-bg, #FDFBF7);
+}
+
+/* Persona Section - Bauhaus Style */
+.persona-section {
+    margin-top: var(--spacing-md, 16px);
+    padding-top: var(--spacing-md, 16px);
+    border-top: var(--border-width, 2px) solid var(--color-border, #1A1A1A);
+}
+
+.persona-section h4 {
+    margin: 0 0 var(--spacing-sm, 8px) 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.persona-section textarea {
+    border: var(--border-width, 2px) solid var(--color-border, #1A1A1A);
+    border-radius: 0;
+    padding: var(--spacing-sm, 8px);
+    resize: vertical;
+    font-family: var(--font-primary, 'Inter', sans-serif);
+}
+
+.persona-section textarea:focus {
+    outline: none;
+    border-color: var(--color-primary, #ee6744);
+    box-shadow: inset 0 0 0 1px var(--color-primary, #ee6744);
+}

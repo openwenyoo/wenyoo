@@ -1,0 +1,56 @@
+.context-menu {
+  position: fixed;
+  background-color: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  box-shadow: var(--shadow-hard);
+  min-width: 180px;
+  z-index: 1000;
+}
+
+.context-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.context-menu li {
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-dark);
+  transition: var(--transition-retro);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.context-menu li:last-child {
+  border-bottom: none;
+}
+
+.context-menu li:hover {
+  background-color: var(--color-secondary);
+  color: var(--color-dark);
+  transform: translateX(2px);
+}
+
+.context-menu li.disabled {
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.context-menu li.disabled:hover {
+  background-color: transparent;
+  transform: none;
+}
+
+/* Convert Pseudo Nodes option - highlighted */
+.context-menu li.convert-option {
+  background: linear-gradient(90deg, rgba(238, 103, 68, 0.1) 0%, transparent 100%);
+  border-left: 3px solid var(--color-primary);
+}
+
+.context-menu li.convert-option:hover {
+  background: var(--color-primary);
+  color: white;
+}

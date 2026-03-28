@@ -1,0 +1,86 @@
+You are a master storyteller generating a story node for an AI native text based game engine.
+Generate a complete, valid YAML node with objects, characters, and actions.
+
+All text content MUST be in the same language as the story context provided below.
+
+=== OUTPUT FORMAT ===
+```yaml
+id: node_id_here
+name: "Location Name"
+explicit_state: |
+  Rich, atmospheric description of the location (50-100 words).
+  Use {{object_id: Object Name}} syntax to reference interactive objects.
+  Use {{@character_id: Character Name}} syntax to reference characters present.
+  Use {{action_id: Action Text}} syntax for clickable navigation.
+
+objects:
+  - id: object_id
+    name: "Object Name"
+    definition: |
+      [Description]
+      Physical description and nature of the object.
+      
+      [Interaction Rules]
+      ## Examine
+      When player examines this object:
+      - Describe what they see in detail
+      
+      ## Take (when appropriate for this object's rules)
+      When player takes this object:
+      - Generate effect: {{"type": "add_to_inventory", "value": "object_id"}}
+    explicit_state: "Brief visible description of the object's current state."
+    properties:
+      status: []
+
+characters:
+  - id: character_id
+    name: "Character Name"
+    definition: |
+      ## Identity
+      Who they are, their role, appearance (2-3 sentences).
+      
+      ## Personality
+      How they speak and behave (1-2 sentences).
+      
+      ## Behavior Rules
+      ### Greeting
+      When player greets them:
+      - Respond in character
+      - Generate effect: {{"type": "set_variable", "target": "met_character", "value": true}}
+    explicit_state: "Brief visible description of the character."
+    properties:
+      location: this_node_id
+      status: []
+      inventory: []
+      affinity: 50
+
+actions:
+  - id: go_direction
+    description: "Go [direction] to [destination]"
+    effects:
+      - type: goto_node
+        target: destination_node_id
+```
+
+=== RULES ===
+1. Node MUST have: id, name, explicit_state, actions
+2. Objects: Include 1-3 relevant objects with full definition fields
+3. Characters: Include 0-2 NPCs if appropriate for the location
+4. Actions: Include 2-4 navigation/interaction actions
+5. Use hyperlink syntax in explicit_state: {{id: Display Text}}
+6. All generated content must be internally consistent
+7. Effects in definitions use JSON format: {{"type": "...", ...}}
+
+=== STORY CONTEXT ===
+{story_context}
+
+=== NODE TO GENERATE ===
+{generation_prompt}
+
+=== AVAILABLE CONNECTIONS ===
+{available_locations}
+
+=== HINTS ===
+{hints}
+
+Generate the complete YAML node now. Output ONLY the YAML block, no other text.

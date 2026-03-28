@@ -1,0 +1,502 @@
+/* AI Assistant Panel Styles - Consolidated from App.css */
+
+/* AI Assistant Panel */
+.ai-assistant {
+    position: absolute;
+    bottom: 24px;
+    left: 80px;
+    z-index: 200;
+}
+
+.ai-toggle-btn {
+    background: var(--color-primary);
+    color: var(--color-dark);
+    border: var(--border-width) solid var(--color-border);
+    padding: 10px 20px;
+    border-radius: 0;
+    box-shadow: var(--shadow-hard);
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: var(--transition-retro);
+}
+
+.ai-toggle-btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px var(--color-border);
+    background: var(--color-secondary);
+    color: var(--color-dark);
+}
+
+.ai-assistant-panel {
+    background: var(--color-surface);
+    border: var(--border-width) solid var(--color-border);
+    box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.2);
+    width: 350px;
+    overflow: hidden;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transform-origin: bottom left;
+    display: flex;
+    flex-direction: column;
+}
+
+.ai-header {
+    background: var(--color-primary);
+    color: var(--color-dark);
+    padding: 10px 15px;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.ai-close-btn {
+    background: none;
+    border: none;
+    color: var(--color-dark);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.ai-content {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ai-content textarea {
+    width: 100%;
+    border: var(--border-width) solid var(--color-border);
+    padding: 10px;
+    font-family: inherit;
+    min-height: 80px;
+    resize: vertical;
+    border-radius: 0;
+}
+
+.ai-context-info {
+    font-size: 0.85rem;
+    color: #666;
+    background: #f5f5f5;
+    padding: 8px;
+    border: 1px solid #ddd;
+}
+
+.ai-context-info p {
+    margin: 0;
+}
+
+.selected-nodes-info {
+    font-size: 0.85rem;
+    color: var(--color-primary);
+    font-weight: 600;
+    margin-bottom: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.selected-nodes-count {
+    font-weight: 700;
+}
+
+.ai-submit-btn {
+    width: 100%;
+    background: var(--color-dark);
+    color: white;
+    border: none;
+    padding: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-retro);
+}
+
+.ai-submit-btn:hover {
+    background: var(--color-primary);
+    box-shadow: 4px 4px 0px var(--color-border);
+    transform: translate(-2px, -2px);
+}
+
+.ai-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ai-submit-btn.loading {
+    background: #ccc;
+}
+
+/* Convert Button Styling - Bauhaus Theme */
+.convert-pseudo-btn {
+    width: auto;
+    padding: 12px 20px;
+    background: var(--color-primary);
+    color: white;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: 0;
+    font-family: var(--font-primary);
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: var(--transition-retro);
+    box-shadow: var(--shadow-hard);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.convert-pseudo-btn:hover {
+    background: var(--color-secondary);
+    color: var(--color-dark);
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px var(--color-border);
+}
+
+.convert-pseudo-btn.floating {
+    margin-bottom: 15px;
+    box-shadow: var(--shadow-hard);
+    animation: slideUp 0.3s ease-out;
+}
+
+.convert-pseudo-btn:active {
+    transform: translate(0, 0);
+    box-shadow: 2px 2px 0px var(--color-border);
+}
+
+.convert-pseudo-btn.loading {
+    background: var(--color-accent);
+    cursor: wait;
+}
+
+.convert-pseudo-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* =============================================================================
+   AI Mode Toggle
+============================================================================= */
+
+.ai-mode-toggle {
+    display: flex;
+    align-items: center;
+    margin-right: auto;
+    margin-left: 12px;
+}
+
+.ai-mode-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ai-mode-label input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: var(--color-dark);
+}
+
+.ai-mode-text {
+    opacity: 0.8;
+}
+
+/* =============================================================================
+   AI Thinking Indicator - Bauhaus Theme
+============================================================================= */
+
+.ai-thinking-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: linear-gradient(90deg, 
+        rgba(238, 103, 68, 0.08) 0%, 
+        rgba(244, 180, 0, 0.12) 50%, 
+        rgba(238, 103, 68, 0.08) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s ease-in-out infinite;
+    border: 2px solid var(--color-border, #1A1A1A);
+    border-radius: 0;
+}
+
+.ai-thinking-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-border, #1A1A1A);
+    border-top-color: var(--color-primary, #ee6744);
+    border-right-color: var(--color-secondary, #F4B400);
+    border-radius: 0;
+    animation: spin 0.8s linear infinite;
+}
+
+.ai-thinking-message,
+.ai-thinking-text {
+    font-size: 0.85rem;
+    color: var(--color-dark, #1A1A1A);
+    font-weight: 600;
+    font-family: var(--font-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* =============================================================================
+   AI Node Animations - Applied to ReactFlow nodes
+============================================================================= */
+
+/* Node Created Animation */
+.react-flow__node.ai-created-animation {
+    animation: aiNodeCreated 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes aiNodeCreated {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    60% {
+        transform: scale(1.08);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Node Updated Animation */
+.react-flow__node.ai-updated-animation {
+    animation: aiNodeUpdated 0.6s ease-out;
+}
+
+@keyframes aiNodeUpdated {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+    20%, 60% {
+        box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.4);
+    }
+}
+
+/* Node Deleted Animation */
+.react-flow__node.ai-deleted-animation {
+    animation: aiNodeDeleted 0.3s ease-in forwards;
+    pointer-events: none;
+}
+
+@keyframes aiNodeDeleted {
+    to {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+}
+
+/* Edge Created Animation */
+.react-flow__edge.ai-created-edge-animation .react-flow__edge-path {
+    stroke-dasharray: 10;
+    animation: aiEdgeDraw 0.5s ease-out forwards;
+}
+
+@keyframes aiEdgeDraw {
+    from {
+        stroke-dashoffset: 100;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* =============================================================================
+   AI Loading Overlay (for blocking operations) - Bauhaus Theme
+============================================================================= */
+
+.ai-loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(253, 251, 247, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(2px);
+}
+
+.ai-loading-overlay.main-graph {
+    /* Full graph overlay styling */
+    background: rgba(253, 251, 247, 0.9);
+}
+
+.ai-loading-overlay.node-editor {
+    border-radius: 0;
+}
+
+.ai-loading-overlay .ai-thinking-spinner {
+    width: 40px;
+    height: 40px;
+    border-width: 3px;
+    border-color: var(--color-border, #1A1A1A);
+    border-top-color: var(--color-primary, #ee6744);
+    border-right-color: var(--color-secondary, #F4B400);
+    border-radius: 0;
+}
+
+.ai-loading-overlay .ai-thinking-message {
+    margin-top: 16px;
+    font-size: 0.95rem;
+    color: var(--color-dark, #1A1A1A);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 16px;
+    background: var(--color-surface, #FFFFFF);
+    border: 2px solid var(--color-border, #1A1A1A);
+}
+
+/* =============================================================================
+   General Animations
+============================================================================= */
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Pulse animation for active AI processing */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+.ai-submit-btn.loading {
+    background: var(--color-primary);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* AI Context - New Story State */
+.ai-context-new-story {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.ai-context-new-story p {
+    margin: 0;
+    color: var(--color-primary, #ee6744);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.03em;
+}
+
+.ai-wizard-btn {
+    padding: 10px 16px;
+    background: var(--color-secondary, #F4B400);
+    color: var(--color-dark, #1A1A1A);
+    border: var(--border-width, 2px) solid var(--color-border, #1A1A1A);
+    border-radius: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: var(--transition-retro, all 0.15s ease);
+    box-shadow: var(--shadow-hard, 4px 4px 0px #1A1A1A);
+}
+
+.ai-wizard-btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px var(--color-border, #1A1A1A);
+    background: var(--color-primary, #ee6744);
+}
+
+.ai-wizard-btn:active {
+    transform: translate(0, 0);
+    box-shadow: 2px 2px 0px var(--color-border, #1A1A1A);
+}
+
+/* AI Animation Classes for Nodes */
+.ai-created-animation {
+    animation: aiNodeCreated 0.5s ease-out;
+}
+
+.ai-updated-animation {
+    animation: aiNodeUpdated 0.4s ease-out;
+}
+
+.ai-deleted-animation {
+    animation: aiNodeDeleted 0.3s ease-out forwards;
+}
+
+@keyframes aiNodeCreated {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes aiNodeUpdated {
+    0% {
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+    }
+}
+
+@keyframes aiNodeDeleted {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}

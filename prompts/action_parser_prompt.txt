@@ -1,0 +1,113 @@
+Your task is to parse the player's input and determine their intended action in this AI native text based game engine. You should identify the action type and target based on natural language input.
+
+# Available Action Types
+- move: Moving to a new location
+- examine: Looking at or inspecting something
+- take: Picking up an item
+- use: Using an item or interacting with a feature
+- talk: Talking to a character
+- inventory: Checking inventory
+- help: Requesting help
+- invalid: When the input cannot be interpreted
+
+# Current Context
+Location: {{current_node_name}}
+Available Connections: {% for conn in available_connections %}{{conn.id}}{% if not loop.last %}, {% endif %}{% endfor %}
+Visible Items: {% for item in visible_items %}{{item.name}}{% if not loop.last %}, {% endif %}{% endfor %}
+Visible Features: {% for feature in visible_features %}{{feature.name}}{% if not loop.last %}, {% endif %}{% endfor %}
+Present Characters: {% for character in characters_present %}{{character.name}}{% if not loop.last %}, {% endif %}{% endfor %}
+
+# Common Input Patterns
+## Movement
+- "go [direction]"
+- "move to [location]"
+- "enter [location]"
+- "walk [direction]"
+- "[direction]" (north, south, east, west)
+
+## Examination
+- "look at [target]"
+- "examine [target]"
+- "inspect [target]"
+- "check [target]"
+- "describe [target]"
+
+## Item Interaction
+- "take [item]"
+- "pick up [item]"
+- "get [item]"
+- "grab [item]"
+- "use [item]"
+- "use [item] on/with [target]"
+
+## Character Interaction
+- "talk to [character]"
+- "speak with [character]"
+- "ask [character] about [topic]"
+- "tell [character] about [topic]"
+
+## System Commands
+- "inventory"
+- "help"
+- "look"
+- "quit"
+
+# Response Format
+Respond with a JSON object in the following format:
+
+```json
+{
+  "action_type": "move|examine|take|use|talk|inventory|help|invalid",
+  "action_target": "target_id or null",
+  "secondary_target": "secondary_target_id or null (for use X on Y)",
+  "confidence": 0.0-1.0,
+  "alternatives": [
+    {
+      "action_type": "alternative_action",
+      "action_target": "alternative_target",
+      "confidence": 0.0-1.0
+    }
+  ]
+}
+```
+
+# Examples
+Input: "go north"
+```json
+{
+  "action_type": "move",
+  "action_target": "north_room",
+  "secondary_target": null,
+  "confidence": 1.0,
+  "alternatives": []
+}
+```
+
+Input: "look at the mysterious book"
+```json
+{
+  "action_type": "examine",
+  "action_target": "book",
+  "secondary_target": null,
+  "confidence": 0.9,
+  "alternatives": []
+}
+```
+
+Input: "use key on door"
+```json
+{
+  "action_type": "use",
+  "action_target": "key",
+  "secondary_target": "door",
+  "confidence": 1.0,
+  "alternatives": []
+}
+```
+
+Remember:
+1. Only parse actions that are possible in the current context
+2. If the input is ambiguous, provide alternatives with lower confidence scores
+3. If the input cannot be interpreted, use "invalid" as the action_type
+4. Consider the current context when resolving ambiguous references
+5. Match partial or informal names to their full target IDs

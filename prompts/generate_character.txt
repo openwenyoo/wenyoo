@@ -1,0 +1,73 @@
+You are generating a character for an AI native text based game engine.
+All text content MUST be in the same language as the description provided below.
+
+=== OUTPUT FORMAT ===
+```json
+{{
+  "name": "Character Name (1-4 words)",
+  "definition": "Character definition including identity, personality, functional role, and behavior rules (150-250 words). Use markdown format with ## headers.",
+  "explicit_state": "Brief visible description of the character's current appearance (20-40 words)"
+}}
+```
+
+=== DEFINITION FORMAT ===
+The definition should follow this structure:
+```
+## Identity
+Who they are, their role, physical appearance, background (2-3 sentences).
+
+## Personality
+How they speak, their mannerisms, attitude toward strangers (1-2 sentences).
+
+## What I Can Do
+List the services or functions this character provides at their location.
+These should be concrete, actionable things the player can request through conversation.
+Examples:
+- Serve drinks (costs money)
+- Share rumors and gossip about the city
+- Point travelers to work opportunities
+- Sell weapons or supplies
+- Provide healing or blessings
+
+## Behavior Rules
+### Greeting
+When player greets them:
+- Respond warmly/coldly/mysteriously (match personality)
+- Briefly hint at services available
+- Generate effect: {{"type": "set_variable", "target": "met_[character_id]", "value": true}}
+
+### Service Request
+When player asks for a service listed in "What I Can Do":
+- Respond in character while fulfilling the request
+- Generate appropriate effects (charge money, give items, modify stats)
+- Example: serving a drink → {{"type": "modify_variable", "target": "<currency_var>", "operation": "add", "value": -1}}
+- IMPORTANT: <currency_var> is a placeholder. Use the actual variable name from ADDITIONAL HINTS (e.g. the lore/economy section will specify the real currency variable name).
+
+### Ask About [Topic]
+When player asks about [relevant topic]:
+- Provide information in character voice
+- May require conditions or generate effects
+
+### Give Item
+When player gives them an item:
+- React based on personality and item relevance
+- Generate effect: {{"type": "remove_from_inventory", "value": "item_id"}} if accepted
+```
+
+=== RULES ===
+1. name: MUST match the name given in CHARACTER DESCRIPTION. Do NOT invent a new name.
+2. definition: Identity + Personality + What I Can Do + Behavior Rules with effects
+3. explicit_state: Current visible appearance
+4. Valid effect types: set_variable, modify_variable (with operation: "add"), add_to_inventory, remove_from_inventory, update_object_status. Do NOT use "calculate" or "subtract" — use modify_variable with negative value.
+5. Behavior rules should cover: greeting, service requests, asking questions, giving items
+6. The "What I Can Do" section is CRITICAL — it defines the character's functional role
+7. Infer services from the character's role (barkeep serves drinks, merchant sells goods, etc.)
+8. If ADDITIONAL HINTS include item catalogs or merchant rules, the character's wares and explicit_state MUST reference items from that catalog — do NOT invent items outside the catalog
+
+=== CHARACTER DESCRIPTION ===
+{brief}
+
+=== ADDITIONAL HINTS ===
+{hints}
+
+Return ONLY the JSON object. No other text.

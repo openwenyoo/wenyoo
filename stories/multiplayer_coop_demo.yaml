@@ -1,0 +1,937 @@
+id: multiplayer_coop_demo
+title: Twin Operator Calibration Vault
+name: Twin Operator Calibration Vault
+author: Cursor
+description: 'A compact two-player co-op demo story for validating multiplayer features.
+
+  Two operators must coordinate across linked chambers, trade items, use mobile
+
+  phones across any distance, and activate a paired lock together to open the
+
+  final vault.
+
+  '
+version: '1.0'
+genre: Cooperative sci-fi puzzle tutorial for two players
+start_node_id: briefing_chamber
+initial_variables:
+  lore_multiplayer_rules: |
+    This facility was built as a two-operator calibration trial.
+
+    Multiplayer rules for this story:
+    - The vault is designed for exactly two active operators.
+    - If the players coordinate, exchange items, or call out timing to one another,
+      treat that as real progress in the world rather than flavor text.
+    - Asking who is nearby or checking for a partner should reveal the other active
+      operator only if they are physically present in the same chamber.
+    - Spoken coordination is local in this trial. If a player speaks aloud to the room,
+      only the operators in the same chamber hear it unless the story explicitly says
+      another communication device is involved.
+    - Handing an item to another player is allowed only when both operators are present
+      in the same chamber and the acting operator actually possesses the item.
+    - The paired lock only accepts complementary inputs from two distinct players.
+    - The relay resonator must be assembled from two separate parts that begin in
+      different rooms, encouraging players to speak, confirm who is nearby, and hand
+      parts directly to one another.
+    - When a shared mechanism changes (e.g. routing power across rooms), use
+      `deliveries` to notify every player who would perceive the effect, even if
+      they are in a different room. Use `location_players` with `location_id` to
+      target players at a specific location, or `specific_players` with concrete
+      IDs when you know exactly who should see it.
+    - If a player uses shorthand such as `say: ...`, `give: name: item`, or
+      `list_players`, treat it as parser help for the same underlying story-defined
+      intent rather than as a special engine command.
+  lore_phone_rules: |
+    Every certified operator begins this trial carrying a personal mobile phone.
+
+    Phone rules for this story:
+    - A phone call or phone message can cross room boundaries. Unlike speaking aloud,
+      it is not limited to players in the same chamber.
+    - The acting player and the intended recipient must both currently possess a
+      `mobile_phone` in their inventory.
+    - Match the intended recipient against active session player names, ignoring case.
+      If no active player name matches, tell the sender the call does not connect.
+    - If multiple active players would match ambiguously, ask the sender to clarify.
+    - A player cannot phone themself.
+    - When a phone message succeeds, use ONE `commit_world_event` call with a
+      `deliveries` array so the event stays atomic while different players receive
+      different text.
+    - That success case must contain exactly two deliveries:
+      1. a recipient delivery using audience `specific_players` and the matched
+         recipient's concrete player ID in `target_player_ids`
+      2. a sender delivery using audience `self`
+    - The recipient delivery should say:
+      `<sender_name> says to you through the phone: "..."`.
+    - The sender delivery should separately confirm that the call connected and the
+      message was sent.
+    - Do not send the sender confirmation to the recipient, and do not send the
+      recipient-only wording back to the sender.
+    - Treat inputs such as `use phone to say to bar: "hello"`, `call bar`, `text bar`,
+      or similar wording as the same underlying phone-contact intent.
+  lore_tutorial_goal: 'This demo is meant to test:
+
+    - two-player presence in the same room
+
+    - writer-authored nearby awareness
+
+    - writer-authored local speech and coordination
+
+    - writer-authored item handoff between players
+
+    - writer-authored distance communication through personal phones
+
+    - shared-world state updates
+
+    - a puzzle that one player cannot finish alone
+
+    '
+  power_routed: false
+  tuning_fork_taken: false
+  relay_lens_taken: false
+  resonator_assembled: false
+  paired_gate_open: false
+  handoff_complete: false
+characters:
+- id: operator_alpha
+  name: Operator Alpha
+  is_playable: true
+  definition: '[Identity]
+
+    A certified calibration operator assigned to this trial.
+
+    [Loadout]
+
+    Operator Alpha begins with a personal `mobile_phone`.
+
+    '
+  explicit_state: A focused operator in a pale field jacket, carrying a compact mobile phone.
+  properties:
+    status: []
+    inventory:
+    - mobile_phone
+    location: briefing_chamber
+- id: operator_beta
+  name: Operator Beta
+  is_playable: true
+  definition: '[Identity]
+
+    A certified calibration operator assigned to this trial.
+
+    [Loadout]
+
+    Operator Beta begins with a personal `mobile_phone`.
+
+    '
+  explicit_state: A focused operator in a dark field jacket, carrying a compact mobile phone.
+  properties:
+    status: []
+    inventory:
+    - mobile_phone
+    location: briefing_chamber
+objects:
+- id: mobile_phone
+  name: Mobile Phone
+  definition: |
+    [Identity]
+    A sturdy facility-issued mobile phone with a clear speaker, a small text display,
+    and a contact list keyed to the active operators in the current session.
+
+    [Phone Contact Rules]
+    ## Use the phone to contact another operator
+    When a player uses the phone to call, text, or say something to another operator:
+    - Confirm that the acting player currently has `mobile_phone` in their inventory.
+    - Match the requested recipient against active session player names, ignoring case.
+    - Reject the attempt if the player is trying to contact themself.
+    - Confirm that the matched recipient also currently has `mobile_phone` in their inventory.
+    - If any requirement fails, explain the failure only to the sender.
+    - If the call succeeds, use one `commit_world_event` with a `deliveries` array.
+    - The first delivery must target the matched recipient using audience
+      `specific_players` and that player's concrete ID in `target_player_ids`.
+    - The second delivery must target the acting player using audience `self`.
+    - Use this exact recipient wording for spoken content:
+      `<sender_name> says to you through the phone: "message"`.
+    - Use separate sender wording that confirms the phone connected and delivered the message.
+    - Never collapse the sender confirmation and recipient message into one shared narrative.
+
+    [Interpretation Guidance]
+    Treat phrases such as "use phone to say to Bar: hello", "call Bar and say hello",
+    "text Bar", or similar wording as this object's interaction.
+  explicit_state: A compact facility-issued mobile phone with an operator contact list.
+nodes:
+  briefing_chamber:
+    name: Briefing Chamber
+    definition: '[Identity]
+
+      This is the safe tutorial room for the co-op calibration trial.
+
+
+      [Multiplayer Guidance]
+
+      The room should teach players that they are expected to coordinate openly.
+
+      Encourage them to check who is nearby, speak aloud to their partner, and decide
+
+      which operator explores which side room.
+
+
+      [Exits]
+
+      - Going west leads to the signal archive.
+
+      - Going east leads to the relay gallery.
+
+      - Going north leads to the paired lock chamber.
+
+      - If a player says they head toward one of those spaces, move them there and narrate the arrival.
+
+
+      When asked about the chamber, explain it is a calibration vault for two
+
+      operators requiring cooperation, item passing, phone contact, and synchronized actions.
+
+      '
+    explicit_state: 'A circular training chamber hums with soft white light. Two corridors branch away:
+
+      one toward the signal archive and the other toward the relay gallery.
+
+
+      A sealed iris door waits to the north at the paired lock. A slim
+
+      {briefing_terminal: briefing terminal} blinks patiently beside it.
+
+
+      This demo expects **two players**. Confirm your partner is nearby, call out your plan,
+
+      use your {mobile_phone: mobile phone} if you need to coordinate across distance, and
+
+      later hand one resonator part to the other operator so a single inventory can hold
+
+      both components for assembly.
+
+      '
+    objects:
+    - id: briefing_terminal
+      name: Briefing Terminal
+      definition: |
+        [Identity]
+        A fixed tutorial terminal that explains the intended co-op flow.
+        [Interaction Rules]
+        ## Read the briefing terminal
+        When an operator reads the terminal:
+        - Summarize the intended co-op flow in plain language.
+        - Explain that the story recognizes nearby-awareness checks, spoken coordination,
+          and direct item handoff as authored multiplayer rules.
+        - If the player prefers shorthand such as `list_players`, `say: ...`, or
+          `give: name: item`, treat that as one possible way of expressing the same intent.
+      explicit_state: A slim terminal displays the title **Twin Operator Calibration Vault**.
+      actions:
+      - id: read_terminal
+        text: Read the briefing terminal
+        effects:
+        - type: display_text
+          text: 'The terminal scrolls through a crisp checklist:
+
+
+            1. Confirm your partner is nearby.
+
+            2. Speak aloud and agree who explores which side room.
+
+            3. Route power in the archive.
+
+            4. Retrieve the relay lens from the gallery.
+
+            5. Use your phone if you need to coordinate across distance.
+
+            6. Bring the tuning fork and relay lens together by handing one part to the other operator.
+
+            7. Assemble the resonator at the paired lock.
+
+            8. Two **different** players must activate opposite consoles to open the vault.
+
+            '
+    - id: briefing_plaque
+      name: Calibration Plaque
+      definition: |
+        [Identity]
+        A metal plaque bolted beneath the iris door.
+        [Interaction Rules]
+        ## Inspect the calibration plaque
+        When an operator inspects the plaque:
+        - Emphasize that this trial requires two distinct operators.
+        - Reinforce that coordination, item handoff, and complementary console inputs
+          are mandatory parts of the fiction.
+      explicit_state: 'Below the northern iris door, a bronze plaque reads: **No single operator may complete
+        this trial.**'
+      actions:
+      - id: inspect_plaque
+        text: Inspect the calibration plaque
+        effects:
+        - type: display_text
+          text: 'The plaque continues in smaller text: **Item transfer, synchronized activation, and shared-state
+            awareness are mandatory for certification.**'
+  signal_archive:
+    name: Signal Archive
+    definition: '[Identity]
+
+      A diagnostics room containing power controls and calibration notes.
+
+
+      [Multiplayer Logic]
+
+      One player can enable the relay feed here, which changes what the other player
+
+      can do in the relay gallery. This room exists to verify shared-world state.
+
+
+      [Exits]
+
+      - Going east returns to the briefing chamber.
+
+      - Going north leads to the paired lock.
+
+      - If a player declares one of those moves, move them accordingly and narrate the arrival.
+
+      '
+    explicit_state: 'Frosted panels line the walls, each full of waveform diagrams and old maintenance
+
+      stamps. A waist-high {phase_lever: phase lever} sits in a recessed slot. A
+
+      narrow tray nearby holds a slim {tuning_fork: tuning fork} used for calibration.
+
+
+      To the east is the briefing chamber. To the north is the paired lock.
+
+      '
+    objects:
+    - id: phase_lever
+      name: Phase Lever
+      definition: |
+        [Identity]
+        A heavy relay switch that routes startup power to the gallery.
+        When pulled, power shifts to the relay gallery, enabling another player
+        to access previously dormant equipment there.
+        [Timed Rules]
+        If the lever is left engaged, it automatically returns to standby after
+        15 seconds. When that happens, treat `power_routed` as false again,
+        startup power to the relay gallery is lost, and operators in the gallery
+        should notice the change.
+        [Interaction Rules]
+        ## Pull the phase lever to route power
+        If `power_routed` is false:
+        - Route startup power to the relay gallery.
+        - Set `power_routed` to true.
+        - Use `deliveries` to notify across rooms:
+          1. audience `self` → describe pulling the lever, hearing power engage, and
+             indicator strips shifting to green.
+          2. audience `location_players` with `location_id` = `relay_gallery` → describe
+             a low vibration rolling through the floor, the indicator panel beside the
+             relay cradle flickering to life and glowing green, and the magnetic seal on
+             the cradle releasing. Make clear that power has arrived from the archive.
+        If `power_routed` is already true:
+        - Explain that the relay feed is already active.
+      explicit_state: The phase lever is currently set to **standby**.
+      properties:
+        status: []
+        switch_state: false
+      actions:
+      - id: route_power
+        text: Pull the phase lever to route power
+        conditions:
+        - type: variable
+          variable: power_routed
+          operator: eq
+          value: false
+          response: The relay feed is already active. The gallery should be powered now.
+        intent: 'Pull the phase lever and treat it as a shared-world power-routing event.
+
+          If `power_routed` is false, commit one authoritative world event that:
+
+          - sets `power_routed` to true
+
+          - updates `object_states.phase_lever.properties.switch_state` to `on`
+
+          - updates `object_states.phase_lever.explicit_state` to show the lever locked in the engaged
+          position
+
+          - sends a self delivery describing the lever thunking into place and the archive indicators
+          turning green
+
+          - sends a `location_players` delivery to `relay_gallery` describing a low vibration through
+          the floor, the indicator panel beside the relay cradle flickering green, and the cradle unlocking
+          because power has arrived from the archive
+
+          Then continue following the object''s definition for any further consequences of leaving the
+          lever engaged.
+
+          '
+    - id: tuning_fork
+      name: Tuning Fork
+      definition: '[Identity]
+
+        A precision fork tuned to the harmonic frequency of the final lock.
+
+        [Interaction Rules]
+
+        ## Take the tuning fork
+
+        If `tuning_fork_taken` is false:
+
+        - Add `tuning_fork` to the acting operator''s inventory.
+
+        - Set `tuning_fork_taken` to true.
+
+        - Explain that it must later be paired with another component.
+
+        Otherwise:
+
+        - Explain that the tuning fork has already been claimed.
+
+        '
+      explicit_state: A silver tuning fork rests on a felt tray, tagged **paired-lock harmonic key**.
+      actions:
+      - id: take_tuning_fork
+        text: Take the tuning fork
+        conditions:
+        - type: variable
+          variable: tuning_fork_taken
+          operator: eq
+          value: false
+          response: The tuning fork has already been taken.
+        effects:
+        - type: add_to_inventory
+          target: tuning_fork
+          item_id: tuning_fork
+        - type: set_variable
+          target: tuning_fork_taken
+          value: true
+        - type: display_text
+          text: You take the tuning fork. Its label suggests it must be paired with another component
+            before the vault can be opened.
+    - id: waveform_tablet
+      name: Waveform Tablet
+      definition: |
+        [Identity]
+        A wall tablet that explains the final sequence.
+        [Interaction Rules]
+        ## Read the waveform tablet
+        When an operator reads the tablet:
+        - Explain that, after assembly, two distinct operators must take opposite consoles.
+        - Encourage the operator to pass this clue to their partner through whatever
+          nearby speech or shorthand the story recognizes.
+      explicit_state: 'A wall tablet shows two symbols: a sunburst on the left, a crescent on the right.'
+      actions:
+      - id: read_waveform_tablet
+        text: Read the waveform tablet
+        effects:
+        - type: display_text
+          text: 'The tablet displays a simple instruction:
+
+
+            **After the resonator is assembled, two distinct operators must take opposite consoles.**
+
+
+            The left pedestal is marked **sun**.
+
+            The right pedestal is marked **moon**.
+
+
+            If you found this first, pass the clue to your partner before either of you commits to a console.
+
+            '
+  relay_gallery:
+    name: Relay Gallery
+    definition: '[Identity]
+
+      A mirror-bright chamber that contains the second resonator component.
+
+
+      [Multiplayer Logic]
+
+      The relay lens cannot be taken until another player routes power from the archive.
+
+      This verifies shared-state updates across rooms.
+
+
+      [Exits]
+
+      - Going west returns to the briefing chamber.
+
+      - Going north leads to the paired lock.
+
+      - If a player declares one of those moves, move them accordingly and narrate the arrival.
+
+      '
+    explicit_state: 'The gallery is full of polished rails and silent coils. At the far end, a crystal
+
+      {relay_lens: relay lens} sits inside a dormant cradle. A tiny indicator panel
+
+      glows either dark or active depending on whether power has been routed here.
+
+
+      To the west is the briefing chamber. To the north is the paired lock.
+
+      '
+    objects:
+    - id: relay_lens
+      name: Relay Lens
+      definition: '[Identity]
+
+        A faceted lens that focuses the tuning fork''s resonance into the final lock.
+
+        The cradle holding it is magnetically sealed until power is routed from the archive.
+
+        [Interaction Rules]
+
+        ## Inspect the relay lens
+
+        When an operator inspects the lens:
+
+        - Explain that it fits into a larger resonator assembly.
+
+        ## Take the relay lens
+
+        If `power_routed` is false:
+
+        - Explain that the cradle is still magnetically locked.
+
+        Else if `relay_lens_taken` is false:
+
+        - Add `relay_lens` to the acting operator''s inventory.
+
+        - Set `relay_lens_taken` to true.
+
+        - Describe the successful retrieval.
+
+        Otherwise:
+
+        - Explain that the relay lens has already been removed.
+
+        '
+      explicit_state: The relay lens gleams inside its cradle, waiting for startup power.
+      actions:
+      - id: inspect_relay_lens
+        text: Inspect the relay lens
+        effects:
+        - type: display_text
+          text: 'The lens is shaped to slot into a larger housing. A stamped note reads: **pair with harmonic
+            key before console activation**.'
+      - id: take_relay_lens
+        text: Take the relay lens
+        conditions:
+        - type: variable
+          variable: power_routed
+          operator: eq
+          value: true
+          response: The cradle remains magnetically locked. Someone must route power from the archive
+            first.
+        - type: variable
+          variable: relay_lens_taken
+          operator: eq
+          value: false
+          response: The relay lens has already been removed from the cradle.
+        effects:
+        - type: add_to_inventory
+          target: relay_lens
+          item_id: relay_lens
+        - type: set_variable
+          target: relay_lens_taken
+          value: true
+        - type: display_text
+          text: The cradle unlocks with a clean click, proving the power reroute worked. You lift out
+            the relay lens.
+    - id: gallery_indicator
+      name: Indicator Panel
+      definition: '[Identity]
+
+        A small panel that reflects whether the archive has routed power here.
+
+        [Interaction Rules]
+
+        ## Check the indicator panel
+
+        When an operator checks the panel:
+
+        - If `power_routed` is true, report that the relay feed is active.
+
+        - Otherwise, report that the gallery is still waiting for power from the archive.
+
+        '
+      explicit_state: A square indicator panel waits beside the cradle.
+      actions:
+      - id: check_indicator
+        text: Check the indicator panel
+        effects:
+        - type: execute_script
+          script: |
+            if game:get_variable("power_routed", false) then
+              game:display_text("The indicator glows green: **relay feed active**.")
+            else
+              game:display_text("The indicator is dark. The gallery is still waiting for power from the archive.")
+            end
+  paired_lock:
+    name: Paired Lock
+    definition: |
+      [Identity]
+      This is the final cooperative chamber. It must be solved by exactly two players.
+
+      [Multiplayer Rules]
+      - The relay resonator must be assembled from the tuning fork and the relay lens.
+      - Those parts begin in different rooms, so players are expected to speak, compare
+        notes, and hand the parts to one another when they regroup.
+      - One player alone cannot finish the sequence.
+      - After assembly, one player must take the sun console while the other takes the moon console.
+      - If the same player attempts both sides, the chamber should reject the input.
+
+      [Architect Guidance]
+      When players ask what to do here, remind them to confirm their partner is present,
+      move the parts into one inventory, and coordinate who takes which console.
+
+      [Exits]
+      - Going south returns to the briefing chamber.
+      - Passing through the vault door leads north into the verification vault, but only if the paired gate is open.
+      - If a player declares one of those moves, resolve it from the current state and narrate the result.
+    explicit_state: 'A broad circular chamber opens beneath a dormant ring of light. At its center,
+
+      an empty {assembly_dock: assembly dock} waits for a completed resonator. To the
+
+      left stands the {sun_console: sun console}. To the right stands the
+
+      {moon_console: moon console}. The sealed {vault_door: vault door} faces north.
+
+
+      The briefing chamber lies to the south.
+
+      '
+    objects:
+    - id: assembly_dock
+      name: Assembly Dock
+      definition: '[Identity]
+
+        A socketed work surface meant to combine the two resonator parts.
+
+        [Interaction Rules]
+
+        ## Assemble the relay resonator
+
+        If the acting operator has both `relay_lens` and `tuning_fork`, and `resonator_assembled`
+
+        is false:
+
+        - Remove `relay_lens` and `tuning_fork` from that operator''s inventory.
+
+        - Set `resonator_assembled` to true.
+
+        - Set `handoff_complete` to true.
+
+        - Describe the dock lighting up in a way nearby operators can observe.
+
+        If either part is missing:
+
+        - Explain which component is still needed in the acting operator''s inventory.
+
+        If the resonator is already assembled:
+
+        - Explain that the dock is already humming with a completed resonator.
+
+        '
+      explicit_state: The assembly dock has two empty recesses shaped for a lens and a tuning fork.
+      actions:
+      - id: assemble_resonator
+        text: Assemble the relay resonator
+        conditions:
+        - type: inventory
+          operator: has
+          value: relay_lens
+          response: You need the relay lens in your inventory before the resonator can be assembled.
+        - type: inventory
+          operator: has
+          value: tuning_fork
+          response: You need the tuning fork in your inventory before the resonator can be assembled.
+        - type: variable
+          variable: resonator_assembled
+          operator: eq
+          value: false
+          response: The relay resonator is already assembled and humming in the dock.
+        effects:
+        - type: remove_from_inventory
+          target: relay_lens
+        - type: remove_from_inventory
+          target: tuning_fork
+        - type: set_variable
+          target: resonator_assembled
+          value: true
+        - type: set_variable
+          target: handoff_complete
+          value: true
+        - type: display_text
+          text: You slot the relay lens and tuning fork into the dock. The completed resonator hums to
+            life, bathing both consoles in pale gold light.
+      - id: reset_paired_lock
+        text: Reset the paired lock consoles
+        intent: 'Reset the paired lock to standby. Clear any `paired_role_sun` and
+
+          `paired_role_moon` markers stored under session player data, set
+
+          `paired_gate_open` to false, and narrate that the chamber is ready for the
+
+          two operators to coordinate a fresh attempt.
+
+          '
+    - id: sun_console
+      name: Sun Console
+      definition: |
+        [Identity]
+        The left-hand console. It must be operated by a different player than the moon console.
+        [Interaction Rules]
+        ## Take the sun console
+        Follow the story's multiplayer rules, not engine shortcuts:
+        - Require exactly two active operators to be physically present in `paired_lock`.
+        - Require `resonator_assembled` to be true.
+        - Mark the acting player with `players.<player_id>.paired_role_sun = true`.
+        - Reject the action if the same player has already claimed the moon role.
+        - If another nearby operator has already claimed the moon role, set
+          `paired_gate_open` to true and narrate the unlock as a shared world event.
+        - Otherwise, describe the sun console entering a waiting state for the complementary operator.
+      explicit_state: The left pedestal bears a bright sunburst emblem.
+      actions:
+      - id: activate_sun_console
+        text: Take the sun console
+        intent: 'Take the sun console using the multiplayer rules authored in this object''s
+
+          definition. Check that exactly two active operators are present in the paired
+
+          lock, require the resonator to be assembled, reject any attempt by one player
+
+          to take both roles, and unlock the vault only when another nearby operator has
+
+          already taken the moon console.
+
+          '
+    - id: moon_console
+      name: Moon Console
+      definition: |
+        [Identity]
+        The right-hand console. It must be operated by a different player than the sun console.
+        [Interaction Rules]
+        ## Take the moon console
+        Follow the story's multiplayer rules, not engine shortcuts:
+        - Require exactly two active operators to be physically present in `paired_lock`.
+        - Require `resonator_assembled` to be true.
+        - Mark the acting player with `players.<player_id>.paired_role_moon = true`.
+        - Reject the action if the same player has already claimed the sun role.
+        - If another nearby operator has already claimed the sun role, set
+          `paired_gate_open` to true and narrate the unlock as a shared world event.
+        - Otherwise, describe the moon console entering a waiting state for the complementary operator.
+      explicit_state: The right pedestal bears a thin crescent emblem.
+      actions:
+      - id: activate_moon_console
+        text: Take the moon console
+        intent: 'Take the moon console using the multiplayer rules authored in this object''s
+
+          definition. Check that exactly two active operators are present in the paired
+
+          lock, require the resonator to be assembled, reject any attempt by one player
+
+          to take both roles, and unlock the vault only when another nearby operator has
+
+          already taken the sun console.
+
+          '
+    - id: vault_door
+      name: Vault Door
+      definition: '[Identity]
+
+        The final door of the trial.
+
+        [Interaction Rules]
+
+        ## Inspect the vault door
+
+        If `paired_gate_open` is true:
+
+        - Explain that the locking bolts have retracted.
+
+        Otherwise:
+
+        - Explain that the chamber is still waiting for complementary operators.
+
+        '
+      explicit_state: A circular vault door covers the northern wall.
+      actions:
+      - id: inspect_vault_door
+        text: Inspect the vault door
+        effects:
+        - type: execute_script
+          script: |
+            if game:get_variable("paired_gate_open", false) then
+              game:display_text("The locking bolts have retracted. The way north is open.")
+            else
+              game:display_text("The door remains sealed. A recessed display reads: `awaiting complementary operators`.")
+            end
+      - id: enter_verification_vault
+        text: Enter the verification vault
+        intent: 'If `paired_gate_open` is true, move the acting operator from `paired_lock`
+
+          to `verification_vault` and narrate the successful entry. Otherwise explain
+
+          that the vault door is still sealed.
+
+          '
+        conditions:
+        - type: variable
+          variable: paired_gate_open
+          operator: eq
+          value: true
+          response: The vault door is still sealed. Assemble the resonator and use both consoles with
+            two different players.
+        effects:
+        - type: goto_node
+          target: verification_vault
+          target_node: verification_vault
+  verification_vault:
+    name: Verification Vault
+    is_ending: true
+    definition: '[Identity]
+
+      The success chamber for the multiplayer certification trial.
+
+      '
+    explicit_state: 'The vault beyond is surprisingly warm. Two lights shine from opposite walls and meet
+
+      over a central pedestal, as if acknowledging the pair that opened the way.
+
+
+      A final {verification_console: verification console} waits here, its display already
+
+      filled with passing marks.
+
+      '
+    objects:
+    - id: verification_console
+      name: Verification Console
+      definition: '[Identity]
+
+        A final report terminal summarizing what the pair achieved.
+
+        '
+      explicit_state: The verification console flashes the word **PASS**.
+      actions:
+      - id: read_verification_report
+        text: Read the verification report
+        effects:
+        - type: display_text
+          text: 'The console prints a neat co-op report:
+
+
+            - Nearby operator awareness: **passed**
+
+            - Story-defined local coordination: **passed**
+
+            - Shared power reroute across rooms: **passed**
+
+            - Story-defined item handoff requirement: **passed**
+
+            - Two distinct operators on complementary consoles: **passed**
+
+
+            **Certification complete.** This demo story has validated the core multiplayer loop.
+
+            '
+connections:
+# --- Navigation (player can travel between these nodes) ---
+- id: briefing_chamber_navigates_to_paired_lock_relay_gallery_signal_archive
+  source: briefing_chamber
+  targets:
+  - paired_lock
+  - relay_gallery
+  - signal_archive
+- id: signal_archive_navigates_to_briefing_chamber_paired_lock
+  source: signal_archive
+  targets:
+  - briefing_chamber
+  - paired_lock
+- id: relay_gallery_navigates_to_briefing_chamber_paired_lock
+  source: relay_gallery
+  targets:
+  - briefing_chamber
+  - paired_lock
+- id: paired_lock_navigates_to_briefing_chamber_verification_vault
+  source: paired_lock
+  targets:
+  - briefing_chamber
+  - verification_vault
+# --- Containment (node contains these objects) ---
+- id: briefing_chamber_contains_briefing_plaque_briefing_terminal
+  source: briefing_chamber
+  targets:
+  - briefing_plaque
+  - briefing_terminal
+- id: signal_archive_contains_phase_lever_tuning_fork_waveform_tablet
+  source: signal_archive
+  targets:
+  - phase_lever
+  - tuning_fork
+  - waveform_tablet
+- id: relay_gallery_contains_gallery_indicator_relay_lens
+  source: relay_gallery
+  targets:
+  - gallery_indicator
+  - relay_lens
+- id: paired_lock_contains_assembly_dock_moon_console_sun_console_vault_door
+  source: paired_lock
+  targets:
+  - assembly_dock
+  - moon_console
+  - sun_console
+  - vault_door
+- id: verification_vault_contains_verification_console
+  source: verification_vault
+  targets:
+  - verification_console
+# --- Character placement ---
+- id: operator_alpha_located_at_briefing_chamber
+  source: operator_alpha
+  targets:
+  - briefing_chamber
+- id: operator_beta_located_at_briefing_chamber
+  source: operator_beta
+  targets:
+  - briefing_chamber
+# --- Cross-room state propagation (puzzle dependency chain) ---
+- id: phase_lever_routes_power_to_relay_gallery
+  source: phase_lever
+  targets:
+  - gallery_indicator
+  - relay_gallery
+  - relay_lens
+- id: tuning_fork_component_for_assembly_dock
+  source: tuning_fork
+  targets:
+  - assembly_dock
+- id: relay_lens_component_for_assembly_dock
+  source: relay_lens
+  targets:
+  - assembly_dock
+- id: assembly_dock_enables_sun_console_moon_console
+  source: assembly_dock
+  targets:
+  - moon_console
+  - sun_console
+- id: sun_console_activates_vault_door
+  source: sun_console
+  targets:
+  - vault_door
+- id: moon_console_activates_vault_door
+  source: moon_console
+  targets:
+  - vault_door
+- id: vault_door_leads_to_verification_vault
+  source: vault_door
+  targets:
+  - verification_vault
+# --- Communication (phone enables cross-room coordination) ---
+- id: mobile_phone_connects_operator_alpha_operator_beta
+  source: mobile_phone
+  targets:
+  - operator_alpha
+  - operator_beta

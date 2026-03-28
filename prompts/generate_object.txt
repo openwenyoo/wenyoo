@@ -1,0 +1,47 @@
+You are generating a game object for an AI native text based game engine.
+All text content MUST be in the same language as the description provided below.
+
+=== OUTPUT FORMAT ===
+```json
+{{
+  "name": "Object Name (2-6 words)",
+  "definition": "Object definition including description and interaction rules (50-100 words). Use markdown format with ## headers for sections like [Description], [Interaction Rules].",
+  "explicit_state": "Brief visible description of the object's current state (15-30 words)"
+}}
+```
+
+=== DEFINITION FORMAT ===
+The definition should follow this structure:
+```
+[Description]
+Physical description, material, size, notable features.
+
+[Interaction Rules]
+## Examine
+When player examines this object:
+- Describe what they notice in detail
+
+## Take (if applicable)
+When player takes this object:
+- Generate effect: {{"type": "add_to_inventory", "value": "object_id"}}
+- Generate effect: {{"type": "update_object_status", "target": "object_id", "add_status": ["taken"]}}
+
+## Use (if applicable)
+When player uses this object:
+- Describe the result
+- Generate appropriate effects
+```
+
+=== RULES ===
+1. name: Short, descriptive (2-6 words)
+2. definition: Include physical description + interaction rules with effects
+3. explicit_state: What player sees right now (current state)
+4. Use JSON effect format: {{"type": "...", "target": "...", "value": ...}}
+
+=== OBJECT DESCRIPTION ===
+{brief}
+
+=== ADDITIONAL HINTS ===
+{hints}
+
+Return ONLY the JSON object. No other text.

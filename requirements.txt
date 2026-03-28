@@ -1,0 +1,25 @@
+# Core dependencies
+PyYAML==6.0.1
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# Web framework
+fastapi==0.111.0
+uvicorn==0.29.0
+websockets>=12.0
+
+# Async I/O
+aiofiles>=23.0.0
+httpx>=0.25.0
+aiohttp>=3.8.0
+requests>=2.31.0
+
+# LLM integration
+openai>=1.0.0
+anthropic>=0.83.0
+
+# Scripting
+lupa==2.1
+
+# Templating (FastAPI dependency)
+Jinja2==3.1.4

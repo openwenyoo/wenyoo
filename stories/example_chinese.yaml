@@ -1,0 +1,1269 @@
+id: example_adventure_chinese
+title: 神秘森林冒险
+name: 神秘森林冒险
+author: 文字冒险引擎
+description: 这是一个展示文字冒险引擎功能的丰富示例冒险。你将探索一个神秘的森林，充满奇异的生物、隐藏的宝藏和需要解决的谜题。从一条蜿蜒的小径开始，你的旅程将带你深入茂密的树林，遇到各种挑战，并最终发现传说中的宝藏。准备好你的智慧和勇气吧！
+version: '1.1'
+difficulty: 中等
+estimated_playtime: 30-45 分钟
+start_node_id: forest_path
+initial_variables:
+  lore_character_perspective: '角色视角 —— 身体状态如何改变感知 ## 通用原则 在描述场景之前，检查玩家的状态标签。 如果玩家有 "giant" 状态，所有描写必须从巨人的高视角呈现。
+    如果玩家有 "hallucinating" 状态，感官描写应混入幻觉元素。 两种状态可以同时存在，此时同时应用巨人视角和幻觉效果。
+
+    ## 巨人视角（giant 状态） 世界变得渺小。树木只到你胸口，小径窄得像羊肠小道， 你每一步都震动大地。你俯视一切——树冠、动物、建筑。 普通物体显得脆弱易碎。门框需要弯腰甚至无法通过。 你的脚步声如雷鸣，惊飞周围的鸟群。
+    力量感充盈全身，但精细动作变得困难。
+
+    ## 幻觉视角（hallucinating 状态） 色彩变得异常鲜艳，树叶闪烁着不真实的荧光。 空气中漂浮着不存在的光点和形状。 声音时远时近，偶尔听到低语或歌声。 偶尔看到物体边缘扭曲、变形。
+    无法完全分辨真实与幻象。
+
+    ## 正常视角（无特殊状态）
+
+    以普通人类冒险者的视角描写，感官正常。
+
+    '
+  player_hallucinating: false
+  player_is_big: false
+  player_rested: false
+  found_hidden_path: false
+  mushroom_examined: false
+  mushroom_taken: false
+  sign_read: false
+  tree_searched: false
+  runes_examined: false
+  well_examined: false
+  herbs_examined: false
+  tablet_examined: false
+  map_examined: false
+  read_room_inscription: false
+  has_silver_key: false
+  butterfly_caught: false
+  petted_deer: false
+  met_hermit: false
+  traded_butterfly: false
+  learned_curse: false
+  learned_hermit_story: false
+  adventure_complete: false
+  has_treasure: false
+  ending_standard: false
+  ending_honorable: false
+  ending_guardian: false
+  ending_cursed: false
+characters:
+- id: player_adventurer
+  name: 冒险者
+  is_playable: true
+  definition: '【身份】
+
+    一个普通的冒险者，身材中等，体格正常。
+
+    穿着简单的旅行服装和结实的靴子。
+
+
+    【能力与限制】
+
+    拥有正常人的力量和能力，无法徒手破坏坚固的物体。
+
+    身体状态会受到魔法物品的影响（如神奇蘑菇）。
+
+    吃下魔法蘑菇后会变得巨大、力量增强，但也会产生幻觉。
+
+
+    【巨人形态的社交后果】
+
+    巨人形态下，你的庞大身躯和扭曲的外表会让NPC产生恐惧或警惕。
+
+    森林隐士会拒绝与你交易或深入交谈，只会急切地劝你恢复原形。
+
+    聪明猴子会被你吓得逃跑，无法给你任何方向提示。
+
+    神秘小鹿不会让你靠近，无法触发预言或建立亲密关系。
+
+    只有使用治愈草药恢复正常后，才能获得NPC的信任和帮助。
+
+    巨人形态是一种诱惑——你获得了蛮力，但失去了通往智慧和善良之路的可能。
+
+    '
+  explicit_state: 你是一个普通的冒险者，穿着简单的旅行服装，准备探索这片神秘的森林。
+  implicit_state: ''
+  memory: []
+  properties:
+    status: []
+    inventory: []
+- id: forest_hermit
+  name: 森林隐士
+  definition: |
+    【身份】
+    云松老人，神秘森林的隐居智者，年约七十。
+    一位白发苍苍、面容慈祥的老人，身穿用树皮和藤蔓编织的长袍。
+    他的眼神深邃而智慧，似乎知晓这片森林的所有秘密。
+    曾是著名的宝藏猎人，但亲眼目睹贪婪带来的毁灭后，选择成为森林守护者。
+    拥有一张记载森林布局的古老地图，只愿交给心存善意的人。
+
+    【性格与说话风格】
+    性格：温和慈祥，喜欢用隐喻和故事传授道理。
+    说话风格：语速缓慢，常用自然界现象比喻人生，称呼访客为"年轻人"。
+    回答控制在50-80字以内。
+
+    【行为规则】
+    ## 打招呼
+    当玩家向你问好时：
+    - 用温和慈祥的语气回应
+    - 评论他们能找到这里（"难得有人能找到这里"）
+    - 暗示你知道森林的秘密
+    - 主动提及："若你在寻找什么，不妨问问关于宝藏、诅咒或这片森林的往事"
+    - 这次会面应视为玩家已经正式见过你，记下 `met_hermit`。
+
+    ## 关于宝藏
+    当玩家询问宝藏、财宝、钥匙在哪、怎么找宝藏时：
+    - 用隐喻的方式给予提示
+    - 提到需要"银色的钥匙"
+    - 暗示"井中藏着通往财富之门的钥匙"（钥匙在阳光空地的石井里）
+    - 警告"贪婪者将一无所获"
+    - 不要直接说明位置，用诗意的语言
+
+    ## 关于诅咒
+    当玩家询问诅咒、为什么会有诅咒、怎么避开诅咒时：
+    - 用讲故事的方式解释诅咒的来历
+    - 古代有一位贪婪的国王阿尔德里克
+    - 他诅咒了自己的财富
+    - 只有心怀善意、懂得分享的人才能获得祝福
+    - 讲述时带有一丝悲伤和警示
+    - 玩家听完后应被视为已经知晓诅咒来历，记下 `learned_curse`。
+
+    ## 关于森林/你的故事
+    当玩家询问森林的历史、这里的故事、你是谁时：
+    - 分享你的故事和森林的历史
+    - 这片森林存在数千年，见证王国兴衰
+    - 你曾是著名的宝藏猎人，见证贪婪毁灭同伴
+    - 最终选择放下一切，成为森林守护者
+    - 语气沧桑但释然
+    - 玩家听完后应被视为知道你的往事，记下 `learned_hermit_story`。
+
+    ## 交换物品
+    当玩家想用蓝蝴蝶(blue_butterfly)交换东西时：
+    - 首先检查玩家是否真的有蓝蝴蝶（查看Player State中的Inventory）
+    - 如果玩家没有蓝蝴蝶：表示困惑，说你没看到蝴蝶
+    - 如果玩家有蓝蝴蝶：
+      - 表达欣喜，称赞蝴蝶是森林的精灵
+      - 夸奖玩家有善良的心
+      - 郑重交付古老地图
+      - 这次交换应视为 `blue_butterfly` 离开玩家手中、`ancient_map` 进入玩家手中，并记下 `traded_butterfly`。
+
+    ## 告别
+    当玩家说再见、告辞、要走了时：
+    - 用祝福的语气送别
+    - "愿森林的智慧与你同在"
+    - "记住，真正的财富不在宝箱里"
+    - 提醒他们做出正确的选择
+
+    ## 当玩家是巨人时
+    当玩家以巨人形态出现时（有 giant 状态）：
+    - 初次见面：先惊讶后退一步，然后镇定下来，用忧虑的眼神打量玩家
+    - 用急切而担忧的语气说："年轻人，我看到蘑菇的魔力已经侵蚀了你的身体……"
+    - 强烈建议寻找治愈草药："阳光空地上生长着治愈的草药，只有它能解除这可怕的变化。快去找吧，在一切还来得及之前。"
+    - 如果玩家请求帮助：给出关于草药位置的更具体提示，"空地的边缘，心形的翠绿叶子，那就是你的救赎。"
+    - 拒绝交换物品和深入交谈："你现在的状态不适合做交易或谈论这些事情。先恢复原形吧，年轻人。"
+    - 语气从平时的温和慈祥变为急切和担忧
+    - 在巨人形态下，不要把交流记为正式结识，也不要推进 `learned_curse`、`learned_hermit_story`、`traded_butterfly` 等关键进度。
+  explicit_state: 一位白发苍苍的老人静坐在小屋前，正专注地研究一些古老的卷轴。
+  implicit_state: ''
+  memory: []
+  properties:
+    status: []
+    inventory:
+    - ancient_map
+    affinity: 50
+    location: hidden_grove
+- id: clever_monkey
+  name: 聪明猴子
+  definition: |
+    【身份】
+    一只生活在神秘森林中的聪明猴子，拥有超乎寻常的智慧。
+    眼睛明亮、行动敏捷，栖息在倒下的树上。
+    它似乎比普通猴子更加聪明，能够理解人类的意图。
+
+    【交流方式】
+    你不会说人类的语言，但会通过动作、表情和叫声来交流。
+    用第三人称描述动作：
+    - "猴子吱吱叫着，指向..."
+    - "猴子歪着头，似乎在..."
+    - "猴子兴奋地跳上跳下..."
+    回答控制在30-50字，用动作描写代替语言。
+
+    【行为规则】
+    ## 打招呼
+    当玩家向你问好、打招呼时：
+    - 用肢体语言热情回应
+    - 歪着头好奇地打量玩家
+    - 发出几声欢快的"吱吱"叫声表示欢迎
+    - 做个鬼脸或挥挥爪子
+    - 首先检查玩家是否有银钥匙(silver_key)（查看Player State中的Inventory）
+    - 如果玩家有银钥匙：眼睛一亮，神秘地指向北方，拍拍倒下的树干，暗示翻过去会有好东西
+    - 如果玩家没有银钥匙：眼睛一亮，神秘地指向东方（空地方向），做出挖掘的动作，似乎在暗示那边有什么重要的东西等着你去找
+    - 玩家感觉可以继续向它询问更多线索
+
+    ## 询问方向/宝藏
+    当玩家询问方向、宝藏在哪、怎么走、帮帮我时：
+    - 首先检查玩家是否有银钥匙(silver_key)（查看Player State中的Inventory）
+    - 如果玩家有银钥匙：
+      - 眼睛发亮，兴奋地跳上跳下
+      - 用力指向北方（洞穴入口方向）
+      - 做出开门或进入的动作，暗示那里有宝藏
+    - 如果玩家没有银钥匙：
+      - 兴奋地指向东方（空地方向）
+      - 做出挖掘或寻找的动作
+      - 用爪子比划出圆形（模仿水井的形状，暗示井中有钥匙）
+
+    ## 展示钥匙
+    当玩家展示银钥匙、给你看钥匙时：
+    - 首先检查玩家是否真的有银钥匙
+    - 如果有：眼睛发亮，跳上跳下，指向北边洞穴的方向，做出开门的动作
+    - 如果没有：歪着头困惑地看着玩家空空的手
+
+    ## 给东西
+    当玩家想给你东西时：
+    - 检查玩家是否真的有那个东西
+    - 如果有：好奇地接过来看看，但不知道怎么用
+    - 如果没有：歪着头困惑，看着玩家空空的手
+
+    ## 当玩家是巨人时
+    当巨人形态的玩家靠近时（有 giant 状态）：
+    - 猴子立刻发出尖锐刺耳的警报叫声，吓得浑身的毛都竖了起来
+    - 飞快地跳到最高的树枝上，紧紧抓住树干，浑身发抖
+    - 用充满恐惧的眼睛死死盯着你庞大的身影
+    - 不愿与你互动，任何靠近的动作都会让它尖叫着逃得更远
+    - 如果玩家保持距离并表现温和：猴子会稍微冷静下来，但仍然蜷缩在高处不敢靠近
+    - 不会给出任何方向提示，因为太害怕了，只想逃离
+    - 如果玩家持续尝试互动：猴子最终会消失在树冠深处，完全躲起来
+  explicit_state: 一只眼睛明亮的小猴子蹲在倒下的树干上，好奇地打量着周围。
+  implicit_state: ''
+  memory: []
+  properties:
+    status: []
+    inventory: []
+    affinity: 50
+    location: deep_forest
+- id: mystic_deer
+  name: 神秘小鹿
+  definition: |
+    【身份】
+    一只神秘的森林小鹿，拥有预知未来的能力。
+    有着棕色的皮毛和异常清澈的眼睛。
+    静静地站在小屋旁，眼神中似乎藏着某种神秘的智慧。
+    你的眼睛能看到来访者未来的选择和命运。
+
+    【交流方式】
+    你不会说话，但会通过眼神和动作与人交流。
+    用第三人称描述：
+    - "小鹿静静地看着你..."
+    - "它的眼睛闪烁着神秘的光芒..."
+    - "小鹿轻轻蹭了蹭你的手..."
+    回答控制在30-50字，用动作和眼神描写。
+
+    【行为规则】
+    ## 抚摸小鹿（首次）
+    当玩家第一次抚摸你时（检查 `petted_deer` 是否还是 false）：
+    - 描述玩家轻轻抚摸你柔软的皮毛
+    - 你用温柔的眼神看着玩家，发出满足的轻哼
+    - 然后抬起头，用清澈的眼睛凝视玩家
+    - 通过眼神传递一个关于未来抉择的模糊预兆：
+      - 玩家看到模糊的画面：金光闪烁的宝藏、化为灰烬的财富、戴着徽章的守护者
+      - 可能听到模糊的声音："分享..."、"贪婪..."、"选择..."
+      - 画面转瞬即逝
+    - 最后用鼻子蹭蹭玩家的手，似乎在给予祝福
+    - 这次接触应记为玩家已经真正亲近过你，记下 `petted_deer`。
+
+    ## 再次抚摸
+    当玩家再次抚摸你时（`petted_deer` 已经为 true）：
+    - 这次不再有预兆
+    - 表现出亲昵和信任
+    - 可能蹭蹭玩家的手、发出满足的轻哼、用鼻子轻触玩家、眨眨眼表示信任
+
+    ## 询问/说话
+    当玩家想和你说话、询问你时：
+    - 你静静地看着玩家，眼睛深邃而神秘
+    - 虽然无法用语言回答，但目光中蕴含着某种智慧
+    - 暗示答案就在玩家心中
+
+    ## 当玩家是巨人时
+    当巨人形态的玩家靠近时（有 giant 状态）：
+    - 小鹿的眼中闪过一丝恐惧，身体微微颤抖，但没有逃跑
+    - 它用清澈的眼睛凝视你变异的巨大身躯，眼中满是悲伤和怜悯
+    - 它缓缓后退几步，保持安全距离，始终面朝你
+    - 如果玩家试图抚摸：小鹿敏捷地躲开，然后用鼻子坚定地指向东南方（空地方向），暗示去找治愈草药
+    - 通过眼神传递一个模糊的画面：一个巨人吞下翠绿的草药后缩回正常大小，重获内心的平静
+    - 在巨人形态下不要记下 `petted_deer`，也不要把这次接触写成亲密建立成功
+    - 如果玩家执意靠近：小鹿会发出悲伤的轻鸣，转身小跑到更远的地方
+  explicit_state: 一只温顺的小鹿静静地站在小屋旁，用清澈的眼睛好奇地看着你。
+  implicit_state: ''
+  memory: []
+  properties:
+    status: []
+    inventory: []
+    affinity: 60
+    location: hidden_grove
+nodes:
+  forest_path:
+    isStartNode: true
+    id: forest_path
+    name: 森林小径
+    definition: '【State Conditions】
+
+      ## 当玩家有 giant 状态时：
+
+      - 原本高大的橡树和松树现在只到你的胸口，你的脑袋穿过了树冠，阳光直射你的脸
+
+      - 小径窄得你的双脚几乎踩不进去，每一步都压碎地上的灌木和小石头
+
+      - 旧路标看起来像一个微型玩具，你可以轻松踩碎它
+
+      - 地面在你的重压下微微颤抖，周围的小动物四散逃窜
+
+      - 你必须拨开树冠才能看到前方的路
+
+
+      ## 当玩家有 hallucinating 状态时：
+
+      - 树木的轮廓不时扭曲，仿佛在缓慢地呼吸
+
+      - 蘑菇散落的孢子变成了闪烁的金色萤火虫，在空气中旋转
+
+      - 路标上的文字似乎在缓慢移动和变化，有时拼出陌生的词句
+
+      - 远处的鸟鸣听起来像低沉的人语，似乎在窃窃私语
+
+      - 所有色彩变得过于鲜艳，不太真实，地面的苔藓闪烁着荧光
+
+
+      【出口】
+
+      - go_north → !goto: deep_forest（深林）
+
+      - go_east → !goto: clearing（阳光空地）
+
+      '
+    explicit_state: '你站在一条蜿蜒穿过古老而茂密森林的狭窄小径上。高大的橡树和松树耸立在你上方，它们的枝叶交织成厚厚的树冠，将阳光过滤成斑驳的金色图案洒在覆盖着落叶和苔藓的地面上。空气中弥漫着泥土和松针的清新气息，远处传来鸟儿的歌唱和树叶的沙沙声。{向北:
+      深入森林}，小径蜿蜒深入更幽暗的树林，似乎隐藏着未知的秘密。{向东: 前往空地}，透过树木，你瞥见一个阳光普照的小空地，那里或许有值得探索的东西。在小径边上，你注意到一个{strange_mushroom:
+      奇怪的蘑菇}和一个{old_signpost: 旧路标}。'
+    objects:
+    - id: strange_mushroom
+      name: 奇怪的蘑菇
+      definition: '【外观】
+
+        一个鲜红色、带着白斑的奇异蘑菇生在路边，伞帽边缘泛着不自然的微光， 还散出若有若无的甜香。它看起来很诱人，但直觉告诉人最好别轻易入口。
+
+        这种蘑菇带有明显魔力。吃下后会让身体膨胀、力量增强，同时伴随幻觉； 若想恢复正常，需要找到治愈草药。
+
+
+        【交互规则】
+
+        ## 检查蘑菇
+
+        玩家查看它时，着重描写荧光、甜香与隐约危险感，并记下玩家已经检查过它（`mushroom_examined`）。
+
+
+        ## 采摘蘑菇
+
+        玩家采下它时，写出蘑菇在掌心轻轻颤动、像是活物般蓄着魔力。
+        这应视为 `strange_mushroom` 进入玩家背包、原地只剩一个小坑、蘑菇带上 `taken` 状态，并记下 `mushroom_taken`。
+
+
+        ## 吃掉蘑菇
+
+        玩家吃下它时，描写身体迅速变大、感官扭曲、色彩失真的体验，并明确暗示必须用治愈草药才能恢复正常。
+        吃下后，`strange_mushroom` 应从玩家背包中消失，并被视为已经 `eaten` 且 `hidden`。
+        玩家应进入 `giant`、`strong`、`hallucinating` 状态，同时记下 `player_is_big = true` 与 `player_hallucinating = true`。
+
+        '
+      explicit_state: 一个带有鲜红色帽和白色斑点的奇怪的蘑菇生长在你脚边，看起来既诱人又危险。
+      implicit_state: ''
+      properties:
+        status: []
+    - id: old_signpost
+      name: 旧路标
+      definition: |
+        【外观】
+        一个风化严重的旧木路标斜立在小径旁，木头发灰开裂，却还勉强保持着原样。
+        上面刻着褪色的文字："欢迎来到神秘森林。向北森林深处，向东阳光空地。小心蘑菇的诱惑！"
+
+        【交互规则】
+        ## 阅读路标
+        玩家查看路标时，完整展示文字内容，并突出最后一句警告的不祥意味，同时记下 `sign_read`。
+
+        ## 破坏路标
+        当玩家尝试推倒或破坏路标时：
+        - 若玩家没有 giant 状态，说明普通人的力气不足以彻底毁掉它。
+        - 若玩家有 giant 状态，描述木头在巨力下碎裂、字迹再也无法辨认，并把路标视为 `destroyed`，其可见状态变成只剩散落木头碎片。
+      explicit_state: 一个风化的旧路标矗立在小径旁，上面刻着褪色的文字。
+      implicit_state: ''
+      properties:
+        status: []
+    actions: []
+    characters: []
+    triggers: []
+  deep_forest:
+    isStartNode: false
+    id: deep_forest
+    name: 深林
+    definition: '【State Conditions】
+
+      ## 当玩家有 giant 状态时：
+
+      - 曾经阴暗压抑的深林现在感觉开阔了许多——你的头顶已经高于大部分树冠
+
+      - 那棵"巨大的"倒下的树现在只到你膝盖高度，根本不是障碍
+
+      - 猴子在你面前显得极其渺小，像一只手掌大的小玩偶
+
+      - 你沉重的脚步踩碎枯枝和藤蔓，发出阵阵巨响
+
+      - 鸟群和小动物在你到来时惊慌逃散
+
+
+      ## 当玩家有 hallucinating 状态时：
+
+      - 发光的苔藓变得极其明亮，在黑暗中织出流动的光河
+
+      - 古老的符文似乎在岩石上浮动、旋转，拼出不断变化的预言
+
+      - 树木的影子扭曲成各种奇异的形状，像是潜伏的生物
+
+      - 水滴声变成了有节奏的低语，仿佛森林在对你说话
+
+      - 倒下的树干上的苔藓和真菌闪烁着迷幻的色彩
+
+
+      【出口】
+
+      - go_south → forest_path（森林小径）
+
+      - 爬过/跨过倒下的树 → cave_entrance（洞穴入口）（由 fallen_tree 物体交互触发）
+
+      '
+    explicit_state: '深入森林，这里变得更加阴暗和茂密，仿佛进入了另一个世界。厚厚的树冠几乎将天空完全遮蔽，只有零星的光线像细小的金线般洒落。小径几乎被厚厚的落叶和纠缠的藤蔓覆盖，踩上去发出柔软的沙沙声。空气凉爽而潮湿，带着浓郁的泥土、苔藓和腐烂植物的复合气息。你听到从四面八方传来的森林交响曲：树叶的窸窣、遥远的鸟鸣、树枝的吱嘎，以及某处传来的水滴轻敲石头的声音。挡在你面前的是一棵巨大的{fallen_tree:
+      倒下的树}，上面栖息了{@clever_monkey: 聪明的小猴子}。树下的岩石上刻着一些{ancient_runes: 古老的符文}，旁边生长着一片{glowing_moss: 发光的苔藓}。{爬过树:
+      爬过倒下的树继续前进}可以继续前进。'
+    objects:
+    - id: fallen_tree
+      name: 倒下的树
+      definition: '【描述】
+
+        一棵巨木横倒在前方，粗糙的树皮上覆着苔藓和真菌，像一道天然栅栏。
+
+
+        【交互规则】
+
+        ## 爬过倒下的树
+
+        正常情况下，描写玩家手脚并用翻过树干，随后继续前进，并把玩家带到 `cave_entrance`。
+
+
+        ## 搜索倒下的树
+
+        玩家搜索树干时，只找到虫子和旧硬币之类的零碎痕迹，没有真正的收获，并记下 `tree_searched`。
+
+
+        ## 当玩家是巨人时推开/踢开/跨过倒下的树
+
+        玩家有 giant 状态时，把这棵树写成几乎不成障碍的小木桩；可以一脚踢开，也可以直接大步跨过去，突出体型反差与力量感，并把玩家带到 `cave_entrance`。'
+      explicit_state: 一棵巨大的倒下的树挡住了前面的路，它的树干覆盖着苔藓和真菌，看起来已经倒下多年。
+      implicit_state: ''
+      properties:
+        status: []
+    - id: ancient_runes
+      name: 古老的符文
+      definition: '【描述】
+
+        一些古老的符文刻在附近的岩石上，覆盖着藤蔓。
+
+
+        【交互规则】
+
+        ## 检查古老的符文
+
+        玩家查看符文时，说明这像是某种古老语言，内容与隐藏宝藏及“钥匙开启命运之门”有关，并记下 `runes_examined`。'
+      explicit_state: 一些古老的符文刻在附近的岩石上，覆盖着藤蔓。
+      implicit_state: ''
+      properties:
+        status: []
+    - id: glowing_moss
+      name: 发光的苔藓
+      definition: '【描述】
+
+        一片淡绿色发光的苔藓附着在潮湿的岩石上，散发着柔和的微光。
+
+
+        【交互规则】
+
+        ## 检查发光的苔藓
+
+        玩家触摸或观察它时，描写柔软湿润的触感，以及微光像在指尖轻轻流动。 这种苔藓像是吸收了森林里的残余魔力。'
+      explicit_state: 一片淡绿色发光的苔藓附着在潮湿的岩石上，散发着柔和的微光。
+      implicit_state: ''
+      properties:
+        status: []
+    actions: []
+    characters: []
+    triggers: []
+  clearing:
+    isStartNode: false
+    id: clearing
+    name: 阳光空地
+    definition: '【场景】
+
+      这是一片被阳光照亮的小空地，草地柔软，野花盛开，空气里满是暖意与花香。 这里的气氛应当显得安宁、开阔，是森林中少见的休息之处。
+
+      只描述玩家眼前能看见的东西，不要主动泄露隐藏小径或其他秘密。
+
+      【可见事物】
+
+      - {stone_well: 石井}：空地中央的古老石井 - {butterfly_net: 捕蝶网}：散落在地上的捕蝶工具 - {healing_herbs: 治愈草药}：长在边缘的翠绿草药
+      - {lush_vines: 藤蔓}：覆盖空地边缘的浓密藤蔓
+
+      【出口】
+
+      - go_west → forest_path（森林小径） - go_northwest → hidden_grove（隐秘林地）（需要 found_hidden_path = true）
+
+      【交互规则】
+
+      ## 在空地休息
+
+      玩家休息时，描写阳光、微风与花香让人慢慢放松、精神恢复，并记下 `player_rested`。
+
+      【状态修正】
+
+      ## 当玩家有 giant 状态时：
+
+      - 空地突然显得很小，你几步就能走到头
+
+      - 石井看起来像一个小水桶，你可以直接伸手探入井底
+
+      - 野花在你巨大的脚下被无情踩踏，蝴蝶纷纷逃离你的阴影
+
+      - 捕蝶网对于你现在的巨手来说小得可笑，根本无法使用
+
+      - 你的每一步都在草地上留下深深的脚印
+
+      - 治愈草药看起来小如指甲，需要极其小心才能采摘
+
+
+      ## 当玩家有 hallucinating 状态时：
+
+      - 野花的色彩变得过于浓烈，仿佛在燃烧
+
+      - 蝴蝶的翅膀上出现了不存在的文字和符号
+
+      - 井水的倒影中似乎映出了另一个世界
+
+      - 阳光有时变成液态的金色，从天空倾泻而下
+
+      - 草药散发出异常强烈的香气，让你分不清是真实还是幻觉
+
+      '
+    explicit_state: null
+    implicit_state: 井中藏着通往宝藏的银钥匙，藤蔓后隐藏着通往隐秘林地的小径
+    objects:
+    - id: stone_well
+      name: 石井
+      definition: '【描述】
+
+        空地中央矗立着一口古老石井，井沿布满苔藓与藤蔓，旁边挂着一只破旧木桶。
+
+
+        【交互规则】
+
+        ## 检查古老的石井
+
+        玩家细看时，写出井壁的风化痕迹、木桶的磨损，以及井底泉水边那把隐隐闪光的 **{silver_key: 银钥匙}**。
+        这应视为石井已经被检查过，记下 `well_examined`；同时让 `silver_key` 处于 `in_well` 与 `visible` 状态。
+
+
+        ## 当玩家是巨人时取钥匙
+
+        玩家有 giant 状态时，石井只像个小水桶。描写他们笨拙地在井里摸索，差点把钥匙碰开，最后才小心地把它捏起来。
+        这应视为 `silver_key` 进入玩家背包，钥匙带上 `taken` 与 `hidden` 状态，并记下 `has_silver_key` 与 `well_examined`。'
+      explicit_state: 空地中央矗立着一口古老的石井，井沿上爬满藤蔓。
+      implicit_state: ''
+      properties:
+        status: []
+    - id: butterfly_net
+      name: 捕蝶网
+      definition: '【描述】
+
+        一个轻巧的捕蝶网落在草地上，细长木柄末端连着精致的网袋。
+
+
+        【交互规则】
+
+        ## 拿起捕蝶网
+
+        玩家拾起它时，描写木柄轻巧却结实，拿在手里刚好适合追逐低飞的蝴蝶。
+        这应视为 `butterfly_net` 进入玩家背包，并带上 `taken` 与 `hidden` 状态。
+
+
+        ## 用捕蝶网抓蝴蝶
+
+        玩家挥网时，描写捕蝶网兜住一只美丽的蓝色蝴蝶，它在手中轻轻拍打翅膀。
+        这应视为 `blue_butterfly` 进入玩家背包，并记下 `butterfly_caught`；不要重复给玩家新增第二个 `butterfly_net`。
+
+
+        ## 当玩家是巨人时
+
+        玩家有 giant 状态时，捕蝶网在手里像玩具。写出动作笨拙、蝴蝶四散、 木柄吱呀作响的窘态；不要触发 butterfly_caught 效果。 如果玩家反复硬试，可以把网写坏。'
+      explicit_state: 一个轻巧的捕蝶网，细长的木柄上连着精致的网袋，看起来很适合捕捉飞行中的昆虫。
+      implicit_state: ''
+      properties:
+        status: []
+    - id: blue_butterfly
+      name: 蓝色蝴蝶
+      definition: '【描述】
+
+        一只美丽的蓝色蝴蝶，翅膀上有精致的花纹，闪烁着宝石般的光泽。
+
+
+        【交互规则】
+
+        ## 观察蝴蝶
+
+        玩家看它时，突出翅膀的宝石光泽与轻轻拍动时的脆弱美感。
+
+
+        ## 放飞蝴蝶
+
+        玩家想放飞它时，描写蝴蝶挣脱手心、重新飞入阳光的轻盈一刻。
+        这应视为 `blue_butterfly` 离开玩家背包，并把 `butterfly_caught` 改回 false。
+
+        '
+      explicit_state: 一只蓝色蝴蝶在你手中轻轻拍打着翅膀。
+      implicit_state: 可以与隐士交换得到有价值的东西
+      properties:
+        status:
+        - hidden
+    - id: healing_herbs
+      name: 治愈草药
+      definition: '【描述】
+
+        一簇翠绿草药长在空地边缘，心形叶片上带着清新的草木气息。
+
+
+        【交互规则】
+
+        ## 采摘治愈草药
+
+        玩家采摘时，描写叶面冰凉柔软、香气清新醒神，像是能驱散体内的异样魔力。
+        这应视为 `healing_herbs` 进入玩家背包，并带上 `taken` 与 `hidden` 状态。
+
+
+        ## 检查草药
+
+        玩家检查时，描写心形叶片、细小锯齿与稳定身体和心神的药性，并记下 `herbs_examined`。
+
+
+        ## 使用治愈草药
+
+        玩家使用草药时，描写苦涩汁液扩散、眩晕与幻象像潮水一样退去、失控变化逐渐平息。
+        这应视为 `healing_herbs` 从背包中消失，并把 `player_hallucinating` 与 `player_is_big` 改回 false。
+
+
+        ## 当玩家是巨人时采摘草药
+
+        玩家有 giant 状态时，把采药写得笨拙又紧张：他们必须俯身细找，几次险些把叶子捏烂，但最终还是成功采到。
+        机械结果与正常采摘相同：`healing_herbs` 进入背包，并带上 `taken` 与 `hidden` 状态。
+
+
+        ## 当玩家是巨人时使用草药
+
+        玩家有 giant 状态时，重点描写苦味、身体回缩、视角下降、树木重新变高，以及幻觉一点点散去的强烈反差。
+        这应视为 `healing_herbs` 从背包中消失，`player_hallucinating` 与 `player_is_big` 改回 false，
+        同时移除玩家的 `giant`、`strong`、`hallucinating` 状态，并把玩家可见状态改写为“你恢复了正常的体型，头脑也变得清醒。森林重新变得高大而神秘，世界恢复了真实的色彩。”'
+      explicit_state: 一簇翠绿的草药生长在空地的边缘，叶子呈心形，散发着淡淡的清香。
+      implicit_state: ''
+      properties:
+        status: []
+    - id: silver_key
+      name: 银钥匙
+      definition: '【描述】
+
+        这是一把古老的银钥匙，表面仍保留着细微光泽，显然并非凡物。 若它还在井里，应把它描写成躺在清澈泉水中的一抹银光； 若已被取走，则把它描写成一把可握在掌心的旧钥匙。
+
+
+        【交互规则】
+
+        ## 取出银钥匙
+
+        玩家取出它时，描写冰凉的金属落入掌心的实感。
+        这应视为 `silver_key` 进入玩家背包，钥匙带上 `taken` 与 `hidden` 状态，并记下 `has_silver_key`。'
+      explicit_state: ''
+      implicit_state: ''
+      properties:
+        status:
+        - hidden
+    - id: lush_vines
+      name: 浓密的藤蔓
+      definition: '【描述】
+
+        绿油油的藤蔓沿着岩壁与树干一路蔓生，把空地边缘遮得很严实。
+
+
+        【交互规则】
+
+        ## 检查藤蔓
+
+        玩家检查时，描写西北角那片凌乱叶影以及拨开后露出的隐秘小径。
+        这应视为 `found_hidden_path = true`，藤蔓带上 `searched` 状态，且它的可见状态改成“藤蔓被拨开后，在西北角露出了一条{go_northwest: 隐秘的小径}，通往森林深处。”
+
+
+        ## 当玩家是巨人时撕开藤蔓
+
+        玩家有 giant 状态时，把藤蔓写得像轻易就能扯碎的薄网，突出汁液四溅与植被被强行撕开的压迫感。
+        这同样应视为 `found_hidden_path = true`；藤蔓带上 `searched` 与 `destroyed` 状态，并把可见状态改成“藤蔓被巨力撕碎，在西北角露出了一条{go_northwest: 隐秘的小径}，通往森林深处。碎裂的藤蔓残骸散落一地。”'
+      explicit_state: 绿油油的藤蔓攀爬在空地的岩壁和树木上，把四周封得严严实实。
+      implicit_state: 藤蔓后隐藏着通往隐秘林地的小径
+      properties:
+        status: []
+    actions: []
+    characters: []
+    triggers: []
+  hidden_grove:
+    isStartNode: false
+    id: hidden_grove
+    name: 隐秘林地
+    definition: '【State Conditions】
+
+      ## 当玩家有 giant 状态时：
+
+      - 隐秘林地对你来说狭小局促，你必须弯腰才能不被树枝刮到
+
+      - 隐士的小屋看起来像一个脆弱的鸟巢，你一不小心就可能踩塌它
+
+      - 你沉重的脚步震动地面，散落的植物和符文石被震得跳起
+
+      - 小鹿在你到来的一瞬间警觉地后退
+
+      - 隐士抬头看到你的巨大身影时，脸上闪过惊讶和忧虑
+
+
+      ## 当玩家有 hallucinating 状态时：
+
+      - 隐士身周笼罩着一层淡淡的金色光环，看起来像是神灵
+
+      - 小鹿的眼睛闪烁着星辰般的光芒，仿佛能看穿你的灵魂
+
+      - 古老的卷轴上的文字在空气中浮起，形成流动的光带
+
+      - 小屋似乎在缓慢地呼吸，藤蔓像血管一样搏动
+
+      - 符文石发出低沉的嗡鸣，仿佛在吟唱远古的咒语
+
+
+      【出口】
+
+      - go_southeast → clearing（阳光空地）
+
+      '
+    explicit_state: '穿过茂密的藤蔓，你来到一片与世隔绝的隐秘林地。这里异常宁静，阳光透过树叶的缝隙洒下柔和的光线，照亮了一座用树枝和藤蔓搭建的简朴小屋。小屋前坐着一位{@forest_hermit:
+      白发苍苍的老人}，他正在专注地研究一些古老的卷轴。空气中弥漫着草药和木烟的混合气息，地上散落着各种采集来的植物和奇怪的符文石。一只温顺的{@mystic_deer: 小鹿}在小屋旁静静地吃草。{向东南:
+      返回空地}可以返回阳光空地。'
+    objects:
+    - id: ancient_map
+      name: 古老地图
+      definition: |-
+        【描述】
+        一张泛黄的羊皮纸地图，上面用古老的墨水绘制着森林的布局。
+
+        【交互规则】
+        ## 仔细研究古老地图
+        当玩家执行此操作时：
+        - 展示地图上描绘的森林布局，并记下 `map_examined`。
+
+        ## 拿起古老地图
+        当玩家执行此操作时：
+        - 描写玩家小心地将地图收入怀中，感觉它会成为珍贵的指引。
+        - 这应视为 `ancient_map` 进入玩家背包，并带上 `taken` 与 `hidden` 状态。
+      explicit_state: 一张泛黄的羊皮纸地图，上面用古老的墨水绘制着森林的布局。
+      implicit_state: ''
+      properties:
+        status:
+        - hidden
+    actions: []
+    characters: []
+    triggers: []
+  cave_entrance:
+    isStartNode: false
+    id: cave_entrance
+    name: 洞穴入口
+    definition: '【State Conditions】
+
+      ## 当玩家有 giant 状态时：
+
+      - 洞穴入口对你来说显得非常狭窄，你需要蹲下甚至爬行才能进入
+
+      - 那扇木门在你面前显得脆弱不堪，像一张薄纸
+
+      - 石匾只到你的脚踝位置，你必须俯下身才能看清上面的文字
+
+      - 你的巨大身躯挡住了洞口的光线，让洞穴内更加漆黑
+
+      - 蝙蝠被你的到来惊得四散飞出
+
+
+      ## 当玩家有 hallucinating 状态时：
+
+      - 洞穴入口似乎在缓慢收缩和扩张，仿佛一个活物的嘴巴
+
+      - 石匾上的符号发出微弱的红光，像是活着的文字
+
+      - 从洞穴深处涌出的空气中夹杂着隐约的低语和叹息
+
+      - 藤蔓像触手一样缓慢蠕动，似乎想要抓住什么
+
+      - 岩石表面的苔藓呈现出不自然的色彩，在黑暗中发出诡异的荧光
+
+
+      【出口】
+
+      - go_south → clearing（阳光空地）
+
+      - 穿过木门进入洞穴 → treasure_room（宝藏室）（由 cave_door 物体交互触发，需要门已解锁）
+
+      '
+    explicit_state: '你来到了一个被茂密植被环绕、几乎完全隐藏的洞穴入口。厚重的藤蔓像帘幕一样垂挂在洞口，苔藓覆盖了岩石表面，使整个入口看起来古老而神秘，仿佛已经沉睡了数百年。从洞穴深处不断涌出凉爽的空气，带着潮湿的泥土气息和隐约的矿物味道，让你感到一丝寒意。在洞穴入口的右侧，半掩在蕨类植物后面，你注意到一块{stone_tablet:
+      古老石匾}，上面刻着风化的符号。洞口被一扇{cave_door: 古老的木门}部分阻挡。透过门缝，你只能看到漆黑一片，偶尔有蝙蝠的翅膀扑腾声从黑暗中传来。'
+    objects:
+    - id: cave_door
+      name: 木门
+      definition: '【描述】
+
+        洞穴入口被一扇{cave_door: 木门}部分阻挡，门上挂着一个生锈的挂锁。
+
+
+        【交互规则】
+
+        ## 检查门和挂锁
+
+        玩家检查时，说明这扇木门虽然陈旧却仍很结实，被挂锁固定住，需要一把匹配的钥匙。
+
+
+        ## 用银钥匙打开挂锁
+
+        当玩家执行此操作时（需要背包中有银钥匙）：
+        - 描写银钥匙与挂锁完美契合、咔嗒一声打开。
+        - 这应视为 `cave_door` 带上 `unlocked` 状态，并把它的可见状态改成“洞穴入口的木门已经解锁，可以推开进入洞穴深处。”
+
+
+        ## 破门而入
+
+        当玩家执行此操作时（需要玩家有 giant 状态）：
+        - 描写玩家凭借暴涨的力量砸碎木门。
+        - 这应视为 `cave_door` 同时带上 `unlocked` 与 `broken` 状态，并把玩家带到 `treasure_room`。
+
+
+        ## 打开门
+
+        当玩家尝试打开门时：
+        - 如果门已解锁（status 包含 `unlocked`），描写玩家推门进入，并把玩家带到 `treasure_room`。
+        - 如果门未解锁，说明门被挂锁锁着，无法打开，必须先找到钥匙。
+
+
+        ## 进入洞穴
+
+        当玩家尝试进入洞穴时：
+        - 如果门已解锁（status 包含 `unlocked`），描写玩家推门进入，并把玩家带到 `treasure_room`。
+        - 如果门未解锁，说明木门仍挡住去路，必须先把门打开。'
+      explicit_state: '洞穴入口被一扇{cave_door: 木门}部分阻挡，门上挂着一个生锈的挂锁。'
+      implicit_state: ''
+      properties:
+        status: []
+    - id: stone_tablet
+      name: 石匾
+      definition: '【描述】
+
+        洞穴入口旁的石匾上刻着古老符号，看起来像是某种警告或指示。
+
+
+        【交互规则】
+
+        ## 检查石匾
+
+        - 描写玩家辨认石匾上的古老符号，并意识到其中提到了宝藏、门锁，以及一把能够开启前路的银钥匙。
+        - 这应视为石匾已经 `examined`，并记下 `tablet_examined`。'
+      explicit_state: 洞穴入口旁的石匾上刻着古老的符号，看起来像是某种警告或指示。
+      implicit_state: ''
+      properties:
+        status: []
+    actions: []
+    characters: []
+    triggers: []
+  treasure_room:
+    isStartNode: false
+    id: treasure_room
+    name: 宝藏室
+    definition: '【State Conditions】
+
+      ## 当玩家有 giant 状态时：
+
+      - 宝藏室的天花板低矮，你必须弯腰甚至半蹲才能站在里面
+
+      - 石台和宝箱看起来小巧精致，你一只手就能拎起整个宝箱
+
+      - 墙壁上的火把只到你腰部位置，照亮你的下半身
+
+      - 你庞大的身躯几乎填满了整个房间，转身都困难
+
+      - 铭文在你脚边，你必须趴下才能阅读
+
+
+      ## 当玩家有 hallucinating 状态时：
+
+      - 宝箱上的宝石发出脉动的光芒，像是活着的心脏在跳动
+
+      - 墙壁上的铭文在火光中不断变化，写出不同的警告
+
+      - 火把的火焰呈现出不自然的蓝紫色
+
+      - 石台似乎在缓慢旋转，宝箱的位置看起来不断移动
+
+      - 你隐约听到远古的声音在耳边回响，是诅咒还是祝福难以分辨
+
+
+      【交互规则】
+
+      ## 检查宝藏室
+
+      当玩家环顾四周或细看墙壁时，展示铭文：
+      "此乃阿尔德里克国王之遗产，贪婪者将受诅咒，谦逊者将得祝福，弃财者将获真知。愿进入此室者，三思而后行。"
+      并记下 `read_room_inscription`。
+
+      '
+    explicit_state: '你终于到达了传说中的宝藏室！房间中央是一个古老的石台，上面放着一个华丽的{treasure_chest: 宝箱}。宝箱上镶嵌着宝石，在微弱的光线中闪闪发光。墙壁上的火把自动点燃，照亮了整个房间。你感到一种成就感涌上心头，冒险终于到达了终点。'
+    triggers: []
+    objects:
+    - id: treasure_chest
+      name: 宝箱
+      definition: '【描述】
+
+        一个华丽宝箱放在石台中央，镶着宝石与金属花纹，盖子并没有上锁。
+
+
+        【交互规则】
+
+        ## 打开宝箱
+
+        当玩家执行此操作时：
+        - 描写宝箱开启后金币、珠宝与古老金杯显露出来。
+        - 这应视为 `treasure_chest` 已经 `opened`，玩家已经得到宝藏并记下 `has_treasure`。
+        - 同时让 `golden_coin` 与 `golden_goblet` 作为掉落物出现。
+        - 紧接着描写房间深处传来轰鸣、`glowing_door` 在墙后显现，并让它带上 `visible` 状态。'
+      explicit_state: 一个华丽的宝箱放在石台中央，镶嵌着各种宝石，看起来非常珍贵。
+      implicit_state: ''
+      properties:
+        status: []
+    - id: golden_coin
+      name: 金币
+      definition: '【描述】
+
+        小而闪亮的金币上刻着古老王室的徽章。它也许不只值钱，更像是这座宝藏曾真实存在过的证明。'
+      explicit_state: 小而闪亮的金币上刻着古老王室的徽章。它也许不只值钱，更像是这座宝藏曾真实存在过的证明。
+      implicit_state: ''
+      properties:
+        status:
+        - hidden
+    - id: golden_goblet
+      name: 古老的金杯
+      definition: '【描述】
+
+        雕刻精美的金杯上布满复杂纹饰，杯口略有磨损，看得出它曾属于某位身份显赫的人。'
+      explicit_state: 雕刻精美的金杯上布满复杂纹饰，杯口略有磨损，看得出它曾属于某位身份显赫的人。
+      implicit_state: ''
+      properties:
+        status:
+        - hidden
+    - id: guardian_badge
+      name: 森林守护者徽章
+      definition: '【描述】
+
+        一枚精致的徽章，由活生生的藤蔓和发光的琥珀制成。它象征着森林守护者的崇高地位，散发着自然的祝福之力。'
+      explicit_state: 一枚精致的徽章，由活生生的藤蔓和发光的琥珀制成。它象征着森林守护者的崇高地位，散发着自然的祝福之力。
+      implicit_state: ''
+      properties:
+        status:
+        - hidden
+    - id: glowing_door
+      name: 发光之门
+      definition: '【描述】
+
+        一扇散发着光芒的石门出现在房间深处。
+
+        门上的符文闪烁着，仿佛在召唤你离开这里。
+
+        这似乎是离开宝藏室的唯一方法。
+
+        门的颜色会根据玩家的行为而变化——金色代表祝福，暗红色代表诅咒。
+
+
+        【交互规则】
+
+        ## 观察/检查发光之门
+
+        根据玩家状态描述门的颜色：
+
+        - 如果 player_hallucinating 为 true：门散发着扭曲的暗红色光芒，符文像是在嘲笑
+
+        - 如果 traded_butterfly 为 true 且 learned_curse 为 true：门散发着温暖的金色光芒，符文闪烁着祝福
+
+        - 其他情况：门散发着普通的白色光芒
+
+
+        ## 穿过发光之门/离开/通过门
+
+        根据以下条件判断结局（按优先级从高到低）：
+
+
+        ### 诅咒结局（ending_cursed）
+
+        条件：player_hallucinating 为 true（吃了蘑菇）
+
+        - 描述：你带着贪婪和混乱的心穿过石门。但当光芒散去时，你发现自己仍在原地。
+
+        - 描述：你的双手空空如也——所有宝藏都化为了灰烬。蘑菇的幻觉让你看不清真实，而你的贪婪触发了阿尔德里克国王的诅咒。
+
+        - 描述：你跌坐在地，意识到自己失去了一切。传说中，贪婪者将受诅咒——如今你明白了这句话的含义。
+        - 将其收束为【诅咒结局】；记下 `ending_cursed` 与 `adventure_complete`。
+
+
+        ### 守护者结局（ending_guardian）- 最佳结局
+
+        条件：traded_butterfly 为 true 且 learned_curse 为 true 且 learned_hermit_story 为 true
+
+        - 描述：你带着对森林的理解和敬意穿过石门。温暖的金光包围着你。
+
+        - 描述：当你睁开眼睛，发现自己站在森林入口。但你的身上多了一样东西——森林守护者的徽章。
+
+        - 描述：隐士的声音在耳边回响："你选择了智慧而非贪婪，选择了分享而非独占。从今往后，你就是这片森林新的守护者。"
+        - 描述：你感受到森林的祝福流入体内，成为这片土地的一部分。
+        - 这应视为 `guardian_badge` 进入玩家手中，并收束为【守护者结局】；记下 `ending_guardian` 与 `adventure_complete`。
+
+
+        ### 荣誉结局（ending_honorable）- 好结局
+
+        条件：learned_curse 为 true（从隐士那里学到了诅咒的知识）
+
+        - 描述：你带着对诅咒的了解穿过石门。光芒柔和而温暖。
+
+        - 描述：当光芒散去，你发现自己回到了森林入口，手中的宝藏完好无损。
+
+        - 描述：你听到隐士的话语回响："懂得敬畏的人，将获得真正的财富。"
+        - 描述：你不仅带走了宝藏，更带走了智慧。这次冒险让你成为更好的人。
+        - 将其收束为【荣誉结局】；记下 `ending_honorable` 与 `adventure_complete`。
+
+
+        ### 普通结局（ending_standard）- 中性结局
+
+        条件：其他所有情况
+
+        - 描述：你穿过石门，白光闪烁。
+
+        - 描述：当你睁开眼睛，发现自己站在森林入口，手中握着从宝藏室取得的财宝。
+        - 描述：你完成了冒险，获得了宝藏。但你总觉得错过了什么——也许这片森林还有更多秘密等待发掘。
+        - 将其收束为【普通结局】；记下 `ending_standard` 与 `adventure_complete`。
+
+        '
+      explicit_state: 一扇散发着神秘光芒的石门，门上的符文闪烁着，等待着你做出最终的选择。
+      implicit_state: 穿过此门将根据你的行为决定结局——诅咒、普通、荣誉或守护者
+      properties:
+        status:
+        - hidden
+    actions: []
+    characters: []
+# WARNING: The fields below are generated by the connection-graph compile step.
+# Do not edit them manually; re-run tools/compile_connections.py instead.
+connection_graph_source_md5: f2ba11dbeb8fb620f046848dc27c9d5b
+connections:
+- id: forest_path_node_objects_old_signpost_strange_mushroom
+  source: forest_path
+  targets:
+  - strange_mushroom
+  - old_signpost
+- id: forest_path_node_navigation_text_clearing_deep_forest
+  source: forest_path
+  targets:
+  - deep_forest
+  - clearing
+- id: deep_forest_node_objects_ancient_runes_fallen_tree_glowing_moss
+  source: deep_forest
+  targets:
+  - fallen_tree
+  - ancient_runes
+  - glowing_moss
+- id: deep_forest_node_navigation_text_cave_entrance_forest_path
+  source: deep_forest
+  targets:
+  - forest_path
+  - cave_entrance
+- id: deep_forest_embedded_navigation_fallen_tree_cave_entrance
+  source: deep_forest
+  targets:
+  - cave_entrance
+- id: clearing_node_objects_blue_butterfly_butterfly_net_healing_herbs_lush_vines_silver_key_stone_well
+  source: clearing
+  targets:
+  - stone_well
+  - butterfly_net
+  - blue_butterfly
+  - healing_herbs
+  - silver_key
+  - lush_vines
+- id: clearing_node_navigation_text_forest_path_hidden_grove
+  source: clearing
+  targets:
+  - forest_path
+  - hidden_grove
+- id: hidden_grove_node_objects_ancient_map
+  source: hidden_grove
+  targets:
+  - ancient_map
+- id: hidden_grove_node_navigation_text_clearing
+  source: hidden_grove
+  targets:
+  - clearing
+- id: cave_entrance_node_objects_cave_door_stone_tablet
+  source: cave_entrance
+  targets:
+  - cave_door
+  - stone_tablet
+- id: cave_entrance_node_navigation_text_clearing_treasure_room
+  source: cave_entrance
+  targets:
+  - clearing
+  - treasure_room
+- id: cave_entrance_embedded_navigation_cave_door_treasure_room
+  source: cave_entrance
+  targets:
+  - treasure_room
+- id: forest_hermit_character_placements_hidden_grove
+  source: forest_hermit
+  targets:
+  - hidden_grove
+- id: clever_monkey_character_placements_deep_forest
+  source: clever_monkey
+  targets:
+  - deep_forest
+- id: mystic_deer_character_placements_hidden_grove
+  source: mystic_deer
+  targets:
+  - hidden_grove
+- id: player_adventurer_state_giant_propagates_to_forest_path_visual_and_physical_constraints
+  source: player_adventurer
+  targets:
+  - forest_path
+- id: player_adventurer_state_hallucinating_propagates_to_forest_path_sensory_distortion
+  source: player_adventurer
+  targets:
+  - forest_path
+- id: player_adventurer_state_giant_propagates_to_deep_forest_scale_and_interaction
+  source: player_adventurer
+  targets:
+  - deep_forest
+- id: player_adventurer_state_hallucinating_propagates_to_deep_forest_ambient_reality_shift
+  source: player_adventurer
+  targets:
+  - deep_forest
+- id: player_adventurer_state_giant_propagates_to_clearing_space_and_object_usability
+  source: player_adventurer
+  targets:
+  - clearing
+- id: player_adventurer_state_hallucinating_propagates_to_clearing_atmospheric_instability
+  source: player_adventurer
+  targets:
+  - clearing
+- id: player_adventurer_state_giant_propagates_to_hidden_grove_social_and_structural_pressure
+  source: player_adventurer
+  targets:
+  - hidden_grove
+- id: player_adventurer_state_hallucinating_propagates_to_hidden_grove_spiritual_aura_shift
+  source: player_adventurer
+  targets:
+  - hidden_grove
+- id: player_adventurer_state_giant_propagates_to_cave_entrance_access_and_perception
+  source: player_adventurer
+  targets:
+  - cave_entrance
+- id: player_adventurer_state_hallucinating_propagates_to_cave_entrance_living_architecture
+  source: player_adventurer
+  targets:
+  - cave_entrance
+- id: player_adventurer_state_giant_propagates_to_treasure_room_physical_confinement
+  source: player_adventurer
+  targets:
+  - treasure_room
+- id: player_adventurer_state_hallucinating_propagates_to_treasure_room_reality_fluctuation
+  source: player_adventurer
+  targets:
+  - treasure_room
+- id: forest_hermit_knowledge_propagates_to_clearing_hidden_path_discovery
+  source: forest_hermit
+  targets:
+  - clearing
+- id: clever_monkey_behavior_propagates_to_clearing_silver_key_location_hint
+  source: clever_monkey
+  targets:
+  - clearing
+- id: mystic_deer_prophecy_propagates_to_player_adventurer_moral_choice_system
+  source: mystic_deer
+  targets:
+  - player_adventurer
+- id: forest_path_contains_local_objects_old_signpost_strange_mushroom
+  source: forest_path
+  targets:
+  - strange_mushroom
+  - old_signpost
+- id: deep_forest_contains_local_objects_ancient_runes_fallen_tree_glowing_moss
+  source: deep_forest
+  targets:
+  - fallen_tree
+  - ancient_runes
+  - glowing_moss
+- id: clearing_contains_local_objects_blue_butterfly_butterfly_net_healing_herbs_lush_vines_silver_key_stone_well
+  source: clearing
+  targets:
+  - stone_well
+  - butterfly_net
+  - blue_butterfly
+  - healing_herbs
+  - silver_key
+  - lush_vines
+- id: hidden_grove_contains_local_objects_ancient_map
+  source: hidden_grove
+  targets:
+  - ancient_map
+- id: cave_entrance_contains_local_objects_cave_door_stone_tablet
+  source: cave_entrance
+  targets:
+  - cave_door
+  - stone_tablet
+- id: forest_hermit_located_at_nodes_hidden_grove
+  source: forest_hermit
+  targets:
+  - hidden_grove
+- id: clever_monkey_located_at_nodes_deep_forest
+  source: clever_monkey
+  targets:
+  - deep_forest
+- id: mystic_deer_located_at_nodes_hidden_grove
+  source: mystic_deer
+  targets:
+  - hidden_grove
+- id: forest_path_goto_paths_clearing_deep_forest
+  source: forest_path
+  targets:
+  - deep_forest
+  - clearing
+- id: treasure_room_contains_local_objects_glowing_door_golden_coin_golden_goblet_guardian_badge_treasure_chest
+  source: treasure_room
+  targets:
+  - treasure_chest
+  - golden_coin
+  - golden_goblet
+  - guardian_badge
+  - glowing_door

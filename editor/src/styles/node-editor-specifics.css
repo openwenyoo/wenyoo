@@ -1,0 +1,520 @@
+/* Element-specific styles for Node Editor panels */
+
+/* ===========================
+   LAYOUT HELPERS
+   =========================== */
+.form-row.two-col {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-top: 16px;
+    margin-bottom: 16px;
+    padding: 0 4px;
+}
+
+.form-row.two-col .form-group {
+    flex: 1;
+    margin-bottom: 0px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.form-row.two-col .form-group label {
+    margin-bottom: 0;
+    white-space: nowrap;
+    width: auto;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+    /* Bauhaus dark grey text */
+}
+
+.form-row.two-col .form-group input {
+    border: none;
+    background: transparent;
+    border-bottom: 2px solid #ddd;
+    /* Use Sans-Serif for Data Inputs (ID, Name, Short text) for consistency */
+    font-family: var(--font-primary) !important;
+    font-size: 1rem;
+    padding: 4px 0;
+    font-weight: 600;
+    color: var(--color-dark);
+    transition: border-color 0.2s ease;
+}
+
+.form-row.two-col .form-group input:focus {
+    outline: none;
+    border-bottom: 2px solid var(--color-primary);
+    background: rgba(238, 103, 68, 0.05);
+}
+
+
+/* ===========================
+   EMPTY STATE
+   =========================== */
+.empty-state {
+    padding: 12px 0;
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    font-family: var(--font-primary);
+    /* Keep consistent */
+    background: transparent;
+    border: none;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* ===========================
+   PANEL BACKGROUNDS
+   =========================== */
+.node-editor,
+.secondary-editor.open {
+    /* Subtle Warm Gradient */
+    background: linear-gradient(180deg, #FFFFFF 0%, #FDFBF7 100%) !important;
+
+    box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.15) !important;
+    border-right: 3px solid var(--color-border) !important;
+    border-left: none;
+}
+
+.secondary-editor.open {
+    border-left: 3px solid var(--color-border) !important;
+    border-right: none;
+}
+
+/* Panel Headers */
+.node-editor .sticky-header,
+.secondary-editor .sticky-header {
+    background: var(--color-primary) !important;
+    border-bottom: 3px solid var(--color-border) !important;
+    padding: 12px 20px !important;
+}
+
+.node-editor .sticky-header h3,
+.secondary-editor .sticky-header h3 {
+    color: white !important;
+    font-weight: 700;
+    font-family: var(--font-primary) !important;
+    font-size: 1.2rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+/* Close Button */
+.header-close-btn {
+    background: transparent !important;
+    border: none !important;
+    color: white !important;
+    font-size: 1.5rem;
+    opacity: 0.8;
+}
+
+.section-header,
+.sticky-section-header {
+    font-family: var(--font-primary) !important;
+}
+
+.sticky-section-header {
+    background: transparent !important;
+    border-bottom: 2px solid var(--color-primary);
+    margin-bottom: 12px !important;
+    padding-top: 20px;
+    font-family: var(--font-primary) !important;
+    color: var(--color-dark);
+    font-weight: 700;
+}
+
+
+/* ===========================
+   TYPOGRAPHY UNIFICATION
+   =========================== */
+/* 
+   Force all standard inputs and selects to use the Primary Sans-Serif font.
+   This overrides the 'Courier New' default from App.css and cleans up the mix.
+*/
+.node-editor input,
+.node-editor select,
+.secondary-editor input,
+.secondary-editor select,
+.notebook-textarea,
+/* Just to reset defaults before specific override */
+.node-editor textarea,
+.secondary-editor textarea {
+    font-family: var(--font-primary) !important;
+    color: var(--color-dark);
+}
+
+/* Select specifics to fix Monospace issue */
+.node-editor select,
+.secondary-editor select {
+    background-color: white !important;
+    font-weight: 500;
+}
+
+
+/* ===========================
+   NOTEBOOK TEXTAREA (The Only Serif Place)
+   =========================== */
+/* 
+   Only the Notebook/Description Textarea gets the "Novel Writing" Serif font.
+   This creates a clear distinction: Data vs Story.
+*/
+.notebook-textarea,
+.node-editor textarea,
+.secondary-editor textarea {
+    font-family: 'Georgia', 'Times New Roman', serif !important;
+    font-size: 16px !important;
+    line-height: 28px !important;
+    color: #2c2c2c !important;
+}
+
+.notebook-textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 0 16px;
+    outline: none;
+    border: 2px solid #e0e0e0;
+
+    background-color: #FDFBF7 !important;
+
+    background-image:
+        linear-gradient(#FDFBF7 34px, transparent 34px),
+        linear-gradient(transparent 27px, #ccc 28px) !important;
+
+    background-size: 100% 100%, 100% 28px !important;
+    background-attachment: local, local !important;
+    background-repeat: no-repeat, repeat !important;
+
+    padding-top: 34px !important;
+    border-radius: 0;
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.02);
+}
+
+.notebook-textarea:focus {
+    border-color: var(--color-dark);
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* ===========================
+   INPUTS SPECIFIC
+   =========================== */
+/* Ensure ID inputs are clean Sans-Serif or Mono if strictly needed, but consistent */
+.node-editor .id-input,
+.secondary-editor .id-input {
+    font-family: 'Courier New', monospace !important;
+    /* IDs stay technical */
+    font-size: 0.9rem !important;
+    color: #666 !important;
+}
+
+/* ==============================================
+   CHARACTER PLACEMENT CARDS IN NODE EDITOR
+   Override the grid layout for character section
+   ============================================== */
+
+/* Force the character card list to use column layout instead of grid */
+.node-editor .character-card-list {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: unset !important;
+    gap: 8px !important;
+}
+
+/* Also support :has() for browsers that support it */
+.node-editor .section-characters .card-list {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: unset !important;
+    gap: 8px !important;
+}
+
+/* Card Styling - Character Placement Cards in NodeEditor */
+/* These need very specific overrides to beat the base .card-item styles */
+.node-editor .character-card-list .card-item.character-placement-card,
+.node-editor .card-list .card-item.character-placement-card {
+    /* Force non-square layout */
+    aspect-ratio: unset !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 48px !important;
+    max-height: none !important;
+    
+    /* Horizontal layout */
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    
+    /* Styling */
+    background: #fff !important;
+    border: 2px solid var(--color-border) !important;
+    box-shadow: 2px 2px 0 #eee !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    cursor: pointer;
+    text-align: left !important;
+    transition: all 0.2s ease;
+    overflow: visible !important;
+}
+
+.node-editor .character-placement-card:hover {
+    border-color: #9C27B0 !important;
+    box-shadow: 3px 3px 0 #9C27B0 !important;
+    transform: translate(-1px, -1px);
+}
+
+/* Character card type indicator - purple stripe on left */
+.node-editor .character-placement-card .card-type-indicator.type-character {
+    width: 6px !important;
+    height: auto !important;
+    min-height: 100% !important;
+    position: static !important;
+    top: unset !important;
+    left: unset !important;
+    flex-shrink: 0;
+    background: #9C27B0 !important;
+}
+
+/* Character card content */
+.node-editor .character-placement-card .card-content {
+    flex: 1 !important;
+    padding: 8px 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+    min-width: 0 !important;
+    -webkit-line-clamp: unset !important;
+    -webkit-box-orient: unset !important;
+}
+
+.node-editor .character-placement-card .char-name {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--color-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.node-editor .character-placement-card .placement-config {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.node-editor .character-placement-card .placement-config select {
+    font-size: 0.7rem;
+    padding: 2px 4px;
+    border: 1px solid #ccc;
+    background: #f9f9f9;
+    font-weight: 500;
+    cursor: pointer;
+    max-width: 90px;
+}
+
+.node-editor .character-placement-card .placement-config select:focus {
+    border-color: #9C27B0;
+    outline: none;
+}
+
+.node-editor .character-placement-card .condition-input {
+    font-size: 0.7rem;
+    padding: 2px 4px;
+    border: 1px solid #ccc;
+    flex: 1;
+    min-width: 60px;
+    max-width: 100px;
+}
+
+/* Character card delete button - square with border on right side */
+.node-editor .character-placement-card .card-delete-btn {
+    background: transparent !important;
+    border: none !important;
+    border-left: 1px solid #ddd !important;
+    color: #999 !important;
+    font-size: 1.1rem;
+    font-weight: 400;
+    cursor: pointer;
+    padding: 0 !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease;
+    flex-shrink: 0 !important;
+}
+
+.node-editor .character-placement-card .card-delete-btn:hover {
+    background: #F44336 !important;
+    color: white !important;
+}
+
+/* ===========================
+   GENERATE NODE OVERRIDES
+   =========================== */
+/* Specific overrides to handle !important conflicts */
+
+/* Panel Background & Border */
+.node-editor.is-generate-node {
+    background: #1a1a1a !important;
+    border-right: 2px solid transparent !important;
+    border-image: linear-gradient(45deg,
+            #ff0000,
+            #ff7300,
+            #fffb00,
+            #48ff00,
+            #00ffd5,
+            #002bff,
+            #7a00ff,
+            #ff00c8,
+            #ff0000) 1 !important;
+}
+
+/* Header Background */
+.node-editor.is-generate-node .sticky-header {
+    background: #111 !important;
+    border-bottom: 1px solid #333 !important;
+    /* Restore border */
+    position: sticky !important;
+    /* RESTORE STICKY */
+    top: 0 !important;
+    overflow: hidden !important;
+    /* Contain the flash */
+    z-index: 100 !important;
+}
+
+/* Iridescent Ribbon Flash for Header Background */
+.node-editor.is-generate-node .sticky-header::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Iridescent/Rainbow Flash Gradient - BRIGHTER & FASTER */
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 70, 70, 0.4) 20%,
+            rgba(255, 255, 0, 0.4) 40%,
+            rgba(0, 255, 255, 0.5) 50%,
+            rgba(0, 0, 255, 0.4) 60%,
+            rgba(255, 0, 255, 0.4) 80%,
+            rgba(255, 255, 255, 0) 100%);
+    z-index: 0;
+    pointer-events: none;
+    animation: ribbon-flash 2s infinite;
+    /* Faster - 2s */
+    will-change: transform;
+    transform: translateZ(0);
+}
+
+/* Ensure text is above flash */
+.node-editor.is-generate-node .sticky-header h3,
+.node-editor.is-generate-node .sticky-header .header-buttons-group,
+.node-editor.is-generate-node .sticky-header button {
+    position: relative;
+    z-index: 1;
+}
+
+/* Header Text - Iridescent Gradient */
+.node-editor.is-generate-node .sticky-header h3 {
+    text-shadow: none !important;
+    background: linear-gradient(45deg,
+            #ff7300,
+            #fffb00,
+            #48ff00,
+            #00ffd5,
+            #002bff,
+            #ff00c8);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    /* animation: iridescent-border 4s linear infinite; REMOVED ANIMATION */
+    font-weight: 800;
+}
+
+/* Close & AI Buttons */
+.node-editor.is-generate-node .header-close-btn,
+.node-editor.is-generate-node .header-ai-btn {
+    background: #222 !important;
+    border: 1px solid #444 !important;
+    color: #e0e0e0 !important;
+}
+
+.node-editor.is-generate-node .header-close-btn:hover,
+.node-editor.is-generate-node .header-ai-btn:hover {
+    background: #333 !important;
+    border-color: #00ffd5 !important;
+    color: white !important;
+    box-shadow: 0 0 5px rgba(0, 255, 213, 0.3) !important;
+}
+
+/* Inputs, Textareas, Selects */
+.node-editor.is-generate-node input,
+.node-editor.is-generate-node textarea,
+.node-editor.is-generate-node .notebook-textarea,
+.node-editor.is-generate-node select {
+    background-color: #222 !important;
+    background-image: none !important;
+    /* Remove notebook lines if present */
+    border: 1px solid #444 !important;
+    color: #f0f0f0 !important;
+    font-family: 'Courier New', monospace !important;
+    /* Code look */
+}
+
+.node-editor.is-generate-node input:focus,
+.node-editor.is-generate-node textarea:focus,
+.node-editor.is-generate-node select:focus {
+    border-color: #00ffd5 !important;
+    box-shadow: 0 0 5px rgba(0, 255, 213, 0.3) !important;
+}
+
+/* Add Buttons */
+.node-editor.is-generate-node .add-button {
+    background: #222 !important;
+    border: 1px solid #444 !important;
+    color: #00ffd5 !important;
+}
+
+.node-editor.is-generate-node .add-button:hover {
+    background: #333 !important;
+    box-shadow: 0 0 5px rgba(0, 255, 213, 0.3) !important;
+}
+
+/* Iridescent Scrollbar */
+.node-editor.is-generate-node::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: #1a1a1a;
+}
+
+.node-editor.is-generate-node::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg,
+            #ff0000,
+            #ff7300,
+            #fffb00,
+            #48ff00,
+            #00ffd5,
+            #002bff,
+            #7a00ff,
+            #ff00c8,
+            #ff0000);
+    border-radius: 4px;
+    border: 2px solid #1a1a1a;
+    /* Creates padding effect */
+}
+
+.node-editor.is-generate-node::-webkit-scrollbar-track {
+    background: #111;
+    border-left: 1px solid #333;
+}

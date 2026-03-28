@@ -1,0 +1,1602 @@
+/* ==============================================
+   EDITOR PANELS - Dedicated Stylesheet
+   ============================================== */
+
+/* Container for right-side editors - ONLY when it contains node/secondary editors */
+.editors-container:has(.node-editor),
+.editors-container:has(.secondary-editor),
+.editors-container:has(.tertiary-editor) {
+    position: fixed;
+    top: 80px;
+    right: 16px;
+    bottom: 16px;
+    display: flex;
+    flex-direction: row;
+    z-index: 1000;
+    pointer-events: none;
+    width: fit-content !important;
+    border: var(--border-width) solid var(--color-border);
+    box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.15);
+    background: var(--color-surface);
+    overflow: hidden;
+}
+
+.editors-container>* {
+    pointer-events: auto;
+    height: 100%;
+}
+
+/* Node Editor - First Panel */
+.node-editor {
+    width: 500px !important;
+    background: white;
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+    padding: 0 !important;
+}
+
+/* Secondary Editor - Second Panel */
+.secondary-editor {
+    width: 0;
+    background: white;
+    border-left: none;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    opacity: 0;
+    flex-shrink: 0;
+    padding: 0 !important;
+}
+
+.secondary-editor.open {
+    width: 500px !important;
+    border-left: 1px solid var(--color-border);
+    opacity: 1;
+    overflow-y: auto;
+}
+
+/* Tertiary Editor - Third Panel for Object Actions */
+.tertiary-editor {
+    width: 0;
+    background: white;
+    border-left: none;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    opacity: 0;
+    flex-shrink: 0;
+    padding: 0 !important;
+}
+
+.tertiary-editor.open {
+    width: 500px !important;
+    border-left: 1px solid var(--color-border);
+    opacity: 1;
+    overflow-y: auto;
+}
+
+.tertiary-editor .sticky-header {
+    padding: 12px 16px;
+    background: #f0f4f8;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    min-height: 50px;
+    box-sizing: border-box;
+}
+
+.tertiary-editor .sticky-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    flex: 1;
+    text-align: center;
+}
+
+.tertiary-editor .header-close-btn {
+    background: white !important;
+    border: 1px solid var(--color-border) !important;
+    font-size: 1.2rem !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    color: var(--color-dark) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 24px !important;
+    width: 24px !important;
+    min-width: 24px !important;
+    max-width: 24px !important;
+    flex-shrink: 0 !important;
+    border-radius: 0 !important;
+    transition: all 0.2s ease;
+}
+
+.tertiary-editor .header-close-btn:hover {
+    background: var(--color-danger) !important;
+    color: white !important;
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0 var(--color-dark) !important;
+}
+
+/* Action square styling in ObjectEditor */
+.card-item.action-square {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.card-item.action-square:hover {
+    background: #f5f5f5;
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0 var(--color-secondary);
+}
+
+/* Content Wrapper for proper padding */
+.editor-scroll-content {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Sections inside content */
+.editor-scroll-content .section {
+    border-top: 1px solid var(--color-border);
+    padding-top: 16px;
+    margin-top: 8px;
+}
+
+/* Sticky Headers */
+.sticky-header {
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    min-height: 50px;
+    box-sizing: border-box;
+}
+
+.sticky-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    padding-right: 8px;
+    word-break: break-word;
+    flex: 1;
+}
+
+.sticky-section-header {
+    padding: 8px 16px;
+    background: #eee;
+    border-bottom: 1px solid var(--color-border);
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+    text-transform: uppercase;
+}
+
+/* Close Buttons - BAUHAUS STYLING */
+.node-editor .header-close-btn,
+.secondary-editor .header-close-btn,
+.panel-header .close-btn {
+    background: white !important;
+    border: 1px solid var(--color-border) !important;
+    font-size: 1.2rem !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    color: var(--color-dark) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 24px !important;
+    width: 24px !important;
+    min-width: 24px !important;
+    max-width: 24px !important;
+    flex-shrink: 0 !important;
+    border-radius: 0 !important;
+    transition: all 0.2s ease;
+}
+
+.node-editor .header-close-btn:hover,
+.secondary-editor .header-close-btn:hover,
+.panel-header .close-btn:hover {
+    background: var(--color-danger) !important;
+    color: white !important;
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0 var(--color-dark) !important;
+}
+
+/* Back Button - Panel Header */
+.back-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-text-light);
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+.back-btn:hover {
+    color: var(--color-primary);
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Common Panel Header Styles */
+/* Common Panel Header Styles - Matches .sticky-header */
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid var(--color-border);
+    margin: 0;
+    min-height: 50px;
+    box-sizing: border-box;
+}
+
+.panel-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--color-dark);
+    line-height: 1.3;
+}
+
+/* Ensure buttons in header are aligned */
+.panel-header .header-buttons-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Back Button - Panel Header */
+.back-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-text-light);
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    margin-right: 8px;
+}
+
+.back-btn:hover {
+    color: var(--color-primary);
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* AI Button Styles - Consistent Size */
+.header-ai-btn {
+    background: white !important;
+    border: 1px solid var(--color-border) !important;
+    cursor: pointer !important;
+    color: var(--color-text) !important;
+    padding: 0 8px !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    height: 24px !important;
+    width: auto !important;
+    flex-shrink: 0 !important;
+    border-radius: 0 !important;
+    transition: all 0.2s ease;
+    font-weight: 700 !important;
+    font-size: 0.8rem !important;
+    font-family: var(--font-primary) !important;
+}
+
+.header-ai-btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0 var(--color-dark) !important;
+}
+
+.header-ai-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+/* Editor Buttons Container */
+.node-editor .editor-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+}
+
+/* All buttons inside editor-buttons get consistent width */
+.node-editor .editor-buttons button {
+    width: 100% !important;
+    padding: 10px !important;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+/* Primary button (Save Changes) */
+.node-editor .btn-primary,
+.node-editor .editor-buttons .btn-primary {
+    background: var(--color-primary) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.node-editor .btn-primary:hover,
+.node-editor .editor-buttons .btn-primary:hover {
+    opacity: 0.9;
+}
+
+/* Secondary button (Close Editor) */
+.node-editor .close-editor-btn,
+.node-editor .editor-buttons .close-editor-btn {
+    background: white !important;
+    color: var(--color-text) !important;
+    border: 1px solid var(--color-border) !important;
+}
+
+.node-editor .close-editor-btn:hover,
+.node-editor .editor-buttons .close-editor-btn:hover {
+    background: #f5f5f5 !important;
+}
+
+/* Form elements */
+.node-editor textarea,
+.secondary-editor textarea {
+    min-height: 300px !important;
+    resize: vertical;
+}
+
+.node-editor h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--color-text-light);
+}
+
+/* Section headers */
+.node-editor .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+/* ==============================================
+   CHARACTER LOGIC EDITOR - BAUHAUS THEME
+   ============================================== */
+
+.logic-editor-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+}
+
+/* Toolbar - Bauhaus Style */
+.logic-toolbar {
+    padding: 8px 12px;
+    background: var(--color-surface);
+    border-bottom: 2px solid var(--color-border);
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.logic-toolbar .toolbar-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #666;
+    letter-spacing: 0.05em;
+    margin-right: 4px;
+}
+
+.logic-toolbar button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: white;
+    border: 2px solid var(--color-border);
+    border-radius: 0;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: var(--font-primary);
+    color: var(--color-dark);
+    white-space: nowrap;
+}
+
+.logic-toolbar button:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: #fff5f5;
+}
+
+/* Canvas - Bauhaus Grid Background */
+.logic-canvas {
+    flex: 1;
+    background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-color: var(--color-bg);
+    position: relative;
+    min-height: 300px;
+}
+
+/* ==============================================
+   LOGIC NODES - BAUHAUS STYLE
+   ============================================== */
+
+.logic-node {
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border: var(--border-width) solid var(--color-border) !important;
+    background: var(--color-surface) !important;
+    min-width: 180px !important;
+    max-width: 250px !important;
+    text-align: left !important;
+    font-size: 0.85rem !important;
+    color: var(--color-text) !important;
+    box-shadow: var(--shadow-hard) !important;
+    overflow: hidden !important;
+    font-family: var(--font-primary) !important;
+}
+
+/* ROOT Node */
+.logic-node.root {
+    background: var(--color-dark) !important;
+    color: white !important;
+    border-color: var(--color-dark) !important;
+    min-width: 100px !important;
+    padding: var(--spacing-sm) var(--spacing-md) !important;
+    text-align: center !important;
+    box-shadow: 4px 4px 0 var(--color-primary) !important;
+}
+
+.logic-node.root .node-title {
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.9rem;
+}
+
+/* Node Header */
+.node-header {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--color-dark);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+}
+
+.node-type-label {
+    flex: 1;
+}
+
+.node-delete-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.2s;
+}
+
+.node-delete-btn:hover {
+    color: var(--color-danger);
+}
+
+/* Node Content */
+.logic-node .node-content {
+    padding: var(--spacing-sm);
+}
+
+.node-description {
+    font-size: 0.7rem;
+    color: var(--color-text-light);
+    font-style: italic;
+    border-left: 3px solid var(--color-border);
+    padding-left: var(--spacing-xs);
+    margin: 0;
+}
+
+/* Inline Fields */
+.inline-field {
+    margin-bottom: var(--spacing-sm);
+}
+
+.inline-field:last-child {
+    margin-bottom: 0;
+}
+
+.inline-field label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+    color: var(--color-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.inline-field input,
+.inline-field select,
+.inline-field textarea {
+    width: 100%;
+    padding: var(--spacing-xs);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: 0;
+    font-size: 0.8rem;
+    box-sizing: border-box;
+    font-family: 'Courier New', monospace;
+    background: var(--color-surface);
+    transition: var(--transition-retro);
+}
+
+.inline-field textarea {
+    resize: vertical;
+    min-height: 50px;
+}
+
+.inline-field input:focus,
+.inline-field select:focus,
+.inline-field textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 3px 3px 0 var(--color-primary);
+}
+
+/* Node Type Specific Header Colors */
+.logic-node.selector .node-header {
+    background: var(--color-accent);
+}
+
+.logic-node.sequence .node-header {
+    background: #388E3C;
+}
+
+.logic-node.condition .node-header {
+    background: var(--color-secondary);
+    color: var(--color-dark);
+}
+
+.logic-node.action .node-header {
+    background: var(--color-primary);
+}
+
+/* ReactFlow Handle Styles */
+.logic-node .react-flow__handle {
+    width: 10px;
+    height: 10px;
+    background: var(--color-dark);
+    border: 2px solid var(--color-surface);
+    border-radius: 0;
+}
+
+.logic-node .react-flow__handle-top {
+    top: -6px;
+}
+
+.logic-node .react-flow__handle-bottom {
+    bottom: -6px;
+}
+
+/* ReactFlow Edge Override */
+.logic-canvas .react-flow__edge-path {
+    stroke: var(--color-dark) !important;
+    stroke-width: 2px !important;
+}
+
+/* ReactFlow Controls Override */
+.logic-canvas .react-flow__controls {
+    border: var(--border-width) solid var(--color-border);
+    box-shadow: var(--shadow-hard);
+    border-radius: 0;
+}
+
+.logic-canvas .react-flow__controls-button {
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.logic-canvas .react-flow__controls-button:last-child {
+    border-bottom: none;
+}
+
+.logic-canvas .react-flow__controls-button:hover {
+    background: var(--color-primary);
+}
+
+
+/* ==============================================
+   EFFECTS GRAPH EDITOR - BAUHAUS THEME
+   ============================================== */
+
+.effects-graph-editor {
+    border: var(--border-width) solid var(--color-border);
+    background: var(--color-surface);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==============================================
+   EFFECTS GRAPH TOOLBAR - Clean, Compact Design
+   ============================================== */
+
+.effects-toolbar {
+    padding: 8px 12px;
+    background: var(--color-surface, #fafafa);
+    border-bottom: 2px solid var(--color-border, #222);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.effects-toolbar .toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.effects-toolbar .toolbar-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #666;
+    letter-spacing: 0.05em;
+    margin-right: 4px;
+}
+
+.effects-toolbar .toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: var(--font-primary);
+    background: white;
+    border: 2px solid var(--color-border, #333);
+    color: var(--color-dark, #222);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.effects-toolbar .toolbar-btn .btn-icon {
+    font-size: 0.85rem;
+}
+
+.effects-toolbar .toolbar-btn:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+.effects-toolbar .toolbar-btn-effect:hover {
+    border-color: #2196f3;
+    color: #2196f3;
+    background: #e3f2fd;
+}
+
+.effects-toolbar .toolbar-btn-flow:hover {
+    border-color: var(--color-secondary, #ff9800);
+    color: var(--color-secondary, #ff9800);
+    background: #fff3e0;
+}
+
+.effects-toolbar .toolbar-btn-util:hover {
+    border-color: var(--color-accent, #4caf50);
+    color: var(--color-accent, #4caf50);
+    background: #e8f5e9;
+}
+
+/* Legacy toolbar buttons - kept for backward compat */
+.graph-btn {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: white;
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 0;
+    /* Bauhaus */
+    font-family: var(--font-primary);
+    color: var(--color-dark);
+}
+
+.graph-btn:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
+    background: #f8f8f8;
+}
+
+.graph-btn.action-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.graph-btn.flow-btn:hover {
+    border-color: var(--color-secondary);
+    color: var(--color-secondary);
+}
+
+.graph-btn.util-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+/* Node Styles override for Graph */
+.effect-node {
+    font-family: var(--font-primary);
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1) !important;
+}
+
+.effect-node .node-header {
+    font-family: var(--font-primary);
+    letter-spacing: 0.05em;
+}
+
+.effect-node select,
+.effect-node input,
+.effect-node textarea {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    border-radius: 0 !important;
+}
+
+.effect-node select:focus,
+.effect-node input:focus,
+.effect-node textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    background: white;
+}
+
+/* ==============================================
+   EFFECT LIST EDITOR - Replaces EffectsGraphEditor
+   ============================================== */
+
+.effect-list-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.effect-list-editor .effect-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.effect-list-editor .effect-item {
+    border: 2px solid var(--color-border, #ddd);
+    background: white;
+    transition: all 0.15s ease;
+}
+
+.effect-list-editor .effect-item.expanded {
+    border-color: var(--color-primary, #ee6744);
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.08);
+}
+
+.effect-list-editor .effect-item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    min-height: 36px;
+}
+
+.effect-list-editor .effect-item-header:hover {
+    background: #f8f8f8;
+}
+
+.effect-list-editor .effect-type-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 0;
+    flex-shrink: 0;
+}
+
+.effect-list-editor .effect-type-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--color-dark, #222);
+    white-space: nowrap;
+    font-family: var(--font-primary);
+}
+
+.effect-list-editor .effect-summary {
+    font-size: 0.75rem;
+    color: #888;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'Courier New', monospace;
+}
+
+.effect-list-editor .effect-item-actions {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.effect-list-editor .effect-move-btn,
+.effect-list-editor .effect-remove-btn {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #999;
+    padding: 0;
+    transition: all 0.15s ease;
+    font-family: var(--font-primary);
+}
+
+.effect-list-editor .effect-move-btn:hover:not(:disabled) {
+    background: #eee;
+    border-color: var(--color-border);
+    color: var(--color-dark);
+}
+
+.effect-list-editor .effect-move-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.effect-list-editor .effect-remove-btn:hover {
+    background: var(--color-danger, #f44336);
+    color: white;
+    border-color: var(--color-danger, #f44336);
+}
+
+.effect-list-editor .effect-item-body {
+    padding: 12px;
+    border-top: 1px solid #eee;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.effect-list-editor .effect-item-body .form-group {
+    margin-bottom: 0;
+}
+
+.effect-list-editor .effect-item-body label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 4px;
+    display: block;
+    font-family: var(--font-primary);
+}
+
+.effect-list-editor .effect-item-body select,
+.effect-list-editor .effect-item-body input,
+.effect-list-editor .effect-item-body textarea {
+    width: 100%;
+    padding: 6px 8px;
+    border: 2px solid var(--color-border, #ddd);
+    font-size: 0.85rem;
+    font-family: var(--font-primary);
+    background: white;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
+}
+
+.effect-list-editor .effect-item-body select:focus,
+.effect-list-editor .effect-item-body input:focus,
+.effect-list-editor .effect-item-body textarea:focus {
+    outline: none;
+    border-color: var(--color-primary, #ee6744);
+}
+
+.effect-list-editor .effect-item-body textarea {
+    min-height: 48px !important;
+    resize: vertical;
+}
+
+.effect-list-editor .effect-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.effect-list-editor .effect-fields-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.effect-list-editor .effect-fields-row span {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.effect-list-editor .effect-fields-row input {
+    flex: 1;
+}
+
+.effect-list-editor > .add-button {
+    margin-top: 8px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: white;
+    border: 2px dashed var(--color-border, #ccc);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: var(--font-primary);
+    color: #888;
+    text-align: center;
+    width: 100%;
+}
+
+.effect-list-editor > .add-button:hover {
+    border-color: var(--color-primary, #ee6744);
+    color: var(--color-primary, #ee6744);
+    background: #fff5f2;
+}
+
+/* Count Badge */
+.count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: var(--color-primary, #ee6744);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    margin-left: 6px;
+    font-family: var(--font-primary);
+}
+
+/* ==============================================
+   CHARACTER ACTIONS - Inline Editing
+   ============================================== */
+
+.char-action-item {
+    border: 2px solid var(--color-border, #ddd);
+    background: white;
+    margin-bottom: 4px;
+    transition: all 0.15s ease;
+}
+
+.char-action-item:hover {
+    border-color: #9C27B0;
+}
+
+.char-action-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    min-height: 36px;
+}
+
+.char-action-header:hover {
+    background: #f8f8f8;
+}
+
+.char-action-header .collapse-indicator {
+    font-size: 0.7rem;
+    color: #999;
+    width: 12px;
+    flex-shrink: 0;
+}
+
+.char-action-header .action-title {
+    flex: 1;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-primary);
+}
+
+.char-action-header .action-delete-btn {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #999;
+    padding: 0;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.char-action-header .action-delete-btn:hover {
+    background: var(--color-danger, #f44336);
+    color: white;
+    border-color: var(--color-danger, #f44336);
+}
+
+.char-action-body {
+    padding: 12px;
+    border-top: 1px solid #eee;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.char-action-body .form-group {
+    margin-bottom: 0;
+}
+
+.char-action-body label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 4px;
+    display: block;
+    font-family: var(--font-primary);
+}
+
+.char-action-body input,
+.char-action-body textarea {
+    width: 100%;
+    padding: 6px 8px;
+    border: 2px solid var(--color-border, #ddd);
+    font-size: 0.85rem;
+    font-family: var(--font-primary);
+    background: white;
+    box-sizing: border-box;
+}
+
+.char-action-body input:focus,
+.char-action-body textarea:focus {
+    outline: none;
+    border-color: #9C27B0;
+}
+
+.char-action-body textarea {
+    min-height: 48px !important;
+    resize: vertical;
+}
+
+/* Conditions list styling */
+.conditions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Script textarea in conditions/effects */
+.script-textarea {
+    font-family: 'Courier New', monospace !important;
+    font-size: 0.85rem !important;
+    line-height: 1.4 !important;
+    background: #f8f8f8 !important;
+    min-height: 60px !important;
+}
+
+/* ==============================================
+   SHARED UTILITY CLASSES
+   ============================================== */
+
+/* Field Hint - secondary text inside labels */
+.field-hint {
+    font-weight: 400;
+    font-size: 0.7rem;
+    color: #999;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* Collapse Indicator */
+.collapse-indicator {
+    font-size: 0.65rem;
+    color: #999;
+    width: 14px;
+    display: inline-block;
+    transition: transform 0.15s ease;
+    user-select: none;
+}
+
+/* Collapsible Section */
+.collapsible-section .section-header.clickable {
+    cursor: pointer;
+    user-select: none;
+    padding: 8px 0;
+    transition: background 0.15s ease;
+    border-radius: 0;
+}
+
+.collapsible-section .section-header.clickable:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.collapsible-section .section-header.clickable h4 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Remove Button - used in Condition, Trigger, Object editors */
+.remove-btn {
+    padding: 8px 16px;
+    background: white;
+    border: 2px solid var(--color-danger, #F44336);
+    color: var(--color-danger, #F44336);
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: var(--font-primary);
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    width: 100%;
+    text-align: center;
+}
+
+.remove-btn:hover {
+    background: var(--color-danger, #F44336);
+    color: white;
+}
+
+/* ==============================================
+   PROPERTIES EDITOR - Key-Value Pairs
+   ============================================== */
+
+.properties-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.properties-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.property-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 2px solid var(--color-border, #ddd);
+    background: white;
+    transition: border-color 0.15s ease;
+}
+
+.property-row:hover {
+    border-color: var(--color-primary, #ee6744);
+}
+
+.property-key {
+    flex: 1;
+    padding: 8px 10px;
+    border: none;
+    border-right: 1px solid #eee;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: var(--color-dark, #222);
+    background: #fafafa;
+    outline: none;
+    min-width: 0;
+}
+
+.property-key:focus {
+    background: #fff5f2;
+}
+
+.property-value {
+    flex: 1.5;
+    padding: 8px 10px;
+    border: none;
+    font-size: 0.85rem;
+    font-family: var(--font-primary);
+    color: var(--color-dark, #222);
+    background: white;
+    outline: none;
+    min-width: 0;
+}
+
+.property-value:focus {
+    background: #fff5f2;
+}
+
+.property-remove-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 100%;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-left: 1px solid #eee;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #ccc;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+.property-remove-btn:hover {
+    background: var(--color-danger, #F44336);
+    color: white;
+}
+
+.property-add-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-top: 4px;
+}
+
+.property-new-key {
+    flex: 1;
+    padding: 8px 10px;
+    border: 2px dashed #ccc;
+    font-size: 0.85rem;
+    font-family: var(--font-primary);
+    color: var(--color-dark);
+    background: white;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.property-new-key:focus {
+    border-color: var(--color-primary, #ee6744);
+    border-style: solid;
+}
+
+.property-new-key::placeholder {
+    color: #bbb;
+    font-style: italic;
+}
+
+.property-add-row .add-button.small {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border: 2px solid var(--color-border, #222);
+    background: var(--color-primary, #ee6744);
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    padding: 0;
+    border-radius: 0;
+}
+
+.property-add-row .add-button.small:hover {
+    background: var(--color-dark, #222);
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0 var(--color-primary, #ee6744);
+}
+
+/* ==============================================
+   MEMORY EDITOR - Role + Content List
+   ============================================== */
+
+.memory-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.memory-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.memory-entry {
+    border: 2px solid var(--color-border, #ddd);
+    background: white;
+    transition: border-color 0.15s ease;
+}
+
+.memory-entry:hover {
+    border-color: var(--color-primary, #ee6744);
+}
+
+.memory-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: #fafafa;
+    border-bottom: 1px solid #eee;
+}
+
+.memory-role-select {
+    padding: 6px 8px;
+    border: none;
+    background: transparent;
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: var(--font-primary);
+    text-transform: uppercase;
+    color: var(--color-dark, #222);
+    cursor: pointer;
+    outline: none;
+    min-width: 90px;
+}
+
+.memory-role-select:focus {
+    background: #fff5f2;
+}
+
+.memory-remove-btn {
+    margin-left: auto;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-left: 1px solid #eee;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #ccc;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+.memory-remove-btn:hover {
+    background: var(--color-danger, #F44336);
+    color: white;
+}
+
+.memory-content {
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    font-size: 0.85rem;
+    font-family: var(--font-primary);
+    color: var(--color-dark, #222);
+    background: white;
+    outline: none;
+    resize: vertical;
+    min-height: 40px !important;
+    box-sizing: border-box;
+}
+
+.memory-content:focus {
+    background: #fff5f2;
+}
+
+.memory-add-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-top: 2px;
+}
+
+.memory-add-row .memory-role-select {
+    border: 2px dashed #ccc;
+    background: white;
+    min-width: 90px;
+    padding: 6px 8px;
+}
+
+.memory-add-row .memory-role-select:focus {
+    border-color: var(--color-primary, #ee6744);
+    border-style: solid;
+}
+
+.memory-new-content {
+    flex: 1;
+    padding: 8px 10px;
+    border: 2px dashed #ccc;
+    border-left: none;
+    font-size: 0.85rem;
+    font-family: var(--font-primary);
+    color: var(--color-dark);
+    background: white;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.memory-new-content:focus {
+    border-color: var(--color-primary, #ee6744);
+    border-style: solid;
+}
+
+.memory-new-content::placeholder {
+    color: #bbb;
+    font-style: italic;
+}
+
+.memory-add-row .add-button.small {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border: 2px solid var(--color-border, #222);
+    background: var(--color-primary, #ee6744);
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    padding: 0;
+    border-radius: 0;
+}
+
+.memory-add-row .add-button.small:hover {
+    background: var(--color-dark, #222);
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0 var(--color-primary, #ee6744);
+}
+
+/* ==============================================
+   CONDITION EDITOR - Form-based
+   ============================================== */
+
+.condition-editor {
+    border: 2px solid var(--color-border, #ddd);
+    background: white;
+    padding: 12px;
+    transition: border-color 0.15s ease;
+    margin-bottom: 4px;
+}
+
+.condition-editor:hover {
+    border-color: var(--color-accent, #2E5CB8);
+}
+
+.condition-editor .sticky-sub-subsection-header {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-accent, #2E5CB8);
+    border-bottom: 2px solid var(--color-accent, #2E5CB8);
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+    background: transparent !important;
+    padding-top: 0;
+}
+
+.condition-editor .form-group {
+    margin-bottom: 10px;
+}
+
+.condition-editor .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.condition-editor .form-group label {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+}
+
+.condition-editor .form-group input,
+.condition-editor .form-group select,
+.condition-editor .form-group textarea {
+    padding: 6px 8px;
+    font-size: 0.85rem;
+    border-width: 1px;
+}
+
+.condition-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.condition-editor .remove-btn {
+    margin-top: 10px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+}
+
+/* ==============================================
+   ADD ITEM FORM (in NodeEditor character section)
+   ============================================== */
+
+.add-item-form {
+    margin-bottom: 8px;
+}
+
+.add-item-form select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 2px solid var(--color-primary, #ee6744);
+    font-size: 0.85rem;
+    font-family: var(--font-primary);
+    font-weight: 600;
+    background: white;
+    cursor: pointer;
+}
+
+.add-item-form select:focus {
+    outline: none;
+    box-shadow: 3px 3px 0 var(--color-primary, #ee6744);
+}

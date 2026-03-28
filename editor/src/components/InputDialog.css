@@ -1,0 +1,297 @@
+/* ==============================================
+   INPUT DIALOG - Bauhaus Themed
+   Replaces browser's native prompt() dialog
+   ============================================== */
+
+.input-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5000;
+    animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.input-dialog {
+    position: relative;
+    background: var(--color-surface, #FFFFFF);
+    border: 3px solid var(--color-border, #1A1A1A);
+    box-shadow: 8px 8px 0 var(--color-border, #1A1A1A);
+    min-width: 380px;
+    max-width: 480px;
+    animation: dialogSlideIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes dialogSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Decorative Elements */
+.input-dialog .dialog-decoration {
+    position: absolute;
+    pointer-events: none;
+}
+
+.input-dialog .decoration-top {
+    top: -12px;
+    left: 20px;
+    width: 24px;
+    height: 24px;
+    background: var(--color-primary, #ee6744);
+    border: 3px solid var(--color-border, #1A1A1A);
+}
+
+.input-dialog .decoration-side {
+    top: 20px;
+    right: -12px;
+    width: 20px;
+    height: 20px;
+    background: var(--color-secondary, #F4B400);
+    border: 3px solid var(--color-border, #1A1A1A);
+    transform: rotate(45deg);
+}
+
+/* Header */
+.input-dialog-header {
+    padding: 16px 24px;
+    background: var(--color-dark, #1A1A1A);
+    color: white;
+    border-bottom: 3px solid var(--color-border, #1A1A1A);
+}
+
+.input-dialog-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+/* Content */
+.input-dialog-content {
+    padding: 24px;
+}
+
+.input-dialog-message {
+    margin: 0 0 16px 0;
+    font-size: 0.95rem;
+    color: var(--color-text-light, #666);
+    line-height: 1.5;
+}
+
+.input-dialog-input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 1rem;
+    font-family: var(--font-primary);
+    border: 3px solid var(--color-border, #1A1A1A);
+    border-radius: 0;
+    background: white;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.input-dialog-input:focus {
+    outline: none;
+    border-color: var(--color-primary, #ee6744);
+    box-shadow: 4px 4px 0 var(--color-primary, #ee6744);
+}
+
+.input-dialog-input::placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+/* Actions */
+.input-dialog-actions {
+    padding: 16px 24px;
+    display: flex;
+    gap: 12px;
+    border-top: 2px solid #eee;
+    background: #F8F6F2;
+}
+
+.input-dialog-actions .btn {
+    flex: 1;
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: var(--font-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 0;
+}
+
+.input-dialog-actions .btn-primary {
+    background: var(--color-primary, #ee6744);
+    color: white;
+    border: 3px solid var(--color-border, #1A1A1A);
+}
+
+.input-dialog-actions .btn-primary:hover:not(:disabled) {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--color-border, #1A1A1A);
+    background: var(--color-secondary, #F4B400);
+    color: var(--color-dark, #1A1A1A);
+}
+
+.input-dialog-actions .btn-primary:active:not(:disabled) {
+    transform: translate(0, 0);
+    box-shadow: none;
+}
+
+.input-dialog-actions .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.input-dialog-actions .btn-secondary {
+    background: white;
+    color: var(--color-dark, #1A1A1A);
+    border: 3px solid var(--color-border, #1A1A1A);
+}
+
+.input-dialog-actions .btn-secondary:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--color-border, #1A1A1A);
+    background: #f5f5f5;
+}
+
+.input-dialog-actions .btn-secondary:active {
+    transform: translate(0, 0);
+    box-shadow: none;
+}
+
+/* ==============================================
+   CONFIRM DIALOG STYLES - Bauhaus Themed
+   Ensure ConfirmDialog also matches the theme
+   ============================================== */
+
+.confirm-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5000;
+    animation: fadeIn 0.15s ease-out;
+}
+
+.confirm-dialog {
+    position: relative;
+    background: var(--color-surface, #FFFFFF);
+    border: 3px solid var(--color-border, #1A1A1A);
+    box-shadow: 8px 8px 0 var(--color-border, #1A1A1A);
+    min-width: 380px;
+    max-width: 480px;
+    animation: dialogSlideIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.confirm-dialog-header {
+    padding: 16px 24px;
+    background: var(--color-dark, #1A1A1A);
+    color: white;
+    border-bottom: 3px solid var(--color-border, #1A1A1A);
+}
+
+.confirm-dialog-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.confirm-dialog-content {
+    padding: 24px;
+}
+
+.confirm-dialog-content p {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--color-text, #2B2B2B);
+    line-height: 1.5;
+}
+
+.confirm-dialog-actions {
+    padding: 16px 24px;
+    display: flex;
+    gap: 12px;
+    border-top: 2px solid #eee;
+    background: #F8F6F2;
+    flex-wrap: wrap;
+}
+
+.confirm-dialog-actions .btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: var(--font-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 0;
+}
+
+.confirm-dialog-actions .btn-primary {
+    background: var(--color-primary, #ee6744);
+    color: white;
+    border: 3px solid var(--color-border, #1A1A1A);
+}
+
+.confirm-dialog-actions .btn-primary:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--color-border, #1A1A1A);
+    background: var(--color-secondary, #F4B400);
+    color: var(--color-dark, #1A1A1A);
+}
+
+.confirm-dialog-actions .btn-danger {
+    background: var(--color-danger, #F44336);
+    color: white;
+    border: 3px solid var(--color-border, #1A1A1A);
+}
+
+.confirm-dialog-actions .btn-danger:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--color-border, #1A1A1A);
+    opacity: 0.9;
+}
+
+.confirm-dialog-actions .btn-secondary {
+    background: white;
+    color: var(--color-dark, #1A1A1A);
+    border: 3px solid var(--color-border, #1A1A1A);
+}
+
+.confirm-dialog-actions .btn-secondary:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--color-border, #1A1A1A);
+    background: #f5f5f5;
+}

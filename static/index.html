@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wenyoo</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/showdown.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 欢迎消息容器 -->
+        <div id="welcome-message" class="welcome-message">
+            <h1>Wenyoo</h1>
+            <p data-i18n="welcome.loading">loading...</p>
+        </div>
+
+        <!-- 玩家名字输入界面 -->
+        <div id="player-name-input" class="player-name-input">
+            <h2 data-i18n="player.namePrompt">Please Input Your Name</h2>
+            <div class="input-area">
+                <input type="text" id="player-name" placeholder="input your name..." data-i18n-placeholder="player.namePlaceholder">
+                <button id="submit-name" data-i18n="player.confirm">Confirm</button>
+            </div>
+        </div>
+
+        <!-- 故事选择界面 -->
+        <div id="story-selection">
+            <div class="story-selection-container">
+                <h1 data-i18n="story.selectTitle">Select Your Adventure</h1>
+                <p data-i18n="story.selectSubtitle">Choose your adventure.</p>
+                
+                <div id="handcrafted-stories" class="story-category">
+                    <h2 data-i18n="story.stories">Stories</h2>
+                    <div class="story-list" id="story-list-predefined"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 会话选择界面 -->
+        <div id="session-selection" class="selection-container" style="display: none;">
+            <h2 data-i18n="session.title">Join or Create a Game</h2>
+            <button id="create-session" data-i18n="session.create">Create New Session</button>
+            <div class="join-session">
+                <input type="text" id="session-code-input" placeholder="Enter game code" data-i18n-placeholder="session.codePlaceholder">
+                <button id="join-session" data-i18n="session.join">Join Session</button>
+            </div>
+        </div>
+
+        <div class="main-content" style="display: none;">
+            <div class="game-area">
+                <div id="status-bar-container">
+                    <div id="status-bar-row">
+                        <div id="status-info">
+                            <span class="current-status"></span>
+                            <span class="next-status"></span>
+                        </div>
+                        <button id="display-toggle-btn">
+                            <img class="gemini-icon" src="/static/img/gemini_icon.svg" alt="Gemini Icon">
+                            <span class="close-icon">X</span>
+                        </button>
+                    </div>
+                    <div id="sticky-description-wrapper">
+                        <div id="sticky-description-content"></div>
+                    </div>
+                    <div id="display-panel" class="hidden">
+                        <div class="panel-tabs">
+                            <button class="panel-tab active" data-tab="info" data-i18n="panel.info">Info</button>
+                            <button class="panel-tab" data-tab="settings" data-i18n="panel.settings">Settings</button>
+                        </div>
+                        <div class="panel-tab-content" id="tab-info">
+                            <div id="stats-display"></div>
+                            <div id="node-description"></div>
+                            <div id="inventory-display"></div>
+                        </div>
+                        <div class="panel-tab-content hidden" id="tab-settings">
+                            <div class="settings-list">
+                                <div class="setting-item">
+                                    <span class="setting-label" data-i18n="settings.gameCode">Game Code</span>
+                                    <div class="session-code-container">
+                                        <span id="session-code-display" class="session-code-badge"></span>
+                                        <button id="copy-session-code" class="setting-btn" title="Copy to clipboard" data-i18n-title="settings.copyTitle">
+                                            <span class="copy-label" data-i18n="settings.copy">Copy</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <label class="setting-label" for="language-select" data-i18n="settings.language">Language</label>
+                                    <select id="language-select" class="setting-select">
+                                        <option value="en" data-i18n="settings.languageEnglish">English</option>
+                                        <option value="zh-CN" data-i18n="settings.languageChinese">Chinese</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <span class="setting-label" data-i18n="settings.typewriter">Typewriter Effect</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="typewriter-effect" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="setting-item">
+                                    <span class="setting-label" data-i18n="settings.saveGame">Save Game</span>
+                                    <button id="save-game-button" class="setting-btn" data-i18n="settings.save">Save</button>
+                                </div>
+                                <div class="setting-item">
+                                    <span class="setting-label" data-i18n="settings.exportHistory">Export History</span>
+                                    <button id="export-history-button" class="setting-btn" data-i18n="settings.export">Export</button>
+                                </div>
+                            </div>
+                            <div class="settings-footer">
+                                <button id="return-button" class="setting-link" data-i18n="settings.return">Return to Menu</button>
+                                <span class="settings-footer-sep"></span>
+                                <button id="reload-button" class="setting-link" data-i18n="settings.reload">Reload Game</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="game-messages" class="game-messages"></div>
+                <div id="choices-container" class="choices-container"></div>
+                <div class="input-area">
+                    <div class="mention-input-wrapper">
+                        <div id="mention-overlay" class="mention-overlay"></div>
+                        <input type="text" id="user-input" placeholder="Type your command..." data-i18n-placeholder="input.placeholder">
+                        <div id="mention-suggestions" class="mention-suggestions hidden"></div>
+                    </div>
+                    <button id="send-button" data-i18n="input.send">Send</button>
+                    <button id="continue-button" class="hidden" data-i18n="input.continue">Continue</button>
+                </div>
+            </div>
+        </div>
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p data-i18n="loading.generatingStory">Generating story...</p>
+    </div>
+    <script src="/static/js/html2canvas.min.js"></script>
+    <script src="/static/js/i18n.js"></script>
+    <script src="/static/js/app.js?v=1"></script>
+</body>
+</html>

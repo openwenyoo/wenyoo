@@ -1,0 +1,116 @@
+# Wenyoo Configuration
+# Copy this file to config.yaml and modify as needed.
+#
+# The loader reads shared top-level settings first, then merges a config group
+# from config_groups. If you do not pass --config-group, the "default" group is
+# used automatically.
+
+# =============================================================================
+# Shared Configuration
+# =============================================================================
+# Put settings here when they should apply to every config group.
+
+server:
+  # Host to bind to
+  # 127.0.0.1 = localhost only (safe default)
+  # 0.0.0.0   = all interfaces (use this to allow LAN access, but note that
+  #              the editor APIs have no authentication — only do this on
+  #              trusted networks)
+  host: 127.0.0.1
+
+  # Port to listen on
+  port: 8000
+
+  # Optional shared secret for editor API authentication.
+  # When set, all editor write endpoints (story save, AI edit, etc.) require
+  # the X-Editor-Token header to match this value.
+  # Leave commented out for local-only development (no auth needed).
+  # Generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+  # editor_secret: your-secret-here
+
+paths:
+  # Directory containing story YAML files
+  stories_dir: stories
+
+  # Directory for saved game states
+  saves_dir: saves
+
+  # Directory for static web files (HTML, CSS, JS)
+  static_dir: static
+
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: INFO
+
+  # Log file path (set to null to disable file logging)
+  file: wenyoo.log
+
+forms:
+  enabled: true
+  max_file_size_mb: 20.0
+  max_text_length: 100000
+  save_original_files: false
+  upload_dir: data/uploads
+  allowed_file_types:
+    - text/plain
+    - application/pdf
+    - text/markdown
+    - text/csv
+    - application/json
+
+# =============================================================================
+# Config Groups
+# =============================================================================
+# Each group can override any section above: llm, server, paths, logging, forms.
+# Launch a group with:
+#   python -m src.main --config-group <group-name>
+config_groups:
+  default:
+    llm:
+      # Provider type: "openai-compatible" | "ollama" | "claude" | "mock"
+      # - openai-compatible: OpenAI, DashScope, vLLM, LM Studio, Together.ai, etc.
+      # - ollama: Native Ollama API (non-OpenAI-compatible endpoint)
+      # - claude: Anthropic Claude models
+      # - mock: No API calls, returns placeholder responses (for testing)
+      provider: openai-compatible
+
+      # API endpoint URL (required for openai-compatible and ollama)
+      # Common examples:
+      #   OpenAI:       https://api.openai.com/v1
+      #   DashScope:    https://dashscope.aliyuncs.com/compatible-mode/v1
+      #   vLLM:         http://localhost:8080/v1
+      #   LM Studio:    http://localhost:1234/v1
+      #   Ollama:       http://localhost:11434/v1
+      #   Together.ai:  https://api.together.xyz/v1
+      base_url: https://api.openai.com/v1
+
+      # Model name to use
+      # Examples:
+      #   OpenAI:     gpt-4o-mini, gpt-4o
+      #   DashScope:  qwen-plus-latest, qwen-turbo, qwen-max
+      #   Ollama:     llama3, mistral, qwen2
+      #   vLLM:       (depends on your deployed model)
+      model: gpt-4o-mini
+
+      # API key environment variable name
+      # The actual key should be set in .env file or environment.
+      api_key_env: LLM_API_KEY
+
+      # Timeout settings (in seconds)
+      timeout_connect: 10.0
+      timeout_read: 120.0
+
+  claude:
+    llm:
+      provider: claude
+
+      # Claude ignores base_url because it uses the Anthropic SDK directly.
+      model: claude-sonnet-4-6
+      api_key_env: CLAUDE_API_KEY
+      timeout_connect: 10.0
+      timeout_read: 120.0
+
+  mock:
+    llm:
+      provider: mock
+      model: mock

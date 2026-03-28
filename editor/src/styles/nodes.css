@@ -1,0 +1,546 @@
+/* Node Styles - Consolidated from App.css */
+
+/* Detailed Node Styling */
+.detailed-node {
+    background: var(--color-surface);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: 0;
+    width: 250px;
+    box-shadow: var(--shadow-hard);
+    transition: var(--transition-retro);
+    position: relative;
+}
+
+.detailed-node.selected {
+    border-color: var(--color-primary);
+    box-shadow: 6px 6px 0px var(--color-primary);
+    transform: translate(-2px, -2px);
+}
+
+.node-header {
+    padding: 8px 12px;
+    background: var(--color-bg);
+    border-bottom: var(--border-width) solid var(--color-border);
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--color-dark);
+    position: relative;
+}
+
+.detailed-node.selected .node-header {
+    background: var(--color-primary);
+    color: white;
+}
+
+.node-body {
+    padding: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.node-description {
+    font-size: 0.8rem;
+    color: var(--color-text);
+    line-height: 1.4;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    background: var(--color-bg);
+    border-left: 3px solid var(--color-primary);
+}
+
+/* ==============================================
+   GENERATED DESCRIPTION - LLM Bauhaus Theme
+   For LLM-generated descriptions from pre_enter/post_enter triggers
+   ============================================== */
+.node-description.generated-description {
+    background:
+        linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(46, 92, 184, 0.16)),
+        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.04) 0 1px, transparent 1px 10px),
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.04) 0 1px, transparent 1px 10px);
+    color: var(--color-dark);
+    border-left: 4px solid var(--color-accent);
+    cursor: help;
+    padding: 8px 10px;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.08);
+}
+
+
+
+.mini-list-header {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 4px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+}
+
+.mini-item {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    border: 1px solid #eee;
+    cursor: pointer;
+    background: transparent;
+    transition: var(--transition-retro);
+}
+
+.mini-item:hover {
+    border-color: var(--color-dark);
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
+}
+
+.mini-item.type-object {
+    border-left: 3px solid var(--color-primary);
+    background: rgba(238, 103, 68, 0.05);
+}
+
+.mini-item.type-action {
+    border-left: 3px solid var(--color-secondary);
+    background: rgba(244, 180, 0, 0.05);
+}
+
+.mini-item.type-trigger {
+    border-left: 3px solid var(--color-accent);
+    background: rgba(46, 92, 184, 0.05);
+}
+
+.handle-target,
+.handle-source {
+    width: 10px !important;
+    height: 10px !important;
+    background: var(--color-dark) !important;
+    border: 1px solid white !important;
+    border-radius: 0 !important;
+}
+
+/* ==============================================
+   PSEUDO NODE - Black Dashed Theme
+   ============================================== */
+.pseudo-node {
+    background: var(--color-surface);
+    border: 2px dashed #333;
+    /* Dark dashed border */
+    border-radius: 0;
+    width: 250px;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
+    overflow: visible;
+    font-family: var(--font-primary);
+    position: relative;
+}
+
+.pseudo-node .node-header {
+    /* Solid Dark Header with Contrast striped pattern */
+    background-color: #333;
+    background-image: repeating-linear-gradient(-45deg,
+            rgba(0, 0, 0, 0.5),
+            rgba(0, 0, 0, 0.5) 5px,
+            transparent 5px,
+            transparent 10px);
+    padding: 8px 12px;
+    border-bottom: 2px dashed #666;
+    /* Visible dashed separator */
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    position: relative;
+}
+
+.pseudo-node .node-body {
+    padding: 12px;
+    /* Diagonal Striped Background */
+    background: repeating-linear-gradient(45deg,
+            #f0f0f0,
+            #f0f0f0 10px,
+            #e0e0e0 10px,
+            #e0e0e0 20px);
+    /* Light grey stripes */
+}
+
+.pseudo-prompt-input {
+    width: 100%;
+    height: 80px;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: 0;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    resize: vertical;
+    outline: none;
+    background: white;
+    color: var(--color-dark);
+    transition: var(--transition-retro);
+    box-sizing: border-box;
+}
+
+.pseudo-prompt-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 3px 3px 0 var(--color-primary);
+}
+
+/* Pseudo Node Handles - On Title Bar */
+.pseudo-node .node-handle {
+    width: 12px !important;
+    height: 12px !important;
+    background: var(--color-dark) !important;
+    border: 2px solid white !important;
+    border-radius: 0 !important;
+    top: 18px !important;
+}
+
+.pseudo-node .react-flow__handle-left {
+    left: -6px !important;
+}
+
+.pseudo-node .react-flow__handle-right {
+    right: -6px !important;
+}
+
+/* ==============================================
+   GENERATE NODE - Iridescent Black Theme (Animated)
+   ============================================== */
+@keyframes iridescent-border {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes ribbon-flash {
+    0% {
+        transform: translateX(-100%) skewX(-15deg);
+    }
+
+    30% {
+        /* Fast flash over 30% of 2s = 0.6s */
+        transform: translateX(100%) skewX(-15deg);
+    }
+
+    100% {
+        transform: translateX(100%) skewX(-15deg);
+    }
+}
+
+.generate-node {
+    background: #1a1a1a;
+    /* Dark background */
+    border: none;
+    /* Remove default border */
+    border-radius: 0;
+    width: 250px;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.8);
+    /* Deep black shadow */
+    overflow: hidden;
+    /* Contain the ribbon */
+    font-family: var(--font-primary);
+    position: relative;
+    padding: 2px;
+    /* Space for the gradient border */
+}
+
+/* Gradient Border Pseudo-element */
+.generate-node::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 0;
+    padding: 2px;
+    /* Width of the border */
+    background: linear-gradient(45deg,
+            #ff0000,
+            #ff7300,
+            #fffb00,
+            #48ff00,
+            #00ffd5,
+            #002bff,
+            #7a00ff,
+            #ff00c8,
+            #ff0000);
+    background-size: 400% 400%;
+    animation: iridescent-border 3s linear infinite;
+    /* Slower animation (3s) */
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+    will-change: background-position;
+    /* Optimize paint */
+    transform: translateZ(0);
+    /* Force GPU layer */
+}
+
+/* Ribbon Flash Animation */
+.generate-node::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.1) 40%,
+            rgba(255, 255, 255, 0.3) 50%,
+            rgba(255, 255, 255, 0.1) 60%,
+            rgba(255, 255, 255, 0) 100%);
+    z-index: 5;
+    pointer-events: none;
+    animation: ribbon-flash 2s infinite;
+    /* 2s cycle as requested */
+    will-change: transform;
+    /* Optimize composite */
+    transform: translateZ(0);
+    /* Force GPU layer */
+}
+
+.generate-node .node-header {
+    background: #111;
+    /* Back to Black */
+    padding: 8px 12px;
+
+    /* Animated Gradient Bottom Border - Synced with main border */
+    border-bottom: 2px solid transparent;
+    border-image: linear-gradient(45deg,
+            #ff0000,
+            #ff7300,
+            #fffb00,
+            #48ff00,
+            #00ffd5,
+            #002bff,
+            #7a00ff,
+            #ff00c8,
+            #ff0000) 1;
+    /* Note: border-image animation is tricky. Using background-size/position trick on a pseudo-element is better for perfect sync, 
+       but border-image doesn't support background-position animation directly. 
+       Let's stick to a static gradient for now or use the same mask trick if critical. 
+       Given "sychronized with the boarder", let's try to match the animation parameters if possible.
+       Standard border-image doesn't animate. 
+       Let's switch to a pseudo-element for the bottom border to allow animation. */
+    border-bottom: none;
+    position: relative;
+
+    font-weight: 700;
+    color: #fff;
+    /* White text */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    z-index: 2;
+}
+
+/* Animated Bottom Border for Header */
+.generate-node .node-header::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(45deg,
+            #ff0000,
+            #ff7300,
+            #fffb00,
+            #48ff00,
+            #00ffd5,
+            #002bff,
+            #7a00ff,
+            #ff00c8,
+            #ff0000);
+    background-size: 400% 400%;
+    animation: iridescent-border 3s linear infinite;
+    /* Same sync */
+    z-index: 3;
+    will-change: background-position;
+    transform: translateZ(0);
+}
+
+.generate-node .node-id {
+    font-size: 0.65rem;
+    opacity: 0.9;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.generate-node .node-body {
+    padding: 12px;
+    background: #222;
+    /* Dark body */
+    position: relative;
+    z-index: 2;
+}
+
+.generate-node .input-group label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #e0e0e0;
+    /* Light grey label - Simple */
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    width: fit-content;
+}
+
+.generate-prompt-input {
+    width: 100%;
+    height: 100px;
+    border: 1px solid #444;
+    border-radius: 0;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+    outline: none;
+    background: #333;
+    /* Dark input background */
+    color: #f0f0f0;
+    /* Light text */
+    transition: var(--transition-retro);
+    box-sizing: border-box;
+}
+
+.generate-prompt-input:focus {
+    border-color: #00ffd5;
+    box-shadow: 0 0 5px rgba(0, 255, 213, 0.3);
+}
+
+/* Generate Node Handles - On Title Bar */
+.generate-node .node-handle {
+    width: 12px !important;
+    height: 12px !important;
+    background: #000 !important;
+    border: 2px solid white !important;
+    border-radius: 50% !important;
+    /* Make handles round */
+    top: 18px !important;
+    z-index: 10;
+}
+
+.generate-node .react-flow__handle-left {
+    left: -6px !important;
+}
+
+.generate-node .react-flow__handle-right {
+    right: -6px !important;
+}
+
+/* ==============================================
+   NODE CHARACTER INDICATORS
+   ============================================== */
+.node-characters {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    bottom: -10px;
+    right: -10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    padding: 2px;
+    z-index: 10;
+}
+
+.character-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 0;
+    background: #9C27B0;
+    color: white;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border);
+    font-weight: bold;
+    box-shadow: 1px 1px 0px var(--color-border);
+}
+
+.character-avatar:first-child {
+    margin-left: 0;
+}
+
+.character-avatar.more {
+    background: #666;
+    font-size: 9px;
+}
+
+/* ==============================================
+   GROUP NODE
+   ============================================== */
+.group-node {
+    width: 100%;
+    height: 100%;
+    min-width: 100px;
+    min-height: 100px;
+    border: 2px dashed rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    background-color: rgba(240, 240, 240, 0.2);
+    transition: var(--transition-retro);
+}
+
+.group-node.selected {
+    border-color: var(--color-primary);
+    background-color: rgba(238, 103, 68, 0.05);
+}
+
+.group-node-header {
+    background: transparent;
+    padding: 5px;
+    min-height: 20px;
+}
+
+.group-node-label {
+    font-weight: bold;
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.group-node.selected .group-node-label {
+    color: var(--color-primary);
+}
+
+.group-node-input {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--color-dark);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid var(--color-primary);
+    outline: none;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.group-node-resizer-line {
+    border-color: var(--color-primary) !important;
+}
+
+.group-node-resizer-handle {
+    background-color: var(--color-primary) !important;
+    border-radius: 2px !important;
+    width: 8px !important;
+    height: 8px !important;
+}

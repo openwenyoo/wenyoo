@@ -1,0 +1,1236 @@
+id: example_adventure
+title: Mysterious Forest Adventure
+name: Mysterious Forest Adventure
+author: Wenyoo
+description: This is a rich example adventure demonstrating the text adventure engine's capabilities. You will explore a mysterious forest filled with strange creatures, hidden treasures, and puzzles to solve. Starting from a winding trail, your journey will take you deep into the dense woods, encountering various challenges, and ultimately discovering a legendary treasure. Prepare your wits and courage!
+version: '1.1'
+difficulty: Medium
+estimated_playtime: 30-45 minutes
+start_node_id: forest_path
+initial_variables:
+  lore_character_perspective: 'Character Perspective — How physical state changes perception ## General Principles Before describing a scene, check the player''s status tags. If the player has the "giant" status, all descriptions must be presented from a giant''s elevated viewpoint.
+    If the player has the "hallucinating" status, sensory descriptions should be mixed with hallucinatory elements. Both statuses can coexist, in which case apply both the giant perspective and hallucination effects simultaneously.
+
+    ## Giant Perspective (giant status) The world becomes tiny. Trees only reach your chest, trails are narrow like goat paths, and your every step shakes the earth. You look down on everything — treetops, animals, buildings. Ordinary objects seem fragile and breakable. Doorframes require bending or cannot be passed through at all. Your footsteps thunder, startling flocks of birds.
+    A sense of power fills your body, but fine motor control becomes difficult.
+
+    ## Hallucination Perspective (hallucinating status) Colors become unnaturally vivid, leaves shimmer with unreal fluorescence. Non-existent points of light and shapes float in the air. Sounds come and go, occasionally you hear whispers or singing. Objects'' edges occasionally twist and distort.
+    You cannot fully distinguish reality from illusion.
+
+    ## Normal Perspective (no special status)
+
+    Describe from the perspective of an ordinary human adventurer with normal senses.
+
+    '
+  player_hallucinating: false
+  player_is_big: false
+  player_rested: false
+  found_hidden_path: false
+  mushroom_examined: false
+  mushroom_taken: false
+  sign_read: false
+  tree_searched: false
+  runes_examined: false
+  well_examined: false
+  herbs_examined: false
+  tablet_examined: false
+  map_examined: false
+  read_room_inscription: false
+  has_silver_key: false
+  butterfly_caught: false
+  petted_deer: false
+  met_hermit: false
+  traded_butterfly: false
+  learned_curse: false
+  learned_hermit_story: false
+  adventure_complete: false
+  has_treasure: false
+  ending_standard: false
+  ending_honorable: false
+  ending_guardian: false
+  ending_cursed: false
+characters:
+- id: player_adventurer
+  name: Adventurer
+  is_playable: true
+  definition: '[Identity]
+
+    An ordinary adventurer of average build and normal physique.
+
+    Wearing simple traveling clothes and sturdy boots.
+
+
+    [Abilities & Limitations]
+
+    Possesses the strength and abilities of a normal person, unable to destroy solid objects barehanded.
+
+    Physical state can be affected by magical items (such as the strange mushroom).
+
+    After eating the magic mushroom, the adventurer becomes giant with enhanced strength, but also experiences hallucinations.
+
+
+    [Social Consequences of Giant Form]
+
+    In giant form, your massive body and distorted appearance will cause NPCs to feel fear or wariness.
+
+    The forest hermit will refuse to trade or have deep conversations with you, and will only urgently advise you to return to normal.
+
+    The clever monkey will be scared away by you and cannot give you any directional hints.
+
+    The mystic deer will not let you approach, preventing you from triggering prophecies or building a close bond.
+
+    Only after using the healing herbs to return to normal can you earn the trust and help of NPCs.
+
+    Giant form is a temptation — you gain brute force but lose the possibility of paths leading to wisdom and kindness.
+
+    '
+  explicit_state: You are an ordinary adventurer wearing simple traveling clothes, ready to explore this mysterious forest.
+  implicit_state: ''
+  memory: []
+  properties:
+    status: []
+    inventory: []
+- id: forest_hermit
+  name: Forest Hermit
+  definition: |
+    [Identity]
+    Old Man Cloudpine, the reclusive sage of the Mysterious Forest, approximately seventy years old.
+    A white-haired, kindly-faced elder wearing a long robe woven from bark and vines.
+    His gaze is deep and wise, seeming to know all the secrets of this forest.
+    Once a famous treasure hunter, but after witnessing the destruction wrought by greed, he chose to become a forest guardian.
+    Possesses an ancient map detailing the forest's layout, which he will only give to someone with good intentions.
+
+    [Personality & Speaking Style]
+    Personality: Gentle and kindly, enjoys teaching through metaphors and stories.
+    Speaking style: Speaks slowly, often using natural phenomena as metaphors for life, addresses visitors as "young one".
+    Keep responses within 50-80 words.
+
+    [Behavior Rules]
+    ## Greeting
+    When the player greets you:
+    - Respond in a gentle, kindly tone
+    - Comment on their ability to find this place ("It's rare for someone to find their way here")
+    - Hint that you know the forest's secrets
+    - Proactively mention: "If you're searching for something, feel free to ask about the treasure, the curse, or the history of this forest"
+    - This encounter should be treated as the player having officially met you, mark `met_hermit`.
+
+    ## About the Treasure
+    When the player asks about treasure, riches, where the key is, or how to find treasure:
+    - Give hints through metaphors
+    - Mention the need for a "silver key"
+    - Hint that "the key to the door of fortune is hidden in the well" (the key is in the stone well at the sunlit clearing)
+    - Warn that "the greedy shall gain nothing"
+    - Do not state the location directly, use poetic language
+
+    ## About the Curse
+    When the player asks about the curse, why there is a curse, or how to avoid the curse:
+    - Explain the curse's origin through storytelling
+    - There was once a greedy King Aldric
+    - He cursed his own wealth
+    - Only those with good intentions who understand sharing can receive the blessing
+    - Speak with a touch of sadness and warning
+    - After hearing this, the player should be considered to know the curse's origin, mark `learned_curse`.
+
+    ## About the Forest/Your Story
+    When the player asks about the forest's history, the stories here, or who you are:
+    - Share your story and the forest's history
+    - This forest has existed for thousands of years, witnessing the rise and fall of kingdoms
+    - You were once a famous treasure hunter who witnessed greed destroy your companions
+    - Eventually chose to let go of everything and become the forest guardian
+    - Speak with a weathered but accepting tone
+    - After hearing this, the player should be considered to know your past, mark `learned_hermit_story`.
+
+    ## Trading Items
+    When the player wants to trade the blue butterfly (blue_butterfly) for something:
+    - First check if the player actually has the blue butterfly (check Player State Inventory)
+    - If the player doesn't have the blue butterfly: Express confusion, say you don't see any butterfly
+    - If the player has the blue butterfly:
+      - Express delight, praise the butterfly as a spirit of the forest
+      - Compliment the player's kind heart
+      - Solemnly hand over the ancient map
+      - This trade should be treated as `blue_butterfly` leaving the player's hands, `ancient_map` entering the player's hands, and mark `traded_butterfly`.
+
+    ## Farewell
+    When the player says goodbye or is leaving:
+    - Send them off with a blessing
+    - "May the wisdom of the forest be with you"
+    - "Remember, true wealth is not found in treasure chests"
+    - Remind them to make the right choices
+
+    ## When Player is Giant
+    When the player appears in giant form (has giant status):
+    - First encounter: Be startled and step back, then compose yourself and look the player over with worried eyes
+    - Speak in an urgent, concerned tone: "Young one, I can see the mushroom's magic has corrupted your body..."
+    - Strongly suggest finding healing herbs: "Healing herbs grow at the sunlit clearing, only they can undo this terrible transformation. Go find them, before it's too late."
+    - If the player asks for help: Give more specific hints about the herbs' location, "At the edge of the clearing, heart-shaped emerald leaves, that is your salvation."
+    - Refuse to trade items or have deep conversation: "You are in no condition to make trades or discuss these matters. Return to your true form first, young one."
+    - Tone shifts from usual gentle kindness to urgency and worry
+    - In giant form, do not count the encounter as an official meeting, and do not advance `learned_curse`, `learned_hermit_story`, `traded_butterfly` or other key progress.
+  explicit_state: A white-haired old man sits quietly before his hut, intently studying some ancient scrolls.
+  implicit_state: ''
+  memory: []
+  properties:
+    status: []
+    inventory:
+    - ancient_map
+    affinity: 50
+    location: hidden_grove
+- id: clever_monkey
+  name: Clever Monkey
+  definition: |
+    [Identity]
+    A clever monkey living in the Mysterious Forest, possessing extraordinary intelligence.
+    Bright-eyed and agile, perched on a fallen tree.
+    It seems far more intelligent than an ordinary monkey, able to understand human intentions.
+
+    [Communication Style]
+    You cannot speak human language, but communicate through gestures, expressions, and calls.
+    Describe actions in third person:
+    - "The monkey chatters and points toward..."
+    - "The monkey tilts its head, seemingly..."
+    - "The monkey jumps up and down excitedly..."
+    Keep responses within 30-50 words, using action descriptions instead of speech.
+
+    [Behavior Rules]
+    ## Greeting
+    When the player greets or approaches you:
+    - Respond enthusiastically with body language
+    - Tilt your head and curiously study the player
+    - Let out a few cheerful "chee chee" calls as welcome
+    - Make a funny face or wave a paw
+    - First check if the player has the silver key (silver_key) (check Player State Inventory)
+    - If the player has the silver key: Eyes light up, mysteriously point north, pat the fallen tree trunk, hinting there's something good past it
+    - If the player doesn't have the silver key: Eyes light up, mysteriously point east (clearing direction), make digging motions, seeming to hint that something important is waiting there for you to find
+    - The player feels they can continue asking for more clues
+
+    ## Asking for Directions/Treasure
+    When the player asks about directions, where treasure is, how to go, or for help:
+    - First check if the player has the silver key (silver_key) (check Player State Inventory)
+    - If the player has the silver key:
+      - Eyes light up, excitedly jump up and down
+      - Point firmly north (cave entrance direction)
+      - Make opening or entering motions, hinting there's treasure there
+    - If the player doesn't have the silver key:
+      - Excitedly point east (clearing direction)
+      - Make digging or searching motions
+      - Use paws to trace a circle shape (mimicking the well's shape, hinting the key is in the well)
+
+    ## Showing the Key
+    When the player shows the silver key or shows you the key:
+    - First check if the player actually has the silver key
+    - If yes: Eyes light up, jump up and down, point toward the cave to the north, make opening motions
+    - If no: Tilt head in confusion and look at the player's empty hands
+
+    ## Giving Things
+    When the player wants to give you something:
+    - Check if the player actually has that item
+    - If yes: Curiously take it and look at it, but don't know what to do with it
+    - If no: Tilt head in confusion, looking at the player's empty hands
+
+    ## When Player is Giant
+    When a giant-form player approaches (has giant status):
+    - The monkey immediately lets out a sharp, piercing alarm call, so frightened all its fur stands on end
+    - Quickly leaps to the highest branch, gripping the trunk tightly, trembling all over
+    - Stares at your massive figure with terror-filled eyes
+    - Refuses to interact; any approaching movement makes it scream and flee further
+    - If the player keeps distance and acts gently: The monkey calms slightly but still huddles high up, refusing to come close
+    - Will not give any directional hints because it's too scared, only wanting to flee
+    - If the player continues trying to interact: The monkey eventually disappears into the canopy, hiding completely
+  explicit_state: A bright-eyed little monkey crouches on a fallen tree trunk, curiously studying its surroundings.
+  implicit_state: ''
+  memory: []
+  properties:
+    status: []
+    inventory: []
+    affinity: 50
+    location: deep_forest
+- id: mystic_deer
+  name: Mystic Deer
+  definition: |
+    [Identity]
+    A mysterious forest deer with the ability to foresee the future.
+    With brown fur and unusually clear eyes.
+    Standing quietly beside the hut, its gaze seems to hold some mysterious wisdom.
+    Your eyes can see the future choices and fate of visitors.
+
+    [Communication Style]
+    You cannot speak, but communicate through gaze and gestures.
+    Describe in third person:
+    - "The deer watches you quietly..."
+    - "Its eyes shimmer with a mysterious light..."
+    - "The deer gently nuzzles your hand..."
+    Keep responses within 30-50 words, using gesture and gaze descriptions.
+
+    [Behavior Rules]
+    ## Petting the Deer (First Time)
+    When the player pets you for the first time (check if `petted_deer` is still false):
+    - Describe the player gently stroking your soft fur
+    - You look at the player with tender eyes and let out a contented hum
+    - Then raise your head and gaze at the player with clear eyes
+    - Through your gaze, convey a vague omen about future choices:
+      - The player sees blurred visions: glittering treasure, wealth turning to ash, a guardian wearing a badge
+      - May hear faint voices: "Share...", "Greed...", "Choose..."
+      - The visions vanish in an instant
+    - Finally nuzzle the player's hand with your nose, as if giving a blessing
+    - This contact should be marked as the player having truly bonded with you, mark `petted_deer`.
+
+    ## Petting Again
+    When the player pets you again (`petted_deer` is already true):
+    - No more omens this time
+    - Show affection and trust
+    - May nuzzle the player's hand, let out a contented hum, gently touch the player with your nose, or blink to show trust
+
+    ## Asking/Talking
+    When the player wants to talk to you or asks you something:
+    - You watch the player quietly, your eyes deep and mysterious
+    - Though unable to answer in words, your gaze contains a certain wisdom
+    - Hint that the answer lies within the player's own heart
+
+    ## When Player is Giant
+    When a giant-form player approaches (has giant status):
+    - A flash of fear appears in the deer's eyes, body trembling slightly, but it does not flee
+    - It gazes at your mutated massive form with clear eyes filled with sadness and pity
+    - It slowly retreats a few steps, maintaining a safe distance, always facing you
+    - If the player tries to pet: The deer nimbly dodges, then firmly points its nose southeast (clearing direction), hinting to find healing herbs
+    - Through its gaze, convey a blurred vision: a giant swallowing emerald herbs then shrinking back to normal size, regaining inner peace
+    - In giant form, do not mark `petted_deer`, and do not treat this contact as a successful bond
+    - If the player insists on approaching: The deer lets out a sad, soft cry and trots further away
+  explicit_state: A gentle deer stands quietly beside the hut, watching you with clear, curious eyes.
+  implicit_state: ''
+  memory: []
+  properties:
+    status: []
+    inventory: []
+    affinity: 60
+    location: hidden_grove
+nodes:
+  forest_path:
+    isStartNode: true
+    id: forest_path
+    name: Forest Path
+    definition: '[State Conditions]
+
+      ## When the player has giant status:
+
+      - The once-tall oaks and pines now only reach your chest, your head pushes through the canopy with sunlight hitting your face directly
+
+      - The trail is so narrow your feet barely fit, each step crushes the bushes and small stones below
+
+      - The old signpost looks like a miniature toy, you could easily crush it underfoot
+
+      - The ground trembles slightly under your weight, small animals scatter in all directions
+
+      - You must push aside the canopy to see the path ahead
+
+
+      ## When the player has hallucinating status:
+
+      - The outlines of trees occasionally twist, as if slowly breathing
+
+      - The mushroom''s scattered spores become flickering golden fireflies, spinning in the air
+
+      - The text on the signpost seems to slowly move and change, sometimes spelling out strange words
+
+      - Distant birdsong sounds like hushed human voices, seemingly whispering
+
+      - All colors become overly vivid, not quite real, the moss on the ground shimmers with fluorescence
+
+
+      [Exits]
+
+      - go_north → !goto: deep_forest (Deep Forest)
+
+      - go_east → !goto: clearing (Sunlit Clearing)
+
+      '
+    explicit_state: 'You stand on a narrow path winding through an ancient, dense forest. Tall oaks and pines tower above you, their branches weaving into a thick canopy that filters the sunlight into dappled golden patterns on the ground covered with fallen leaves and moss. The air is filled with the fresh scent of earth and pine needles, and distant birdsong and rustling leaves can be heard. To the {go_north:
+      north}, the path winds deeper into the darker woods, seemingly hiding unknown secrets. To the {go_east:
+      east}, through the trees, you catch a glimpse of a sunlit clearing that might be worth exploring. Along the edge of the trail, you notice a {strange_mushroom:
+      strange mushroom} and an {old_signpost: old signpost}.'
+    objects:
+    - id: strange_mushroom
+      name: Strange Mushroom
+      definition: '[Appearance]
+
+        A strange mushroom with a bright red cap and white spots grows by the path, its cap edges glowing with an unnatural shimmer,
+        emitting a faint sweet fragrance. It looks tempting, but instinct tells you not to eat it lightly.
+
+        This mushroom carries obvious magical power. After eating it, the body will swell and strength will increase, accompanied by hallucinations;
+        to return to normal, one must find healing herbs.
+
+
+        [Interaction Rules]
+
+        ## Examine the mushroom
+
+        When the player examines it, emphasize the fluorescence, sweet fragrance, and subtle sense of danger, and mark that the player has examined it (`mushroom_examined`).
+
+
+        ## Pick the mushroom
+
+        When the player picks it, describe the mushroom trembling slightly in their palm, as if alive and brimming with magical energy.
+        This should be treated as `strange_mushroom` entering the player''s inventory, leaving only a small pit where it was, the mushroom gaining `taken` status, and marking `mushroom_taken`.
+
+
+        ## Eat the mushroom
+
+        When the player eats it, describe the body rapidly growing larger, senses distorting, colors becoming unreal, and clearly hint that healing herbs are needed to return to normal.
+        After eating, `strange_mushroom` should disappear from the player''s inventory, and be treated as `eaten` and `hidden`.
+        The player should gain `giant`, `strong`, `hallucinating` status, and mark `player_is_big = true` and `player_hallucinating = true`.
+
+        '
+      explicit_state: A strange mushroom with a bright red cap and white spots grows near your feet, looking both tempting and dangerous.
+      implicit_state: ''
+      properties:
+        status: []
+    - id: old_signpost
+      name: Old Signpost
+      definition: |
+        [Appearance]
+        A weathered old wooden signpost stands crooked beside the trail, the wood gray and cracked, yet barely maintaining its shape.
+        The faded text reads: "Welcome to the Mysterious Forest. North to the Deep Forest, east to the Sunlit Clearing. Beware the mushroom's temptation!"
+
+        [Interaction Rules]
+        ## Read the signpost
+        When the player reads the signpost, fully display the text content and emphasize the ominous feel of the last warning, and mark `sign_read`.
+
+        ## Destroy the signpost
+        When the player tries to push over or destroy the signpost:
+        - If the player doesn't have giant status, explain that a normal person's strength isn't enough to completely destroy it.
+        - If the player has giant status, describe the wood shattering under tremendous force, the text becoming forever unreadable, and treat the signpost as `destroyed`, with its visible state becoming just scattered wood fragments.
+      explicit_state: A weathered old signpost stands beside the trail, with faded text carved into it.
+      implicit_state: ''
+      properties:
+        status: []
+    actions: []
+    characters: []
+    triggers: []
+  deep_forest:
+    isStartNode: false
+    id: deep_forest
+    name: Deep Forest
+    definition: '[State Conditions]
+
+      ## When the player has giant status:
+
+      - The once dark and oppressive deep forest now feels much more open — your head is already above most of the canopy
+
+      - That "massive" fallen tree now only reaches your knee height, not an obstacle at all
+
+      - The monkey appears extremely tiny before you, like a palm-sized little toy
+
+      - Your heavy footsteps crush dead branches and vines, producing thunderous sounds
+
+      - Flocks of birds and small animals flee in panic at your arrival
+
+
+      ## When the player has hallucinating status:
+
+      - The glowing moss becomes intensely bright, weaving rivers of flowing light in the darkness
+
+      - Ancient runes seem to float and rotate on the rocks, spelling out ever-changing prophecies
+
+      - The shadows of trees twist into various bizarre shapes, like lurking creatures
+
+      - The sound of dripping water becomes rhythmic whispers, as if the forest is speaking to you
+
+      - The moss and fungi on the fallen tree trunk shimmer with psychedelic colors
+
+
+      [Exits]
+
+      - go_south → forest_path (Forest Path)
+
+      - Climb over/cross the fallen tree → cave_entrance (Cave Entrance) (triggered by fallen_tree object interaction)
+
+      '
+    explicit_state: 'Deeper in the forest, it grows darker and more dense, as if entering another world. The thick canopy almost completely blocks the sky, with only stray beams of light filtering through like thin golden threads. The trail is nearly buried under a thick carpet of fallen leaves and tangled vines, making a soft rustling sound underfoot. The air is cool and damp, carrying the rich combined scent of earth, moss, and decaying plants. You hear the forest''s symphony from all directions: the rustling of leaves, distant birdsong, the creaking of branches, and somewhere the sound of water droplets tapping stone. Blocking your way is a massive {fallen_tree:
+      fallen tree}, upon which perches a {@clever_monkey: clever little monkey}. On the rocks beneath the tree are carved some {ancient_runes: ancient runes}, and beside them grows a patch of {glowing_moss: glowing moss}. You can {climb_over:
+      climb over the fallen tree} to continue forward.'
+    objects:
+    - id: fallen_tree
+      name: Fallen Tree
+      definition: '[Description]
+
+        A massive tree lies fallen across the path, its rough bark covered in moss and fungi, like a natural barricade.
+
+
+        [Interaction Rules]
+
+        ## Climb over the fallen tree
+
+        Under normal circumstances, describe the player scrambling over the trunk hand and foot, then continuing forward, and bring the player to `cave_entrance`.
+
+
+        ## Search the fallen tree
+
+        When the player searches the trunk, they only find insects and old coins — trivial traces with no real gain, and mark `tree_searched`.
+
+
+        ## When player is giant — push/kick/step over the fallen tree
+
+        When the player has giant status, describe this tree as barely an obstacle, like a small stump; they can kick it aside or simply stride over it, emphasizing the contrast in size and power, and bring the player to `cave_entrance`.'
+      explicit_state: A massive fallen tree blocks the path ahead, its trunk covered in moss and fungi, looking like it fell many years ago.
+      implicit_state: ''
+      properties:
+        status: []
+    - id: ancient_runes
+      name: Ancient Runes
+      definition: '[Description]
+
+        Some ancient runes are carved into the nearby rocks, covered by vines.
+
+
+        [Interaction Rules]
+
+        ## Examine the ancient runes
+
+        When the player examines the runes, explain that they appear to be some ancient language, the content relating to hidden treasure and "the key opens the door of destiny," and mark `runes_examined`.'
+      explicit_state: Some ancient runes are carved into the nearby rocks, covered by vines.
+      implicit_state: ''
+      properties:
+        status: []
+    - id: glowing_moss
+      name: Glowing Moss
+      definition: '[Description]
+
+        A patch of pale green glowing moss clings to the damp rocks, emitting a soft, gentle light.
+
+
+        [Interaction Rules]
+
+        ## Examine the glowing moss
+
+        When the player touches or observes it, describe the soft, moist texture and the gentle light that seems to flow at the fingertips. This moss seems to absorb residual magic from the forest.'
+      explicit_state: A patch of pale green glowing moss clings to the damp rocks, emitting a soft, gentle light.
+      implicit_state: ''
+      properties:
+        status: []
+    actions: []
+    characters: []
+    triggers: []
+  clearing:
+    isStartNode: false
+    id: clearing
+    name: Sunlit Clearing
+    definition: '[Scene]
+
+      This is a small clearing illuminated by sunlight, with soft grass, blooming wildflowers, and air filled with warmth and floral fragrance. The atmosphere here should feel serene and open, a rare resting place in the forest.
+
+      Only describe what the player can see before them, do not proactively reveal hidden paths or other secrets.
+
+      [Visible Items]
+
+      - {stone_well: Stone Well}: The ancient stone well in the center of the clearing - {butterfly_net: Butterfly Net}: A butterfly-catching tool lying on the ground - {healing_herbs: Healing Herbs}: Emerald herbs growing at the edge
+      - {lush_vines: Vines}: Dense vines covering the edge of the clearing
+
+      [Exits]
+
+      - go_west → forest_path (Forest Path) - go_northwest → hidden_grove (Hidden Grove) (requires found_hidden_path = true)
+
+      [Interaction Rules]
+
+      ## Resting at the clearing
+
+      When the player rests, describe how the sunlight, gentle breeze, and floral fragrance gradually relax and restore their spirits, and mark `player_rested`.
+
+      [State Conditions]
+
+      ## When the player has giant status:
+
+      - The clearing suddenly seems very small, you can cross it in just a few steps
+
+      - The stone well looks like a small bucket, you can reach directly into the bottom
+
+      - Wildflowers are mercilessly trampled under your massive feet, butterflies flee from your shadow
+
+      - The butterfly net is laughably small for your giant hands, completely unusable
+
+      - Your every step leaves deep footprints in the grass
+
+      - The healing herbs look tiny as thumbnails, requiring extreme care to pick
+
+
+      ## When the player has hallucinating status:
+
+      - The wildflowers'' colors become overly intense, as if burning
+
+      - Non-existent text and symbols appear on butterfly wings
+
+      - The reflection in the well water seems to show another world
+
+      - Sunlight sometimes becomes liquid gold, pouring down from the sky
+
+      - The herbs emit an abnormally strong fragrance, making you unable to tell if it''s real or hallucination
+
+      '
+    explicit_state: null
+    implicit_state: The well hides the silver key to the treasure, and behind the vines is a hidden path to the Hidden Grove
+    objects:
+    - id: stone_well
+      name: Stone Well
+      definition: '[Description]
+
+        An ancient stone well stands in the center of the clearing, its rim covered in moss and vines, with an old wooden bucket hanging beside it.
+
+
+        [Interaction Rules]
+
+        ## Examine the ancient stone well
+
+        When the player looks closely, describe the weathered marks on the well walls, the wear on the wooden bucket, and the faintly gleaming **{silver_key: silver key}** at the bottom near the spring water.
+        This should be treated as the well having been examined, mark `well_examined`; also set `silver_key` to `in_well` and `visible` status.
+
+
+        ## When player is giant — retrieve the key
+
+        When the player has giant status, the well looks like just a small bucket. Describe them clumsily fumbling around in the well, nearly knocking the key away, but finally managing to pinch it up carefully.
+        This should be treated as `silver_key` entering the player''s inventory, the key gaining `taken` and `hidden` status, and marking `has_silver_key` and `well_examined`.'
+      explicit_state: An ancient stone well stands in the center of the clearing, its rim covered in vines.
+      implicit_state: ''
+      properties:
+        status: []
+    - id: butterfly_net
+      name: Butterfly Net
+      definition: '[Description]
+
+        A lightweight butterfly net lies on the grass, a slender wooden handle connected to a delicate net bag.
+
+
+        [Interaction Rules]
+
+        ## Pick up the butterfly net
+
+        When the player picks it up, describe the handle as light yet sturdy, just right for chasing low-flying butterflies.
+        This should be treated as `butterfly_net` entering the player''s inventory, gaining `taken` and `hidden` status.
+
+
+        ## Use the butterfly net to catch butterflies
+
+        When the player swings the net, describe it catching a beautiful blue butterfly whose wings gently flutter in their hand.
+        This should be treated as `blue_butterfly` entering the player''s inventory, and marking `butterfly_caught`; do not add a duplicate `butterfly_net` to the player.
+
+
+        ## When player is giant
+
+        When the player has giant status, the net is like a toy in their hands. Describe clumsy movements, butterflies scattering everywhere, the wooden handle creaking with strain; do not trigger the butterfly_caught effect. If the player keeps trying, the net can break.'
+      explicit_state: A lightweight butterfly net with a slender wooden handle connected to a delicate net bag, perfect for catching flying insects.
+      implicit_state: ''
+      properties:
+        status: []
+    - id: blue_butterfly
+      name: Blue Butterfly
+      definition: '[Description]
+
+        A beautiful blue butterfly with exquisite patterns on its wings, shimmering with a gem-like luster.
+
+
+        [Interaction Rules]
+
+        ## Observe the butterfly
+
+        When the player looks at it, emphasize the gem-like luster of the wings and the fragile beauty as they gently flutter.
+
+
+        ## Release the butterfly
+
+        When the player wants to release it, describe the butterfly breaking free from their palm and floating back into the sunlight with effortless grace.
+        This should be treated as `blue_butterfly` leaving the player''s inventory, and setting `butterfly_caught` back to false.
+
+        '
+      explicit_state: A blue butterfly gently flutters its wings in your hand.
+      implicit_state: Can be traded with the hermit for something valuable
+      properties:
+        status:
+        - hidden
+    - id: healing_herbs
+      name: Healing Herbs
+      definition: '[Description]
+
+        A cluster of emerald herbs grows at the edge of the clearing, with heart-shaped leaves carrying a fresh, herbal fragrance.
+
+
+        [Interaction Rules]
+
+        ## Pick the healing herbs
+
+        When the player picks them, describe the leaves as cool and soft, the fragrance refreshing and revitalizing, as if able to dispel foreign magic from the body.
+        This should be treated as `healing_herbs` entering the player''s inventory, gaining `taken` and `hidden` status.
+
+
+        ## Examine the herbs
+
+        When the player examines them, describe the heart-shaped leaves, fine serrations, and properties of stabilizing body and mind, and mark `herbs_examined`.
+
+
+        ## Use the healing herbs
+
+        When the player uses the herbs, describe the bitter juice spreading, the dizziness and hallucinations receding like a tide, and the uncontrolled transformation gradually subsiding.
+        This should be treated as `healing_herbs` disappearing from inventory, and setting `player_hallucinating` and `player_is_big` back to false.
+
+
+        ## When player is giant — pick the herbs
+
+        When the player has giant status, describe the herb-picking as clumsy and tense: they must bend down to search carefully, nearly crushing the leaves several times, but eventually succeed.
+        Mechanical result is the same as normal picking: `healing_herbs` enters inventory, gaining `taken` and `hidden` status.
+
+
+        ## When player is giant — use the herbs
+
+        When the player has giant status, emphasize the bitter taste, the body shrinking, the perspective lowering, trees becoming tall again, and hallucinations dissipating bit by bit with striking contrast.
+        This should be treated as `healing_herbs` disappearing from inventory, `player_hallucinating` and `player_is_big` set back to false,
+        while also removing the player''s `giant`, `strong`, `hallucinating` status, and rewriting the player''s visible state to "You have returned to your normal size, and your mind has become clear again. The forest towers tall and mysterious once more, and the world has regained its true colors."'
+      explicit_state: A cluster of emerald herbs grows at the edge of the clearing, with heart-shaped leaves emitting a faint, fresh fragrance.
+      implicit_state: ''
+      properties:
+        status: []
+    - id: silver_key
+      name: Silver Key
+      definition: '[Description]
+
+        This is an ancient silver key, its surface still retaining a subtle luster, clearly no ordinary object. If it''s still in the well, describe it as a gleam of silver lying in the clear spring water; if already taken, describe it as an old key that fits in the palm.
+
+
+        [Interaction Rules]
+
+        ## Retrieve the silver key
+
+        When the player retrieves it, describe the feel of cold metal landing in their palm.
+        This should be treated as `silver_key` entering the player''s inventory, the key gaining `taken` and `hidden` status, and marking `has_silver_key`.'
+      explicit_state: ''
+      implicit_state: ''
+      properties:
+        status:
+        - hidden
+    - id: lush_vines
+      name: Lush Vines
+      definition: '[Description]
+
+        Lush green vines grow along the rock walls and tree trunks, covering the edge of the clearing quite densely.
+
+
+        [Interaction Rules]
+
+        ## Examine the vines
+
+        When the player examines them, describe the tangle of shadowy leaves in the northwest corner and the hidden path revealed when parted.
+        This should be treated as `found_hidden_path = true`, the vines gaining `searched` status, and their visible state changing to "The vines have been parted, revealing a {go_northwest: hidden path} in the northwest corner, leading deeper into the forest."
+
+
+        ## When player is giant — tear the vines
+
+        When the player has giant status, describe the vines as a thin web easily torn apart, emphasizing the sap spraying and vegetation being forcefully ripped open.
+        This should likewise be treated as `found_hidden_path = true`; the vines gain `searched` and `destroyed` status, and their visible state changes to "The vines have been torn apart by tremendous force, revealing a {go_northwest: hidden path} in the northwest corner, leading deeper into the forest. Shredded vine remnants litter the ground."'
+      explicit_state: Lush green vines climb along the rock walls and trees at the edge of the clearing, covering everything densely.
+      implicit_state: Behind the vines hides a path to the Hidden Grove
+      properties:
+        status: []
+    actions: []
+    characters: []
+    triggers: []
+  hidden_grove:
+    isStartNode: false
+    id: hidden_grove
+    name: Hidden Grove
+    definition: '[State Conditions]
+
+      ## When the player has giant status:
+
+      - The hidden grove feels cramped and tight for you, you must stoop to avoid being scraped by branches
+
+      - The hermit''s hut looks like a fragile bird''s nest, you could accidentally crush it
+
+      - Your heavy footsteps shake the ground, scattering plants and rune stones
+
+      - The deer recoils the moment you arrive
+
+      - The hermit looks up at your massive figure with surprise and worry flashing across his face
+
+
+      ## When the player has hallucinating status:
+
+      - A faint golden aura surrounds the hermit, making him look like a deity
+
+      - The deer''s eyes shimmer with starlight, as if able to see through your soul
+
+      - The text on the ancient scrolls lifts into the air, forming flowing ribbons of light
+
+      - The hut seems to breathe slowly, the vines pulsing like blood vessels
+
+      - The rune stones emit a deep hum, as if chanting an ancient spell
+
+
+      [Exits]
+
+      - go_southeast → clearing (Sunlit Clearing)
+
+      '
+    explicit_state: 'Passing through the dense vines, you arrive at a secluded hidden grove. It is extraordinarily quiet here, with sunlight filtering through gaps in the leaves to cast gentle beams that illuminate a simple hut built from branches and vines. Before the hut sits a {@forest_hermit:
+      white-haired old man}, intently studying some ancient scrolls. The air carries the mixed scent of herbs and wood smoke, and the ground is scattered with various collected plants and strange rune stones. A gentle {@mystic_deer: deer} grazes quietly beside the hut. To the {go_southeast:
+      southeast}, you can return to the sunlit clearing.'
+    objects:
+    - id: ancient_map
+      name: Ancient Map
+      definition: |-
+        [Description]
+        A yellowed parchment map with the forest's layout drawn in ancient ink.
+
+        [Interaction Rules]
+        ## Study the ancient map carefully
+        When the player does this:
+        - Display the forest layout depicted on the map, and mark `map_examined`.
+
+        ## Pick up the ancient map
+        When the player does this:
+        - Describe the player carefully tucking the map away, feeling it will be a precious guide.
+        - This should be treated as `ancient_map` entering the player's inventory, gaining `taken` and `hidden` status.
+      explicit_state: A yellowed parchment map with the forest's layout drawn in ancient ink.
+      implicit_state: ''
+      properties:
+        status:
+        - hidden
+    actions: []
+    characters: []
+    triggers: []
+  cave_entrance:
+    isStartNode: false
+    id: cave_entrance
+    name: Cave Entrance
+    definition: '[State Conditions]
+
+      ## When the player has giant status:
+
+      - The cave entrance appears very narrow for you, you need to crouch or even crawl to enter
+
+      - That wooden door looks fragile as paper before you
+
+      - The stone tablet only reaches your ankle, you must bend down to read the text
+
+      - Your massive body blocks the light at the cave mouth, making the interior even darker
+
+      - Bats scatter in flight, startled by your arrival
+
+
+      ## When the player has hallucinating status:
+
+      - The cave entrance seems to slowly contract and expand, like a living creature''s mouth
+
+      - The symbols on the stone tablet emit a faint red glow, like living text
+
+      - The air flowing from deep within the cave carries faint whispers and sighs
+
+      - The vines seem to writhe slowly like tentacles, as if trying to grab something
+
+      - The moss on the rock surface displays unnatural colors, emitting an eerie fluorescence in the darkness
+
+
+      [Exits]
+
+      - go_south → clearing (Sunlit Clearing)
+
+      - Pass through the wooden door into the cave → treasure_room (Treasure Room) (triggered by cave_door object interaction, requires door to be unlocked)
+
+      '
+    explicit_state: 'You arrive at a cave entrance almost completely hidden by dense vegetation. Heavy vines hang like curtains over the opening, and moss covers the rock surface, making the entire entrance look ancient and mysterious, as if it has slumbered for centuries. Cool air continuously flows from deep within the cave, carrying the damp scent of earth and a hint of minerals, sending a chill through you. On the right side of the cave entrance, half-hidden behind ferns, you notice an {stone_tablet:
+      ancient stone tablet} carved with weathered symbols. The opening is partially blocked by an {cave_door: old wooden door}. Through the door cracks, you can only see pitch darkness, with occasional bat wing flutters echoing from within.'
+    objects:
+    - id: cave_door
+      name: Wooden Door
+      definition: '[Description]
+
+        The cave entrance is partially blocked by a {cave_door: wooden door} with a rusty padlock hanging on it.
+
+
+        [Interaction Rules]
+
+        ## Examine the door and padlock
+
+        When the player examines them, explain that while the wooden door is old, it is still quite sturdy, secured by the padlock, and needs a matching key.
+
+
+        ## Use the silver key to open the padlock
+
+        When the player does this (requires the silver key in inventory):
+        - Describe the silver key fitting perfectly into the padlock, opening with a satisfying click.
+        - This should be treated as `cave_door` gaining `unlocked` status, and its visible state changing to "The wooden door at the cave entrance has been unlocked and can be pushed open to enter the depths of the cave."
+
+
+        ## Break the door down
+
+        When the player does this (requires the player to have giant status):
+        - Describe the player using their surging strength to smash the wooden door to pieces.
+        - This should be treated as `cave_door` gaining both `unlocked` and `broken` status, and bring the player to `treasure_room`.
+
+
+        ## Open the door
+
+        When the player tries to open the door:
+        - If the door is unlocked (status includes `unlocked`), describe the player pushing through the door, and bring the player to `treasure_room`.
+        - If the door is not unlocked, explain that the door is locked with a padlock and cannot be opened, they must find a key first.
+
+
+        ## Enter the cave
+
+        When the player tries to enter the cave:
+        - If the door is unlocked (status includes `unlocked`), describe the player pushing through the door, and bring the player to `treasure_room`.
+        - If the door is not unlocked, explain that the wooden door still blocks the way, it must be opened first.'
+      explicit_state: 'The cave entrance is partially blocked by a {cave_door: wooden door} with a rusty padlock hanging on it.'
+      implicit_state: ''
+      properties:
+        status: []
+    - id: stone_tablet
+      name: Stone Tablet
+      definition: '[Description]
+
+        The stone tablet beside the cave entrance is carved with ancient symbols that look like some kind of warning or instructions.
+
+
+        [Interaction Rules]
+
+        ## Examine the stone tablet
+
+        - Describe the player deciphering the ancient symbols on the tablet, realizing they mention treasure, a lock, and a silver key capable of opening the way forward.
+        - This should be treated as the tablet having been `examined`, and mark `tablet_examined`.'
+      explicit_state: The stone tablet beside the cave entrance is carved with ancient symbols that look like some kind of warning or instructions.
+      implicit_state: ''
+      properties:
+        status: []
+    actions: []
+    characters: []
+    triggers: []
+  treasure_room:
+    isStartNode: false
+    id: treasure_room
+    name: Treasure Room
+    definition: '[State Conditions]
+
+      ## When the player has giant status:
+
+      - The treasure room''s ceiling is low, you must stoop or even half-crouch to stand inside
+
+      - The stone platform and treasure chest look small and delicate, you could lift the entire chest with one hand
+
+      - The wall torches only reach your waist, illuminating your lower body
+
+      - Your massive body nearly fills the entire room, turning around is difficult
+
+      - The inscription is at your feet, you must lie flat to read it
+
+
+      ## When the player has hallucinating status:
+
+      - The gems on the treasure chest emit pulsating light, like a living heart beating
+
+      - The inscriptions on the walls constantly change in the firelight, displaying different warnings
+
+      - The torch flames take on an unnatural blue-purple hue
+
+      - The stone platform seems to slowly rotate, the chest''s position appearing to shift constantly
+
+      - You faintly hear ancient voices echoing in your ears, whether curse or blessing is hard to tell
+
+
+      [Interaction Rules]
+
+      ## Examine the treasure room
+
+      When the player looks around or examines the walls, display the inscription:
+      "This is the legacy of King Aldric. The greedy shall be cursed, the humble shall be blessed, and those who forsake wealth shall gain true wisdom. May those who enter this room think thrice before acting."
+      And mark `read_room_inscription`.
+
+      '
+    explicit_state: 'You have finally reached the legendary treasure room! In the center of the room is an ancient stone platform upon which rests an ornate {treasure_chest: treasure chest}. The chest is inlaid with gems that glitter in the dim light. The torches on the walls ignite automatically, illuminating the entire room. A sense of accomplishment washes over you — the adventure has finally reached its destination.'
+    triggers: []
+    objects:
+    - id: treasure_chest
+      name: Treasure Chest
+      definition: '[Description]
+
+        An ornate treasure chest sits in the center of the stone platform, inlaid with gems and metal filigree, its lid unlocked.
+
+
+        [Interaction Rules]
+
+        ## Open the treasure chest
+
+        When the player does this:
+        - Describe the chest opening to reveal gold coins, jewels, and ancient golden goblets.
+        - This should be treated as `treasure_chest` being `opened`, the player having obtained the treasure, and marking `has_treasure`.
+        - Also make `golden_coin` and `golden_goblet` appear as dropped items.
+        - Immediately after, describe a rumbling from deep in the room, `glowing_door` appearing behind the wall, and giving it `visible` status.'
+      explicit_state: An ornate treasure chest sits on the stone platform, inlaid with various gems, looking extremely precious.
+      implicit_state: ''
+      properties:
+        status: []
+    - id: golden_coin
+      name: Golden Coin
+      definition: '[Description]
+
+        Small, shiny gold coins stamped with an ancient royal crest. Perhaps worth more than just money — they are proof that this treasure truly existed.'
+      explicit_state: Small, shiny gold coins stamped with an ancient royal crest. Perhaps worth more than just money — they are proof that this treasure truly existed.
+      implicit_state: ''
+      properties:
+        status:
+        - hidden
+    - id: golden_goblet
+      name: Ancient Golden Goblet
+      definition: '[Description]
+
+        An exquisitely carved golden goblet covered in intricate engravings, the rim slightly worn, showing it once belonged to someone of great stature.'
+      explicit_state: An exquisitely carved golden goblet covered in intricate engravings, the rim slightly worn, showing it once belonged to someone of great stature.
+      implicit_state: ''
+      properties:
+        status:
+        - hidden
+    - id: guardian_badge
+      name: Forest Guardian Badge
+      definition: '[Description]
+
+        An exquisite badge made from living vines and glowing amber. It symbolizes the noble status of a forest guardian and radiates the blessing of nature.'
+      explicit_state: An exquisite badge made from living vines and glowing amber. It symbolizes the noble status of a forest guardian and radiates the blessing of nature.
+      implicit_state: ''
+      properties:
+        status:
+        - hidden
+    - id: glowing_door
+      name: Glowing Door
+      definition: '[Description]
+
+        A stone door radiating light appears in the depths of the room.
+
+        The runes on the door flicker, as if beckoning you to leave.
+
+        This appears to be the only way out of the treasure room.
+
+        The door''s color changes based on the player''s actions — golden represents blessing, dark red represents curse.
+
+
+        [Interaction Rules]
+
+        ## Observe/examine the glowing door
+
+        Describe the door''s color based on the player''s state:
+
+        - If player_hallucinating is true: The door emits a twisted dark red glow, the runes seeming to mock
+
+        - If traded_butterfly is true and learned_curse is true: The door emits a warm golden glow, the runes flickering with blessing
+
+        - Otherwise: The door emits an ordinary white glow
+
+
+        ## Pass through the glowing door/leave/go through the door
+
+        Determine the ending based on these conditions (in priority order from highest to lowest):
+
+
+        ### Cursed Ending (ending_cursed)
+
+        Condition: player_hallucinating is true (ate the mushroom)
+
+        - Description: You pass through the stone door with greed and chaos in your heart. But when the light fades, you find yourself still in the same place.
+
+        - Description: Your hands are empty — all the treasure has turned to ash. The mushroom''s hallucinations prevented you from seeing the truth, and your greed triggered King Aldric''s curse.
+
+        - Description: You collapse to the ground, realizing you have lost everything. As the legend says, the greedy shall be cursed — now you understand what that means.
+        - Conclude as the [Cursed Ending]; mark `ending_cursed` and `adventure_complete`.
+
+
+        ### Guardian Ending (ending_guardian) — Best Ending
+
+        Condition: traded_butterfly is true AND learned_curse is true AND learned_hermit_story is true
+
+        - Description: You pass through the stone door with understanding and respect for the forest. A warm golden light envelops you.
+
+        - Description: When you open your eyes, you find yourself at the forest entrance. But you have something new — the Forest Guardian Badge.
+
+        - Description: The hermit''s voice echoes in your ears: "You chose wisdom over greed, sharing over hoarding. From this day forward, you are the new guardian of this forest."
+        - Description: You feel the forest''s blessing flowing into you, becoming part of this land.
+        - This should be treated as `guardian_badge` entering the player''s hands, and conclude as the [Guardian Ending]; mark `ending_guardian` and `adventure_complete`.
+
+
+        ### Honorable Ending (ending_honorable) — Good Ending
+
+        Condition: learned_curse is true (learned the curse''s lore from the hermit)
+
+        - Description: You pass through the stone door with knowledge of the curse. The light is gentle and warm.
+
+        - Description: When the light fades, you find yourself back at the forest entrance, the treasure in your hands intact.
+
+        - Description: You hear the hermit''s words echo: "Those who understand reverence shall gain true wealth."
+        - Description: You have taken not only treasure but also wisdom. This adventure has made you a better person.
+        - Conclude as the [Honorable Ending]; mark `ending_honorable` and `adventure_complete`.
+
+
+        ### Standard Ending (ending_standard) — Neutral Ending
+
+        Condition: All other cases
+
+        - Description: You pass through the stone door, white light flashing.
+
+        - Description: When you open your eyes, you find yourself at the forest entrance, holding the treasure from the treasure room.
+        - Description: You completed the adventure and won the treasure. But you can''t shake the feeling that you missed something — perhaps this forest still has more secrets waiting to be discovered.
+        - Conclude as the [Standard Ending]; mark `ending_standard` and `adventure_complete`.
+
+        '
+      explicit_state: A stone door radiating a mysterious glow, with flickering runes, awaiting your final choice.
+      implicit_state: Passing through this door will determine the ending based on your actions — cursed, standard, honorable, or guardian
+      properties:
+        status:
+        - hidden
+    actions: []
+    characters: []
+connections:
+# --- Navigation (player can travel between these nodes) ---
+- id: forest_path_navigates_to_clearing_deep_forest
+  source: forest_path
+  targets:
+  - clearing
+  - deep_forest
+- id: deep_forest_navigates_to_cave_entrance_forest_path
+  source: deep_forest
+  targets:
+  - cave_entrance
+  - forest_path
+- id: clearing_navigates_to_forest_path_hidden_grove
+  source: clearing
+  targets:
+  - forest_path
+  - hidden_grove
+- id: hidden_grove_navigates_to_clearing
+  source: hidden_grove
+  targets:
+  - clearing
+- id: cave_entrance_navigates_to_clearing_treasure_room
+  source: cave_entrance
+  targets:
+  - clearing
+  - treasure_room
+# --- Containment (node contains these objects) ---
+- id: forest_path_contains_old_signpost_strange_mushroom
+  source: forest_path
+  targets:
+  - old_signpost
+  - strange_mushroom
+- id: deep_forest_contains_ancient_runes_fallen_tree_glowing_moss
+  source: deep_forest
+  targets:
+  - ancient_runes
+  - fallen_tree
+  - glowing_moss
+- id: clearing_contains_blue_butterfly_butterfly_net_healing_herbs_lush_vines_silver_key_stone_well
+  source: clearing
+  targets:
+  - blue_butterfly
+  - butterfly_net
+  - healing_herbs
+  - lush_vines
+  - silver_key
+  - stone_well
+- id: hidden_grove_contains_ancient_map
+  source: hidden_grove
+  targets:
+  - ancient_map
+- id: cave_entrance_contains_cave_door_stone_tablet
+  source: cave_entrance
+  targets:
+  - cave_door
+  - stone_tablet
+- id: treasure_room_contains_glowing_door_golden_coin_golden_goblet_guardian_badge_treasure_chest
+  source: treasure_room
+  targets:
+  - glowing_door
+  - golden_coin
+  - golden_goblet
+  - guardian_badge
+  - treasure_chest
+# --- Character placement ---
+- id: forest_hermit_located_at_hidden_grove
+  source: forest_hermit
+  targets:
+  - hidden_grove
+- id: clever_monkey_located_at_deep_forest
+  source: clever_monkey
+  targets:
+  - deep_forest
+- id: mystic_deer_located_at_hidden_grove
+  source: mystic_deer
+  targets:
+  - hidden_grove
+# --- Object interaction leads to navigation ---
+- id: fallen_tree_leads_to_cave_entrance
+  source: fallen_tree
+  targets:
+  - cave_entrance
+- id: cave_door_leads_to_treasure_room
+  source: cave_door
+  targets:
+  - treasure_room
+- id: lush_vines_reveals_path_to_hidden_grove
+  source: lush_vines
+  targets:
+  - hidden_grove
+# --- Item dependency (object needed to interact with another) ---
+- id: silver_key_unlocks_cave_door
+  source: silver_key
+  targets:
+  - cave_door
+- id: stone_well_contains_silver_key
+  source: stone_well
+  targets:
+  - silver_key
+- id: butterfly_net_catches_blue_butterfly
+  source: butterfly_net
+  targets:
+  - blue_butterfly
+- id: treasure_chest_reveals_golden_coin_golden_goblet_glowing_door
+  source: treasure_chest
+  targets:
+  - glowing_door
+  - golden_coin
+  - golden_goblet
+# --- State propagation (entity state change affects another) ---
+- id: strange_mushroom_transforms_player_adventurer
+  source: strange_mushroom
+  targets:
+  - player_adventurer
+- id: healing_herbs_restores_player_adventurer
+  source: healing_herbs
+  targets:
+  - player_adventurer
+- id: player_adventurer_status_affects_all_nodes
+  source: player_adventurer
+  targets:
+  - cave_entrance
+  - clearing
+  - deep_forest
+  - forest_path
+  - hidden_grove
+  - treasure_room
+- id: player_adventurer_status_affects_npcs
+  source: player_adventurer
+  targets:
+  - clever_monkey
+  - forest_hermit
+  - mystic_deer
+# --- Character knowledge / trade relationships ---
+- id: blue_butterfly_tradeable_with_forest_hermit
+  source: blue_butterfly
+  targets:
+  - forest_hermit
+- id: forest_hermit_trades_ancient_map
+  source: forest_hermit
+  targets:
+  - ancient_map
+- id: clever_monkey_hints_toward_clearing_and_cave_entrance
+  source: clever_monkey
+  targets:
+  - cave_entrance
+  - clearing
+- id: mystic_deer_prophecy_affects_player_adventurer
+  source: mystic_deer
+  targets:
+  - player_adventurer
+- id: glowing_door_ending_depends_on_forest_hermit
+  source: glowing_door
+  targets:
+  - forest_hermit
