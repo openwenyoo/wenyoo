@@ -71,6 +71,7 @@ const saveGameButton = document.getElementById('save-game-button');
 const exportHistoryButton = document.getElementById('export-history-button');
 const languageSelect = document.getElementById('language-select');
 const mentionOverlay = document.getElementById('mention-overlay');
+const commandPalette = document.getElementById('command-palette');
 const mentionSuggestions = document.getElementById('mention-suggestions');
 
 // --- New Persistent ID Logic ---
@@ -409,34 +410,36 @@ function setupEventListeners() {
     });
     userInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && mainContent.style.display !== 'none') {
-            if (mentionState.isOpen) {
+            if (mentionState.isOpen || slashCommandState.isOpen) {
                 return;
             }
             sendCommand();
         }
     });
-    userInput.addEventListener('input', handleMentionInput);
-    userInput.addEventListener('keydown', handleMentionKeydown);
+    userInput.addEventListener('input', handleComposerInput);
+    userInput.addEventListener('keydown', handleComposerKeydown);
     userInput.addEventListener('scroll', () => {
         if (mentionOverlay) {
             mentionOverlay.scrollLeft = userInput.scrollLeft;
         }
     });
-    userInput.addEventListener('click', handleMentionInput);
+    userInput.addEventListener('click', handleComposerInput);
     userInput.addEventListener('blur', () => {
-        setTimeout(closeMentionSuggestions, 150);
+        setTimeout(closeComposerSuggestions, 150);
     });
     if (mentionSuggestions) {
         mentionSuggestions.addEventListener('mousedown', (event) => {
             event.preventDefault();
         });
     }
+    if (commandPalette) {
+        commandPalette.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+        });
+    }
     copySessionCodeButton.addEventListener('click', copySessionCode);
     continueButton.addEventListener('click', skipToNextMessage);
-    displayToggleBtn.addEventListener('click', () => {
-        const isOpen = displayPanel.classList.toggle('visible');
-        displayToggleBtn.classList.toggle('is-open', isOpen);
-    });
+    displayToggleBtn.addEventListener('click', toggleDisplayPanel);
     document.querySelectorAll('.panel-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
@@ -445,10 +448,15 @@ function setupEventListeners() {
             document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
         });
     });
-    saveGameButton.addEventListener('click', saveGame);
+    saveGameButton.addEventListener('click', () => saveGame({ showUserMessage: false }));
     exportHistoryButton.addEventListener('click', handleExportMessages);
     document.getElementById('return-button').addEventListener('click', handleReturn);
     document.getElementById('reload-button').addEventListener('click', handleReload);
+    document.addEventListener('textAdventure:localeChanged', () => {
+        if (slashCommandState.isOpen) {
+            renderSlashCommandPalette();
+        }
+    });
     // Add listener to restore stashed choices
     gameMessages.addEventListener('click', () => {
         if (stashedStoryChoices) {
@@ -459,8 +467,12 @@ function setupEventListeners() {
     });
 }
 
-function saveGame() {
-    socket.send(JSON.stringify({ type: 'command', content: 'save' }));
+function saveGame(options = {}) {
+    const { showUserMessage = true, displayText = '/save' } = options;
+    // TODO: Replace manual slash-triggered saves with autosave session support.
+    dispatchSocketCommand('save', displayText, null, null, {
+        showUserMessage
+    });
 }
 
 async function handleExportMessages() {
@@ -1110,6 +1122,7 @@ function handleWebSocketMessage(message) {
                 const originalText = saveGameButton.textContent;
                 saveGameButton.textContent = '✓';
                 setTimeout(() => { saveGameButton.textContent = originalText; }, 1500);
+                addGameMessage(String(message.content), 'system-message');
                 break;
             }
             if (message._streamed && lastStreamEndTime && (Date.now() - lastStreamEndTime < 3000)) {
@@ -1473,7 +1486,7 @@ function handleReturn() {
     }
 }
 
-function handleReload() {
+function handleReload(_options = {}) {
     if (confirm("Are you sure you want to reload the game? This will start a new game of the current story and disconnect you from the current session.")) {
         // Don't send leave_session - just clear local state and restart story
 
@@ -1738,7 +1751,24 @@ function sendCommand(command, displayText, inputType, actionHint) {
         return;
     }
 
+    const legacyCommand = getLegacySystemCommand(command);
+    if (legacyCommand) {
+        clearComposerInput();
+        addGameMessage(`System commands now use \`/\`. Try \`/${legacyCommand}\`.`, 'system-message');
+        return;
+    }
+
+    if (command.startsWith('/')) {
+        executeSlashCommand(command);
+        return;
+    }
+
     console.log('sendCommand: sending command to server:', command);
+    dispatchSocketCommand(command, displayText || command, inputType, actionHint);
+}
+
+function dispatchSocketCommand(command, displayText, inputType, actionHint, options = {}) {
+    const { showUserMessage = true, showLoading = true } = options;
     stashedStoryChoices = null;
     pendingObjectActionRequest = null;
     const choicesContainer = document.getElementById('choices-container');
@@ -1752,11 +1782,24 @@ function sendCommand(command, displayText, inputType, actionHint) {
     if (actionHint) msg.action_hint = actionHint;
     console.log('Sending WebSocket message:', JSON.stringify(msg));
     socket.send(JSON.stringify(msg));
-    addGameMessage(displayText || command, 'user-message');
-    showLoadingBubble();
+    if (showUserMessage) {
+        addGameMessage(displayText || command, 'user-message');
+    }
+    if (showLoading) {
+        showLoadingBubble();
+    }
+    clearComposerInput();
+}
+
+function clearComposerInput() {
     userInput.value = '';
-    closeMentionSuggestions();
+    closeComposerSuggestions();
     updateMentionOverlay();
+}
+
+function closeComposerSuggestions() {
+    closeMentionSuggestions();
+    closeSlashCommandPalette();
 }
 
 function getObjectActionsLoadingText() {
@@ -1860,6 +1903,236 @@ let mentionState = {
     candidates: [],
     selectedIndex: 0
 };
+let slashCommandState = {
+    isOpen: false,
+    query: '',
+    commands: [],
+    selectedIndex: 0
+};
+
+function toggleDisplayPanel() {
+    const isOpen = displayPanel.classList.toggle('visible');
+    displayToggleBtn.classList.toggle('is-open', isOpen);
+    return isOpen;
+}
+
+function showSessionPlayersMessage() {
+    addGameMessage('/players', 'user-message');
+
+    if (!sessionPlayers.length) {
+        addGameMessage('No session player information is available yet.', 'system-message');
+        return;
+    }
+
+    const lines = sessionPlayers.map((player) => {
+        const isCurrentPlayer = player.id === playerId;
+        const name = player.name || player.id || 'Unknown player';
+        return `- ${name}${isCurrentPlayer ? ' (you)' : ''}`;
+    });
+
+    addGameMessage(`**Players**\n\n${lines.join('\n')}`, 'system-message');
+}
+
+function toggleStatusPanelFromCommand() {
+    addGameMessage('/status', 'user-message');
+    toggleDisplayPanel();
+}
+
+function exportFromCommand() {
+    addGameMessage('/export', 'user-message');
+    handleExportMessages();
+}
+
+function getSlashCommandDefinitions() {
+    const t = window.TextAdventureI18n?.t;
+    return [
+        {
+            id: 'help',
+            label: '/help',
+            description: t?.('commands.helpDescription') || 'Show available slash commands',
+            execute: () => showSlashCommandHelp()
+        },
+        {
+            id: 'save',
+            label: '/save',
+            description: t?.('commands.saveDescription') || 'Save the current game',
+            execute: () => saveGame({ showUserMessage: true, displayText: '/save' })
+        },
+        {
+            id: 'reload',
+            label: '/reload',
+            description: t?.('commands.reloadDescription') || 'Restart the current story',
+            execute: () => handleReload({ fromSlashCommand: true })
+        },
+        {
+            id: 'export',
+            label: '/export',
+            description: t?.('commands.exportDescription') || 'Export the current message history',
+            execute: () => exportFromCommand()
+        },
+        {
+            id: 'players',
+            label: '/players',
+            description: t?.('commands.playersDescription') || 'Show the players in this session',
+            execute: () => showSessionPlayersMessage()
+        },
+        {
+            id: 'status',
+            label: '/status',
+            description: t?.('commands.statusDescription') || 'Toggle the detail panel',
+            execute: () => toggleStatusPanelFromCommand()
+        }
+    ];
+}
+
+function getLegacySystemCommand(command) {
+    const normalized = String(command || '').trim().toLowerCase();
+    const legacyCommands = new Set(['help', 'reload', 'save']);
+    return legacyCommands.has(normalized) ? normalized : '';
+}
+
+function getSlashCommandContext(value, caretIndex) {
+    if (!value || !value.startsWith('/')) return null;
+    const left = value.slice(0, caretIndex);
+    if (!left.startsWith('/')) return null;
+    const token = left.slice(1);
+    if (/\s/.test(token)) return null;
+    return { query: token.toLowerCase() };
+}
+
+function filterSlashCommands(query) {
+    return getSlashCommandDefinitions().filter(command =>
+        !query || command.id.includes(query)
+    );
+}
+
+function closeSlashCommandPalette() {
+    slashCommandState.isOpen = false;
+    slashCommandState.query = '';
+    slashCommandState.commands = [];
+    slashCommandState.selectedIndex = 0;
+    if (commandPalette) {
+        commandPalette.classList.add('hidden');
+        commandPalette.innerHTML = '';
+    }
+}
+
+function renderSlashCommandPalette() {
+    if (!commandPalette || !slashCommandState.isOpen) return;
+    commandPalette.innerHTML = '';
+    slashCommandState.commands.forEach((command, index) => {
+        const item = document.createElement('div');
+        item.className = 'mention-suggestion';
+        if (index === slashCommandState.selectedIndex) {
+            item.classList.add('active');
+        }
+        item.title = command.description;
+        item.innerHTML = `
+            <span class="mention-token">${escapeHtml(command.label)}</span>
+            <span class="mention-type">command</span>
+        `;
+        item.addEventListener('mouseenter', () => {
+            slashCommandState.selectedIndex = index;
+            renderSlashCommandPalette();
+        });
+        item.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            executeSlashCommand(command.label);
+        });
+        commandPalette.appendChild(item);
+    });
+    commandPalette.classList.remove('hidden');
+}
+
+function handleSlashCommandInput() {
+    const context = getSlashCommandContext(userInput.value, userInput.selectionStart);
+    if (!context) {
+        closeSlashCommandPalette();
+        return false;
+    }
+
+    const commands = filterSlashCommands(context.query);
+    if (!commands.length) {
+        closeSlashCommandPalette();
+        return true;
+    }
+
+    slashCommandState.isOpen = true;
+    slashCommandState.query = context.query;
+    slashCommandState.commands = commands;
+    slashCommandState.selectedIndex = 0;
+    renderSlashCommandPalette();
+    return true;
+}
+
+function handleComposerInput() {
+    if (handleSlashCommandInput()) {
+        closeMentionSuggestions();
+        updateMentionOverlay();
+        return;
+    }
+    handleMentionInput();
+}
+
+function handleComposerKeydown(event) {
+    if (slashCommandState.isOpen) {
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            slashCommandState.selectedIndex = (slashCommandState.selectedIndex + 1) % slashCommandState.commands.length;
+            renderSlashCommandPalette();
+            return;
+        }
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            slashCommandState.selectedIndex = (slashCommandState.selectedIndex - 1 + slashCommandState.commands.length) % slashCommandState.commands.length;
+            renderSlashCommandPalette();
+            return;
+        }
+        if (event.key === 'Enter' || event.key === 'Tab') {
+            event.preventDefault();
+            const selectedCommand = slashCommandState.commands[slashCommandState.selectedIndex];
+            if (selectedCommand) {
+                executeSlashCommand(selectedCommand.label);
+            }
+            return;
+        }
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeSlashCommandPalette();
+            return;
+        }
+    }
+
+    handleMentionKeydown(event);
+}
+
+function executeSlashCommand(commandText) {
+    const normalized = String(commandText || '').trim().toLowerCase();
+    if (!normalized.startsWith('/')) {
+        return false;
+    }
+
+    const commandName = normalized.slice(1).split(/\s+/, 1)[0];
+    const command = getSlashCommandDefinitions().find(entry => entry.id === commandName);
+    clearComposerInput();
+
+    if (!command) {
+        addGameMessage(`Unknown command \`${commandText}\`. Try \`/help\`.`, 'system-message');
+        return true;
+    }
+
+    command.execute();
+    return true;
+}
+
+function showSlashCommandHelp() {
+    const title = window.TextAdventureI18n?.t?.('commands.helpTitle') || 'Slash Commands';
+    const commandList = getSlashCommandDefinitions()
+        .map(command => `- \`${command.label}\` ${command.description}`)
+        .join('\n');
+    addGameMessage('/help', 'user-message');
+    addGameMessage(`**${title}**\n\n${commandList}`, 'system-message');
+}
 
 function handleChoice(choiceIndex) {
     const choice = availableChoices[choiceIndex - 1];
