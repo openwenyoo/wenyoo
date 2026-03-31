@@ -24,181 +24,167 @@ forms:
     title: "Create Your Character"
     description: "Fill out the following information to create your adventurer"
     submit_text: "Begin Adventure"
-    
     fields:
-      - id: player_name
-        type: text
-        label: "Character Name"
-        required: true
-        placeholder: "Enter your character name..."
-        validation:
-          min_length: 2
-          max_length: 20
-        
-      - id: player_class
-        type: select
-        label: "Choose a Class"
-        required: true
-        options:
-          - value: warrior
-            text: "Warrior - excels at melee combat and defense"
-          - value: mage
-            text: "Mage - masters magical attacks"
-          - value: rogue
-            text: "Rogue - agile and skilled at stealth"
-        
-      - id: background
-        type: textarea
-        label: "Character Background"
-        placeholder: "Describe where your character comes from and why they set out on this adventure..."
-        hint: "This backstory will affect how NPCs react to you"
-        rows: 4
-        validation:
-          max_length: 500
-        
-      - id: difficulty
-        type: slider
-        label: "Game Difficulty"
-        default: 2
-        validation:
-          min: 1
-          max: 3
-          labels:
-            1: "Easy"
-            2: "Normal"
-            3: "Hard"
-    
+    - id: player_name
+      type: text
+      label: "Character Name"
+      required: true
+      placeholder: "Enter your character name..."
+      validation:
+        min_length: 2
+        max_length: 20
+
+    - id: player_class
+      type: select
+      label: "Choose a Class"
+      required: true
+      options:
+      - value: warrior
+        text: "Warrior - excels at melee combat and defense"
+      - value: mage
+        text: "Mage - masters magical attacks"
+      - value: rogue
+        text: "Rogue - agile and skilled at stealth"
+    - id: background
+      type: textarea
+      label: "Character Background"
+      placeholder: "Describe where your character comes from and why they set out on this adventure..."
+      hint: "This backstory will affect how NPCs react to you"
+      rows: 4
+      validation:
+        max_length: 500
+
+    - id: difficulty
+      type: slider
+      label: "Game Difficulty"
+      default: 2
+      validation:
+        min: 1
+        max: 3
+        labels:
+          1: "Easy"
+          2: "Normal"
+          3: "Hard"
     on_submit:
       store_variables:
-        - field: player_name
-          to: "players.{player_id}.character.name"
-        - field: player_class
-          to: "players.{player_id}.character.class"
-        - field: background
-          to: "players.{player_id}.character.background"
-        - field: difficulty
-          to: "game_difficulty"
-      
+      - field: player_name
+        to: "players.{player_id}.character.name"
+      - field: player_class
+        to: "players.{player_id}.character.class"
+      - field: background
+        to: "players.{player_id}.character.background"
+      - field: difficulty
+        to: "game_difficulty"
       effects:
-        - type: display_text
-          text: "Character created successfully! Welcome, {$form.player_name}!"
-        - type: goto_node
-          target: village_entrance
+      - type: display_text
+        text: "Character created successfully! Welcome, {$form.player_name}!"
+      - type: goto_node
+        target: village_entrance
 
   # Quest feedback form - collects player notes about a quest
   quest_feedback:
     title: "Quest Report"
     description: "Describe what you discovered during the quest"
     submit_text: "Submit Report"
-    
     fields:
-      - id: findings
-        type: textarea
-        label: "What did you find?"
-        required: true
-        placeholder: "Describe what you discovered in the forest..."
-        rows: 5
-        
-      - id: danger_level
-        type: radio
-        label: "How dangerous do you think the threat is?"
-        required: true
-        options:
-          - value: low
-            text: "Low - probably a false alarm"
-          - value: medium
-            text: "Medium - concerning but manageable"
-          - value: high
-            text: "High - immediate action is needed"
-        
-      - id: need_backup
-        type: checkbox
-        label: "I need backup support"
-    
+    - id: findings
+      type: textarea
+      label: "What did you find?"
+      required: true
+      placeholder: "Describe what you discovered in the forest..."
+      rows: 5
+
+    - id: danger_level
+      type: radio
+      label: "How dangerous do you think the threat is?"
+      required: true
+      options:
+      - value: low
+        text: "Low - probably a false alarm"
+      - value: medium
+        text: "Medium - concerning but manageable"
+      - value: high
+        text: "High - immediate action is needed"
+    - id: need_backup
+      type: checkbox
+      label: "I need backup support"
     on_submit:
       store_variables:
-        - field: "*"
-          to: "players.{player_id}.quest_report"
-      
+      - field: "*"
+        to: "players.{player_id}.quest_report"
       llm_process:
         prompt: |
           The player completed a scouting mission and submitted the following report:
-          
+
           Findings: {$form.findings}
           Threat level: {$form.danger_level}
           Needs backup: {$form.need_backup}
-          
+
           As the village elder, give a short response (1-2 sentences) based on this report and decide on the next step.
           The response should acknowledge the player's effort and react appropriately to the reported threat level.
         parse_as: text
         store_to: "village_elder_response"
-      
       effects:
-        - type: display_text
-          text: "The village elder finishes reading your report, pauses for a moment, and says:"
-        - type: display_text
-          text: "{$village_elder_response}"
-        - type: goto_node
-          target: village_center
+      - type: display_text
+        text: "The village elder finishes reading your report, pauses for a moment, and says:"
+      - type: display_text
+        text: "{$village_elder_response}"
+      - type: goto_node
+        target: village_center
 
   # File upload form - for importing character notes
   import_notes:
     title: "Import Character Notes"
     description: "Upload your adventure notes file"
     submit_text: "Import"
-    
     fields:
-      - id: notes_file
-        type: file
-        label: "Choose a Notes File"
-        required: true
-        accept:
-          - "text/plain"
-          - "application/pdf"
-          - "text/markdown"
-        max_size_mb: 2
-        max_text_length: 5000
-        hint: "Supports .txt, .pdf, and .md files up to 2MB"
-        
-      - id: notes_category
-        type: select
-        label: "Notes Category"
-        options:
-          - value: lore
-            text: "Worldbuilding Notes"
-          - value: quest
-            text: "Quest Log"
-          - value: character
-            text: "Character Profile"
-    
+    - id: notes_file
+      type: file
+      label: "Choose a Notes File"
+      required: true
+      accept:
+      - "text/plain"
+      - "application/pdf"
+      - "text/markdown"
+      max_size_mb: 2
+      max_text_length: 5000
+      hint: "Supports .txt, .pdf, and .md files up to 2MB"
+    - id: notes_category
+      type: select
+      label: "Notes Category"
+      options:
+      - value: lore
+        text: "Worldbuilding Notes"
+      - value: quest
+        text: "Quest Log"
+      - value: character
+        text: "Character Profile"
     on_submit:
       store_variables:
-        - field: notes_file
-          to: "players.{player_id}.imported_notes"
-        - field: notes_category
-          to: "players.{player_id}.notes_category"
-      
+      - field: notes_file
+        to: "players.{player_id}.imported_notes"
+      - field: notes_category
+        to: "players.{player_id}.notes_category"
       llm_process:
         prompt: |
           The player imported a set of notes:
-          
+
           Category: {$form.notes_category}
           Content:
           {$form.notes_file}
-          
+
           Briefly summarize the main ideas in these notes (2-3 sentences), and extract any important names, places, or events.
           Return JSON in this format: {"summary": "...", "key_points": ["...", "..."]}
         parse_as: json
         store_to: "players.{player_id}.notes_analysis"
         extract:
-          - path: "summary"
-            to: "players.{player_id}.notes_summary"
-      
+        - path: "summary"
+          to: "players.{player_id}.notes_summary"
       effects:
-        - type: display_text
-          text: "Your notes have been imported! After analyzing them, the system reports:"
-        - type: display_text
-          text: "{$players.{player_id}.notes_summary}"
+      - type: display_text
+        text: "Your notes have been imported! After analyzing them, the system reports:"
+      - type: display_text
+        text: "{$players.{player_id}.notes_summary}"
 
 # ============================================================================
 # Story Nodes
@@ -208,133 +194,131 @@ nodes:
     name: "Welcome"
     explicit_state: |
       Welcome to the form feature demo!
-      
+
       In this short demonstration, you will experience how forms can be used to create a character, submit a quest report, and import external notes.
-      
+
       Ready to begin? Click below to start creating your character.
 
       {Start Creating: Open the character creation form}
-    
+
     actions:
-      - id: create_character
-        text: "Create Character"
-        effects:
-          - type: present_form
-            form_id: character_creation
+    - id: create_character
+      text: "Create Character"
+      effects:
+      - type: present_form
+        form_id: character_creation
 
   village_entrance:
     name: "Village Entrance"
     explicit_state: |
       You stand at the entrance of a peaceful village.
-      
+
       Sunlight filters through the leaves overhead, and in the distance you can see several houses with thatched roofs. An elderly man stands beneath a large tree near the entrance.
-      
+
       "Ah, {$players.{player_id}.character.name}!" the old man says with a warm smile. "I am the elder of this village. Something has felt wrong in the forest lately. Would you be willing to investigate?"
-    
+
     actions:
-      - id: accept_quest
-        text: "Accept the quest and investigate the forest"
-        effects:
-          - type: display_text
-            text: "The elder nods with relief. 'Excellent. Please be careful, and return to report what you find.'"
-          - type: set_variable
-            target: "quest_accepted"
-            value: true
-          - type: goto_node
-            target: forest_investigation
-      
-      - id: ask_details
-        text: "Ask for more details"
-        effects:
-          - type: display_text
-            text: "The elder furrows his brow. 'Some villagers have seen strange lights near the forest edge, and others claim they heard deep growls in the night. I fear something dangerous may be hiding there.'"
-      
-      - id: go_to_center
-        text: "Visit the village center first"
-        effects:
-          - type: goto_node
-            target: village_center
+    - id: accept_quest
+      text: "Accept the quest and investigate the forest"
+      effects:
+      - type: display_text
+        text: "The elder nods with relief. 'Excellent. Please be careful, and return to report what you find.'"
+      - type: set_variable
+        target: "quest_accepted"
+        value: true
+      - type: goto_node
+        target: forest_investigation
+
+    - id: ask_details
+      text: "Ask for more details"
+      effects:
+      - type: display_text
+        text: "The elder furrows his brow. 'Some villagers have seen strange lights near the forest edge, and others claim they heard deep growls in the night. I fear something dangerous may be hiding there.'"
+    - id: go_to_center
+      text: "Visit the village center first"
+      effects:
+      - type: goto_node
+        target: village_center
 
   forest_investigation:
     name: "Forest Investigation"
     explicit_state: |
       You venture deeper into the forest.
-      
+
       The trees grow denser with every step, and sunlight barely pierces the thick canopy. Soon, you discover several unsettling signs:
-      
+
       - Huge claw marks pressed into the ground
       - Deep scratches carved into several trees
       - A faint scent of burning in the air
-      
+
       You have gathered enough evidence. It is time to return to the elder and report what you found.
-    
+
     actions:
-      - id: submit_report
-        text: "Return to the village and submit your report"
-        effects:
-          - type: present_form
-            form_id: quest_feedback
-      
-      - id: investigate_more
-        text: "Keep investigating"
-        effects:
-          - type: display_text
-            text: "You decide to press onward despite the risk. Suddenly, a thunderous roar erupts ahead of you, and a massive fire lizard bursts from the undergrowth!"
-          - type: display_text
-            text: "You realize this is not a battle you can win right now, so you turn and flee back toward the village."
-          - type: set_variable
-            target: "saw_monster"
-            value: true
-          - type: present_form
-            form_id: quest_feedback
+    - id: submit_report
+      text: "Return to the village and submit your report"
+      effects:
+      - type: present_form
+        form_id: quest_feedback
+
+    - id: investigate_more
+      text: "Keep investigating"
+      effects:
+      - type: display_text
+        text: "You decide to press onward despite the risk. Suddenly, a thunderous roar erupts ahead of you, and a massive fire lizard bursts from the undergrowth!"
+      - type: display_text
+        text: "You realize this is not a battle you can win right now, so you turn and flee back toward the village."
+      - type: set_variable
+        target: "saw_monster"
+        value: true
+      - type: present_form
+        form_id: quest_feedback
 
   village_center:
     name: "Village Center"
     explicit_state: |
       You arrive at the village square.
-      
-      A small marketplace is bustling with activity. In the middle of the square stands an ancient well, and beside it rests a weathered stone tablet engraved with old writing.
-      
-      A young scholar is taking notes beside the tablet. When she notices you approaching, she looks up and smiles.
-      
-      "Oh, you must be the new adventurer. If you have any notes or records about this world, I can help organize and analyze them for you."
-    
-    actions:
-      - id: import_notes
-        text: "Import my adventure notes"
-        effects:
-          - type: present_form
-            form_id: import_notes
-      
-      - id: talk_to_scholar
-        text: "Talk to the scholar"
-        effects:
-          - type: display_text
-            text: "The scholar smiles. 'This tablet tells an ancient legend about a dragon of flame that once guarded the forest. They say it has slept for hundreds of years...'"
-      
-      - id: go_to_entrance
-        text: "Return to the village entrance"
-        effects:
-          - type: goto_node
-            target: village_entrance
 
-      - id: end_demo
-        text: "End the demo"
-        effects:
-          - type: goto_node
-            target: ending
+      A small marketplace is bustling with activity. In the middle of the square stands an ancient well, and beside it rests a weathered stone tablet engraved with old writing.
+
+      A young scholar is taking notes beside the tablet. When she notices you approaching, she looks up and smiles.
+
+      "Oh, you must be the new adventurer. If you have any notes or records about this world, I can help organize and analyze them for you."
+
+    actions:
+    - id: import_notes
+      text: "Import my adventure notes"
+      effects:
+      - type: present_form
+        form_id: import_notes
+
+    - id: talk_to_scholar
+      text: "Talk to the scholar"
+      effects:
+      - type: display_text
+        text: "The scholar smiles. 'This tablet tells an ancient legend about a dragon of flame that once guarded the forest. They say it has slept for hundreds of years...'"
+    - id: go_to_entrance
+      text: "Return to the village entrance"
+      effects:
+      - type: goto_node
+        target: village_entrance
+
+    - id: end_demo
+      text: "End the demo"
+      effects:
+      - type: goto_node
+        target: ending
 
   ending:
     name: "Demo Complete"
     is_ending: true
     explicit_state: |
       Congratulations! You have completed the form feature demo.
-      
+
       In this demonstration, you experienced:
       1. **Character Creation Form** - Collecting a player's basic information and choices
       2. **Quest Report Form** - Gathering the player's findings and generating an LLM response
       3. **File Import Form** - Uploading an external file for extraction and analysis
-      
+
       These form features can help story authors create richer interactive experiences!
 connections:
 # --- Navigation (player can travel between these nodes) ---

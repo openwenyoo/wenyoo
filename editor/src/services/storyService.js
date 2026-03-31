@@ -35,6 +35,93 @@ const extractGeneratedDescriptions = (triggers) => {
     };
 };
 
+const GROUP_PREFIX = 'group_';
+const GROUP_PADDING = 40;
+const NODE_WIDTH = 250;
+const DETAILED_NODE_HEIGHT = 400;
+const SIMPLE_NODE_HEIGHT = 60;
+
+const normalizeGroupId = (value) => (
+    (value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, '_')
+);
+
+const buildVisualGroupNodes = (baseNodes, parameters = {}, viewMode = 'detailed') => {
+    const groupMembers = new Map();
+    const nextNodes = new Map(
+        (baseNodes || []).map((node) => [node.id, { ...node, data: { ...(node.data || {}) } }])
+    );
+    const defaultHeight = viewMode === 'detailed' ? DETAILED_NODE_HEIGHT : SIMPLE_NODE_HEIGHT;
+
+    for (const node of baseNodes || []) {
+        const groupIds = Array.isArray(node.data?.groups) ? node.data.groups : [];
+        const primaryGroupId = groupIds.find((groupId) => typeof groupId === 'string' && groupId.trim());
+        if (!primaryGroupId) {
+            continue;
+        }
+        if (!groupMembers.has(primaryGroupId)) {
+            groupMembers.set(primaryGroupId, []);
+        }
+        groupMembers.get(primaryGroupId).push(node.id);
+    }
+
+    if (groupMembers.size === 0) {
+        return Array.from(nextNodes.values());
+    }
+
+    const visualGroups = [];
+    for (const [groupId, memberIds] of groupMembers.entries()) {
+        const members = memberIds
+            .map((memberId) => nextNodes.get(memberId))
+            .filter(Boolean);
+        if (members.length === 0) {
+            continue;
+        }
+
+        const xMin = Math.min(...members.map((node) => node.position.x));
+        const yMin = Math.min(...members.map((node) => node.position.y));
+        const xMax = Math.max(...members.map((node) => node.position.x + (node.width || NODE_WIDTH)));
+        const yMax = Math.max(...members.map((node) => node.position.y + (node.height || defaultHeight)));
+        const groupPosition = {
+            x: xMin - GROUP_PADDING,
+            y: yMin - GROUP_PADDING,
+        };
+        const groupNodeId = `group_visual_${groupId}`;
+
+        visualGroups.push({
+            id: groupNodeId,
+            type: 'group',
+            position: groupPosition,
+            style: {
+                width: xMax - xMin + GROUP_PADDING * 2,
+                height: yMax - yMin + GROUP_PADDING * 2,
+                zIndex: -1,
+            },
+            data: {
+                label: groupId,
+                groupId,
+                definition: parameters[`${GROUP_PREFIX}${groupId}`] || '',
+            },
+        });
+
+        for (const member of members) {
+            nextNodes.set(member.id, {
+                ...member,
+                parentNode: groupNodeId,
+                extent: 'parent',
+                position: {
+                    x: member.position.x - groupPosition.x,
+                    y: member.position.y - groupPosition.y,
+                },
+            });
+        }
+    }
+
+    return [...Array.from(nextNodes.values()), ...visualGroups];
+};
+
 /**
  * Load story from API and transform into graph format
  */
@@ -82,7 +169,8 @@ export const loadStory = async (id, tempPath, viewMode, handleShapeClickFromNode
                 generatedDescriptionPost: postEnterPrompt,
                 viewMode: viewMode,
                 onShapeClick: handleShapeClickFromNode,
-                characters: nodeCharacters
+                characters: nodeCharacters,
+                groups: Array.isArray(node.groups) ? node.groups : []
             },
             position: { x: 0, y: 0 }
         };
@@ -104,12 +192,13 @@ export const loadStory = async (id, tempPath, viewMode, handleShapeClickFromNode
 
     // Apply layout
     const layouted = getLayoutedElements(initialNodes, initialEdges, 'LR', viewMode);
+    const groupedNodes = buildVisualGroupNodes(layouted.nodes, data.initial_variables || {}, viewMode);
     console.log("Layouted Nodes:", layouted.nodes);
     console.log("Layouted Edges:", layouted.edges);
 
     return {
         storyData: storyWithNodesAsArray,
-        nodes: layouted.nodes,
+        nodes: groupedNodes,
         edges: layouted.edges,
         graphStatus: {
             currentConnectionGraphSourceMd5: data.current_connection_graph_source_md5 || null,
@@ -134,21 +223,95 @@ export const saveStory = async (storyId, nodes, storyData) => {
         properties: obj.properties || {},
     });
 
+    const baseParameters = Object.fromEntries(
+        Object.entries(storyData?.initial_variables || {}).filter(([key]) => !key.startsWith(GROUP_PREFIX))
+    );
+    const groupIdByVisualNodeId = new Map();
+    const visualGroups = [];
+    const seenGroupIds = new Set();
+
+    nodes
+        .filter((node) => node.type === 'group')
+        .forEach((node, index) => {
+            const rawGroupId = node.data?.groupId || node.data?.label || `group${index + 1}`;
+            let resolvedGroupId = normalizeGroupId(rawGroupId) || `group${index + 1}`;
+            while (seenGroupIds.has(resolvedGroupId)) {
+                resolvedGroupId = `${resolvedGroupId}_${seenGroupIds.size + 1}`;
+            }
+            seenGroupIds.add(resolvedGroupId);
+            groupIdByVisualNodeId.set(node.id, resolvedGroupId);
+            baseParameters[`${GROUP_PREFIX}${resolvedGroupId}`] = node.data?.definition || '';
+            visualGroups.push({
+                nodeId: node.id,
+                groupId: resolvedGroupId,
+                x: node.position?.x || 0,
+                y: node.position?.y || 0,
+                width: Number(node.style?.width) || NODE_WIDTH,
+                height: Number(node.style?.height) || DETAILED_NODE_HEIGHT,
+            });
+        });
+
+    const resolveNodeGroupId = (node) => {
+        if (node.parentNode && groupIdByVisualNodeId.has(node.parentNode)) {
+            return groupIdByVisualNodeId.get(node.parentNode);
+        }
+
+        const absoluteX = node.parentNode
+            ? (nodes.find((candidate) => candidate.id === node.parentNode)?.position?.x || 0) + (node.position?.x || 0)
+            : (node.position?.x || 0);
+        const absoluteY = node.parentNode
+            ? (nodes.find((candidate) => candidate.id === node.parentNode)?.position?.y || 0) + (node.position?.y || 0)
+            : (node.position?.y || 0);
+        const nodeWidth = node.width || NODE_WIDTH;
+        const nodeHeight = node.height || DETAILED_NODE_HEIGHT;
+
+        const containingGroup = visualGroups.find((group) => (
+            absoluteX >= group.x &&
+            absoluteY >= group.y &&
+            absoluteX + nodeWidth <= group.x + group.width &&
+            absoluteY + nodeHeight <= group.y + group.height
+        ));
+
+        return containingGroup?.groupId || null;
+    };
+
     // Convert nodes back to story format
     const nodesMap = {};
-    nodes.forEach(node => {
-        nodesMap[node.id] = {
-            ...node.data,
-            objects: (node.data.objects || []).map(sanitizeObject),
-            onShapeClick: undefined // Remove function
-        };
-        // Clean up data that shouldn't be in YAML
-        delete nodesMap[node.id].label;
+    nodes
+        .filter((node) => node.type !== 'group')
+        .forEach(node => {
+            const derivedGroupId = resolveNodeGroupId(node);
+            const cleanNodeData = {
+                ...node.data,
+                objects: (node.data.objects || []).map(sanitizeObject),
+            };
+            if (derivedGroupId) {
+                cleanNodeData.groups = [derivedGroupId];
+            } else {
+                delete cleanNodeData.groups;
+            }
+            delete cleanNodeData.label;
+            delete cleanNodeData.onShapeClick;
+            delete cleanNodeData.generatedDescription;
+            delete cleanNodeData.generatedDescriptionPost;
+            delete cleanNodeData.viewMode;
+            delete cleanNodeData.characters;
+            delete cleanNodeData.isStartNode;
+            nodesMap[node.id] = cleanNodeData;
     });
 
+    const {
+        current_connection_graph_source_md5,
+        connection_graph_status,
+        currentConnectionGraphSourceMd5,
+        connectionGraphSourceMd5,
+        ...baseStoryData
+    } = storyData || {};
+
     const storyPayload = {
-        ...storyData,
-        objects: (storyData.objects || []).map(sanitizeObject),
+        ...baseStoryData,
+        initial_variables: baseParameters,
+        objects: (baseStoryData.objects || []).map(sanitizeObject),
         nodes: nodesMap
     };
 
@@ -234,6 +397,7 @@ export const createNewStory = (title, viewMode, handleShapeClickFromNode) => {
                 explicit_state: 'The story begins here.',
                 implicit_state: '',
                 properties: {},
+                groups: [],
                 objects: [],
                 actions: [],
                 triggers: []

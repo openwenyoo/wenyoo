@@ -4,6 +4,8 @@ import { streamAIEdit, EDIT_MODES, AI_SOURCES } from '../services/aiService';
 import './ParameterPanel.css';
 import { useLocale } from '../i18n';
 
+const isManagedSemanticParameter = (key) => key.startsWith('group_') || key.startsWith('tag_');
+
 // Smart type detection
 const detectValueType = (value) => {
     if (value === null || value === undefined) return 'string';
@@ -92,6 +94,9 @@ const ParameterPanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, 
         
         return Object.fromEntries(
             Object.entries(parameters).filter(([key, value]) => {
+                if (isManagedSemanticParameter(key)) {
+                    return false;
+                }
                 const matchesSearch = !searchTerm || 
                     key.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     String(value).toLowerCase().includes(searchTerm.toLowerCase());

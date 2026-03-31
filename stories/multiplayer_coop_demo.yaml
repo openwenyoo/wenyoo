@@ -260,15 +260,13 @@ nodes:
         - Emphasize that this trial requires two distinct operators.
         - Reinforce that coordination, item handoff, and complementary console inputs
           are mandatory parts of the fiction.
-      explicit_state: 'Below the northern iris door, a bronze plaque reads: **No single operator may complete
-        this trial.**'
+      explicit_state: 'Below the northern iris door, a bronze plaque reads: **No single operator may complete this trial.**'
       actions:
       - id: inspect_plaque
         text: Inspect the calibration plaque
         effects:
         - type: display_text
-          text: 'The plaque continues in smaller text: **Item transfer, synchronized activation, and shared-state
-            awareness are mandatory for certification.**'
+          text: 'The plaque continues in smaller text: **Item transfer, synchronized activation, and shared-state awareness are mandatory for certification.**'
   signal_archive:
     name: Signal Archive
     definition: '[Identity]
@@ -350,18 +348,13 @@ nodes:
 
           - updates `object_states.phase_lever.properties.switch_state` to `on`
 
-          - updates `object_states.phase_lever.explicit_state` to show the lever locked in the engaged
-          position
+          - updates `object_states.phase_lever.explicit_state` to show the lever locked in the engaged position
 
-          - sends a self delivery describing the lever thunking into place and the archive indicators
-          turning green
+          - sends a self delivery describing the lever thunking into place and the archive indicators turning green
 
-          - sends a `location_players` delivery to `relay_gallery` describing a low vibration through
-          the floor, the indicator panel beside the relay cradle flickering green, and the cradle unlocking
-          because power has arrived from the archive
+          - sends a `location_players` delivery to `relay_gallery` describing a low vibration through the floor, the indicator panel beside the relay cradle flickering green, and the cradle unlocking because power has arrived from the archive
 
-          Then continue following the object''s definition for any further consequences of leaving the
-          lever engaged.
+          Then continue following the object''s definition for any further consequences of leaving the lever engaged.
 
           '
     - id: tuning_fork
@@ -405,8 +398,7 @@ nodes:
           target: tuning_fork_taken
           value: true
         - type: display_text
-          text: You take the tuning fork. Its label suggests it must be paired with another component
-            before the vault can be opened.
+          text: You take the tuning fork. Its label suggests it must be paired with another component before the vault can be opened.
     - id: waveform_tablet
       name: Waveform Tablet
       definition: |
@@ -513,8 +505,7 @@ nodes:
         text: Inspect the relay lens
         effects:
         - type: display_text
-          text: 'The lens is shaped to slot into a larger housing. A stamped note reads: **pair with harmonic
-            key before console activation**.'
+          text: 'The lens is shaped to slot into a larger housing. A stamped note reads: **pair with harmonic key before console activation**.'
       - id: take_relay_lens
         text: Take the relay lens
         conditions:
@@ -522,8 +513,7 @@ nodes:
           variable: power_routed
           operator: eq
           value: true
-          response: The cradle remains magnetically locked. Someone must route power from the archive
-            first.
+          response: The cradle remains magnetically locked. Someone must route power from the archive first.
         - type: variable
           variable: relay_lens_taken
           operator: eq
@@ -537,8 +527,7 @@ nodes:
           target: relay_lens_taken
           value: true
         - type: display_text
-          text: The cradle unlocks with a clean click, proving the power reroute worked. You lift out
-            the relay lens.
+          text: The cradle unlocks with a clean click, proving the power reroute worked. You lift out the relay lens.
     - id: gallery_indicator
       name: Indicator Panel
       definition: '[Identity]
@@ -664,8 +653,7 @@ nodes:
           target: handoff_complete
           value: true
         - type: display_text
-          text: You slot the relay lens and tuning fork into the dock. The completed resonator hums to
-            life, bathing both consoles in pale gold light.
+          text: You slot the relay lens and tuning fork into the dock. The completed resonator hums to life, bathing both consoles in pale gold light.
       - id: reset_paired_lock
         text: Reset the paired lock consoles
         intent: 'Reset the paired lock to standby. Clear any `paired_role_sun` and
@@ -782,8 +770,7 @@ nodes:
           variable: paired_gate_open
           operator: eq
           value: true
-          response: The vault door is still sealed. Assemble the resonator and use both consoles with
-            two different players.
+          response: The vault door is still sealed. Assemble the resonator and use both consoles with two different players.
         effects:
         - type: goto_node
           target: verification_vault

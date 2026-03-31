@@ -90,7 +90,7 @@ class Architect:
                     "Contains: variables (including players), character_states "
                     "(per character with name/definition/explicit_state/properties), "
                     "object_states (per object with name/definition/explicit_state/properties), "
-                    "nodes (with actions, objects, triggers, hints, explicit_state), "
+                    "nodes (with actions, objects, triggers, hints, groups, explicit_state), "
                     "visited_nodes, version, message_history."
                 ),
                 "parameters": {
@@ -785,6 +785,42 @@ class Architect:
         lines.append("")
         return lines
 
+    def _build_group_reference_lines(
+        self,
+        node,
+        game_state: 'GameState',
+    ) -> List[str]:
+        if not node:
+            return []
+
+        group_ids = [
+            group_id.strip()
+            for group_id in getattr(node, 'groups', []) or []
+            if isinstance(group_id, str) and group_id.strip()
+        ]
+        if not group_ids:
+            return []
+
+        variables = getattr(game_state, 'variables', {}) or {}
+        lines: List[str] = ["## RELEVANT GROUP REFERENCES"]
+        seen = set()
+        for group_id in group_ids:
+            if group_id in seen:
+                continue
+            seen.add(group_id)
+            group_key = group_id if group_id.startswith('group_') else f'group_{group_id}'
+            group_text = variables.get(group_key)
+            if not isinstance(group_text, str) or not group_text.strip():
+                continue
+            label = group_id.replace('_', ' ').title()
+            lines.append(f"### {label} ({group_key})")
+            lines.append(group_text.strip())
+            lines.append("")
+
+        if len(lines) == 1:
+            return []
+        return lines
+
     def _build_visible_object_lines(
         self,
         node,
@@ -866,6 +902,10 @@ class Architect:
                 if controlled_char_id and game_state.story
                 else None
             )
+
+            group_reference_lines = self._build_group_reference_lines(node, game_state)
+            if group_reference_lines:
+                parts.extend(group_reference_lines)
 
             parts.append("## TURN CONTEXT")
             parts.append(
@@ -983,9 +1023,10 @@ class Architect:
                 "Resolve the player's action using the hierarchy (highest priority first):\n"
                 "1. ENTITY RULES: Check definitions of targeted entities\n"
                 "2. NODE RULES: Check current node details from the preloaded local state or read_node\n"
-                "3. WORLD RULES: Check LOREBOOK for story-wide rules\n"
-                "4. GENRE: Reason from the story's genre and world logic\n"
-                "5. GENERAL INTELLIGENCE: Improvise within genre constraints\n"
+                "3. GROUP REFERENCES: Check any RELEVANT GROUP REFERENCES injected for this node\n"
+                "4. WORLD RULES: Check LOREBOOK for story-wide rules\n"
+                "5. GENRE: Reason from the story's genre and world logic\n"
+                "6. GENERAL INTELLIGENCE: Improvise within genre constraints\n"
                 "Higher-layer rules override lower ones ONLY for the specific "
                 "aspects they address."
             )
@@ -1353,6 +1394,8 @@ class Architect:
         }
         if triggers_list:
             result['triggers'] = triggers_list
+        if node.groups:
+            result['groups'] = list(node.groups)
         if node.hints:
             result['hints'] = node.hints
 

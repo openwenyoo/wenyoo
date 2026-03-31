@@ -77,7 +77,6 @@ const NodeEditor = ({ node, onNodeChange, onNodeClose, onShapeClick, onSecondary
             const actionsChanged = JSON.stringify(actions || []) !== JSON.stringify(currentData.actions || []);
             const triggersChanged = JSON.stringify(triggers || []) !== JSON.stringify(currentData.triggers || []);
             const propertiesChanged = JSON.stringify(properties || {}) !== JSON.stringify(currentData.properties || {});
-
             // DSPP field checks
             const nameChanged = name !== (currentData.name || '');
             const definitionChanged = definition !== (currentData.definition || '');

@@ -24,181 +24,167 @@ forms:
     title: "创建你的角色"
     description: "请填写以下信息来创建你的冒险者角色"
     submit_text: "开始冒险"
-    
     fields:
-      - id: player_name
-        type: text
-        label: "角色名称"
-        required: true
-        placeholder: "输入你的角色名..."
-        validation:
-          min_length: 2
-          max_length: 20
-        
-      - id: player_class
-        type: select
-        label: "选择职业"
-        required: true
-        options:
-          - value: warrior
-            text: "战士 - 擅长近战和防御"
-          - value: mage
-            text: "法师 - 精通魔法攻击"
-          - value: rogue
-            text: "盗贼 - 敏捷且善于潜行"
-        
-      - id: background
-        type: textarea
-        label: "角色背景"
-        placeholder: "描述你的角色来自哪里，为什么踏上冒险之路..."
-        hint: "这段背景故事将影响NPC对你的态度"
-        rows: 4
-        validation:
-          max_length: 500
-        
-      - id: difficulty
-        type: slider
-        label: "游戏难度"
-        default: 2
-        validation:
-          min: 1
-          max: 3
-          labels:
-            1: "简单"
-            2: "普通"
-            3: "困难"
-    
+    - id: player_name
+      type: text
+      label: "角色名称"
+      required: true
+      placeholder: "输入你的角色名..."
+      validation:
+        min_length: 2
+        max_length: 20
+
+    - id: player_class
+      type: select
+      label: "选择职业"
+      required: true
+      options:
+      - value: warrior
+        text: "战士 - 擅长近战和防御"
+      - value: mage
+        text: "法师 - 精通魔法攻击"
+      - value: rogue
+        text: "盗贼 - 敏捷且善于潜行"
+    - id: background
+      type: textarea
+      label: "角色背景"
+      placeholder: "描述你的角色来自哪里，为什么踏上冒险之路..."
+      hint: "这段背景故事将影响NPC对你的态度"
+      rows: 4
+      validation:
+        max_length: 500
+
+    - id: difficulty
+      type: slider
+      label: "游戏难度"
+      default: 2
+      validation:
+        min: 1
+        max: 3
+        labels:
+          1: "简单"
+          2: "普通"
+          3: "困难"
     on_submit:
       store_variables:
-        - field: player_name
-          to: "players.{player_id}.character.name"
-        - field: player_class
-          to: "players.{player_id}.character.class"
-        - field: background
-          to: "players.{player_id}.character.background"
-        - field: difficulty
-          to: "game_difficulty"
-      
+      - field: player_name
+        to: "players.{player_id}.character.name"
+      - field: player_class
+        to: "players.{player_id}.character.class"
+      - field: background
+        to: "players.{player_id}.character.background"
+      - field: difficulty
+        to: "game_difficulty"
       effects:
-        - type: display_text
-          text: "角色创建成功！欢迎你，{$form.player_name}！"
-        - type: goto_node
-          target: village_entrance
+      - type: display_text
+        text: "角色创建成功！欢迎你，{$form.player_name}！"
+      - type: goto_node
+        target: village_entrance
 
   # Quest feedback form - collects player notes about a quest
   quest_feedback:
     title: "任务报告"
     description: "请描述你在任务中的发现"
     submit_text: "提交报告"
-    
     fields:
-      - id: findings
-        type: textarea
-        label: "你发现了什么？"
-        required: true
-        placeholder: "描述你在森林中的发现..."
-        rows: 5
-        
-      - id: danger_level
-        type: radio
-        label: "你认为威胁程度如何？"
-        required: true
-        options:
-          - value: low
-            text: "低 - 只是虚惊一场"
-          - value: medium
-            text: "中 - 需要注意但可控"
-          - value: high
-            text: "高 - 需要立即采取行动"
-        
-      - id: need_backup
-        type: checkbox
-        label: "我需要援军支援"
-    
+    - id: findings
+      type: textarea
+      label: "你发现了什么？"
+      required: true
+      placeholder: "描述你在森林中的发现..."
+      rows: 5
+
+    - id: danger_level
+      type: radio
+      label: "你认为威胁程度如何？"
+      required: true
+      options:
+      - value: low
+        text: "低 - 只是虚惊一场"
+      - value: medium
+        text: "中 - 需要注意但可控"
+      - value: high
+        text: "高 - 需要立即采取行动"
+    - id: need_backup
+      type: checkbox
+      label: "我需要援军支援"
     on_submit:
       store_variables:
-        - field: "*"
-          to: "players.{player_id}.quest_report"
-      
+      - field: "*"
+        to: "players.{player_id}.quest_report"
       llm_process:
         prompt: |
           玩家完成了一个侦查任务，提交了以下报告：
-          
+
           发现内容：{$form.findings}
           威胁等级：{$form.danger_level}
           需要援军：{$form.need_backup}
-          
+
           作为村长，请根据这份报告给出简短的回应（1-2句话），并决定下一步行动。
           回应应该体现出对玩家努力的认可，同时根据威胁等级给出合适的反应。
         parse_as: text
         store_to: "village_elder_response"
-      
       effects:
-        - type: display_text
-          text: "村长看完了你的报告，沉思片刻后说道："
-        - type: display_text
-          text: "{$village_elder_response}"
-        - type: goto_node
-          target: village_center
+      - type: display_text
+        text: "村长看完了你的报告，沉思片刻后说道："
+      - type: display_text
+        text: "{$village_elder_response}"
+      - type: goto_node
+        target: village_center
 
   # File upload form - for importing character notes
   import_notes:
     title: "导入角色笔记"
     description: "上传你的冒险笔记文件"
     submit_text: "导入"
-    
     fields:
-      - id: notes_file
-        type: file
-        label: "选择笔记文件"
-        required: true
-        accept:
-          - "text/plain"
-          - "application/pdf"
-          - "text/markdown"
-        max_size_mb: 2
-        max_text_length: 5000
-        hint: "支持 .txt, .pdf, .md 格式，最大 2MB"
-        
-      - id: notes_category
-        type: select
-        label: "笔记类型"
-        options:
-          - value: lore
-            text: "世界观设定"
-          - value: quest
-            text: "任务记录"
-          - value: character
-            text: "角色资料"
-    
+    - id: notes_file
+      type: file
+      label: "选择笔记文件"
+      required: true
+      accept:
+      - "text/plain"
+      - "application/pdf"
+      - "text/markdown"
+      max_size_mb: 2
+      max_text_length: 5000
+      hint: "支持 .txt, .pdf, .md 格式，最大 2MB"
+    - id: notes_category
+      type: select
+      label: "笔记类型"
+      options:
+      - value: lore
+        text: "世界观设定"
+      - value: quest
+        text: "任务记录"
+      - value: character
+        text: "角色资料"
     on_submit:
       store_variables:
-        - field: notes_file
-          to: "players.{player_id}.imported_notes"
-        - field: notes_category
-          to: "players.{player_id}.notes_category"
-      
+      - field: notes_file
+        to: "players.{player_id}.imported_notes"
+      - field: notes_category
+        to: "players.{player_id}.notes_category"
       llm_process:
         prompt: |
           玩家导入了一份笔记：
-          
+
           类型：{$form.notes_category}
           内容：
           {$form.notes_file}
-          
+
           请简要总结这份笔记的主要内容（2-3句话），并提取任何重要的名字、地点或事件。
           返回JSON格式：{"summary": "...", "key_points": ["...", "..."]}
         parse_as: json
         store_to: "players.{player_id}.notes_analysis"
         extract:
-          - path: "summary"
-            to: "players.{player_id}.notes_summary"
-      
+        - path: "summary"
+          to: "players.{player_id}.notes_summary"
       effects:
-        - type: display_text
-          text: "笔记已导入！系统分析后总结如下："
-        - type: display_text
-          text: "{$players.{player_id}.notes_summary}"
+      - type: display_text
+        text: "笔记已导入！系统分析后总结如下："
+      - type: display_text
+        text: "{$players.{player_id}.notes_summary}"
 
 # ============================================================================
 # Story Nodes
@@ -208,133 +194,131 @@ nodes:
     name: "欢迎"
     explicit_state: |
       欢迎来到表单功能演示！
-      
+
       在这个简短的演示中，你将体验如何使用表单来创建角色、提交任务报告，以及导入外部笔记。
-      
+
       准备好了吗？点击下方按钮开始创建你的角色。
 
       {create_character: 开始创建}
-    
+
     actions:
-      - id: create_character
-        text: "创建角色"
-        effects:
-          - type: present_form
-            form_id: character_creation
+    - id: create_character
+      text: "创建角色"
+      effects:
+      - type: present_form
+        form_id: character_creation
 
   village_entrance:
     name: "村庄入口"
     explicit_state: |
       你站在一个宁静小村庄的入口。
-      
+
       阳光透过树叶洒落，远处可以看到几栋茅草屋顶的房子。一位老者正站在村口的大树下。
-      
+
       "啊，{$players.{player_id}.character.name}！"老者看到你后露出了笑容，"我是这个村子的村长。最近森林里似乎有些不对劲，能帮我去调查一下吗？"
-    
+
     actions:
-      - id: accept_quest
-        text: "接受任务，前往森林调查"
-        effects:
-          - type: display_text
-            text: "村长满意地点点头：'太好了！请小心行事，调查完后回来向我报告。'"
-          - type: set_variable
-            target: "quest_accepted"
-            value: true
-          - type: goto_node
-            target: forest_investigation
-      
-      - id: ask_details
-        text: "询问更多细节"
-        effects:
-          - type: display_text
-            text: "村长皱着眉头说道：'最近有村民在森林边缘看到奇怪的光芒，还有人说听到了低沉的咆哮声。我担心可能有什么危险的东西潜伏在那里。'"
-      
-      - id: go_to_center
-        text: "先去村子中心看看"
-        effects:
-          - type: goto_node
-            target: village_center
+    - id: accept_quest
+      text: "接受任务，前往森林调查"
+      effects:
+      - type: display_text
+        text: "村长满意地点点头：'太好了！请小心行事，调查完后回来向我报告。'"
+      - type: set_variable
+        target: "quest_accepted"
+        value: true
+      - type: goto_node
+        target: forest_investigation
+
+    - id: ask_details
+      text: "询问更多细节"
+      effects:
+      - type: display_text
+        text: "村长皱着眉头说道：'最近有村民在森林边缘看到奇怪的光芒，还有人说听到了低沉的咆哮声。我担心可能有什么危险的东西潜伏在那里。'"
+    - id: go_to_center
+      text: "先去村子中心看看"
+      effects:
+      - type: goto_node
+        target: village_center
 
   forest_investigation:
     name: "森林调查"
     explicit_state: |
       你深入了森林。
-      
+
       周围的树木越来越密集，阳光几乎无法穿透厚重的树冠。你发现了一些奇怪的痕迹：
-      
+
       - 地上有巨大的爪印
       - 几棵树上有深深的抓痕
       - 空气中弥漫着一股焦糊的气味
-      
+
       你已经收集到足够的信息了。是时候回去向村长报告了。
-    
+
     actions:
-      - id: submit_report
-        text: "返回村庄提交报告"
-        effects:
-          - type: present_form
-            form_id: quest_feedback
-      
-      - id: investigate_more
-        text: "继续深入调查"
-        effects:
-          - type: display_text
-            text: "你决定冒险继续深入。突然，前方传来一声震耳欲聋的咆哮！一只巨大的火蜥蜴从树丛中冲了出来！"
-          - type: display_text
-            text: "你意识到现在不是战斗的时候，转身逃回了村庄。"
-          - type: set_variable
-            target: "saw_monster"
-            value: true
-          - type: present_form
-            form_id: quest_feedback
+    - id: submit_report
+      text: "返回村庄提交报告"
+      effects:
+      - type: present_form
+        form_id: quest_feedback
+
+    - id: investigate_more
+      text: "继续深入调查"
+      effects:
+      - type: display_text
+        text: "你决定冒险继续深入。突然，前方传来一声震耳欲聋的咆哮！一只巨大的火蜥蜴从树丛中冲了出来！"
+      - type: display_text
+        text: "你意识到现在不是战斗的时候，转身逃回了村庄。"
+      - type: set_variable
+        target: "saw_monster"
+        value: true
+      - type: present_form
+        form_id: quest_feedback
 
   village_center:
     name: "村庄中心"
     explicit_state: |
       你来到了村庄的中心广场。
-      
-      这里有一个小型集市，几个村民正在忙碌着。广场中央有一口古老的水井，旁边放着一块刻有文字的石碑。
-      
-      一个年轻的学者正在石碑旁做笔记。看到你走近，她抬起头来。
-      
-      "哦，你是新来的冒险者吧？如果你有任何关于这个世界的笔记或资料，我可以帮你整理分析。"
-    
-    actions:
-      - id: import_notes
-        text: "导入我的冒险笔记"
-        effects:
-          - type: present_form
-            form_id: import_notes
-      
-      - id: talk_to_scholar
-        text: "和学者聊天"
-        effects:
-          - type: display_text
-            text: "学者微笑着说：'这块石碑记载了一个古老的传说，关于一只守护这片森林的火焰之龙。据说它已经沉睡了数百年...'"
-      
-      - id: go_to_entrance
-        text: "返回村口"
-        effects:
-          - type: goto_node
-            target: village_entrance
 
-      - id: end_demo
-        text: "结束演示"
-        effects:
-          - type: goto_node
-            target: ending
+      这里有一个小型集市，几个村民正在忙碌着。广场中央有一口古老的水井，旁边放着一块刻有文字的石碑。
+
+      一个年轻的学者正在石碑旁做笔记。看到你走近，她抬起头来。
+
+      "哦，你是新来的冒险者吧？如果你有任何关于这个世界的笔记或资料，我可以帮你整理分析。"
+
+    actions:
+    - id: import_notes
+      text: "导入我的冒险笔记"
+      effects:
+      - type: present_form
+        form_id: import_notes
+
+    - id: talk_to_scholar
+      text: "和学者聊天"
+      effects:
+      - type: display_text
+        text: "学者微笑着说：'这块石碑记载了一个古老的传说，关于一只守护这片森林的火焰之龙。据说它已经沉睡了数百年...'"
+    - id: go_to_entrance
+      text: "返回村口"
+      effects:
+      - type: goto_node
+        target: village_entrance
+
+    - id: end_demo
+      text: "结束演示"
+      effects:
+      - type: goto_node
+        target: ending
 
   ending:
     name: "演示结束"
     is_ending: true
     explicit_state: |
       恭喜你完成了表单功能演示！
-      
+
       在这个演示中，你体验了：
       1. **角色创建表单** - 收集玩家的基本信息和选择
       2. **任务报告表单** - 收集玩家的调查结果并用LLM生成响应
       3. **文件导入表单** - 上传外部文件并提取/分析内容
-      
+
       这些表单功能可以帮助故事作者创建更丰富的互动体验！
 connections:
 # --- Navigation (player can travel between these nodes) ---

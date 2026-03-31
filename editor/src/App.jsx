@@ -23,6 +23,7 @@ import SecondaryEditor from './components/SecondaryEditor';
 import CharacterPanel from './components/CharacterPanel';
 import ParameterPanel from './components/ParameterPanel';
 import LorePanel from './components/LorePanel';
+import GroupEditor from './components/GroupEditor';
 import ObjectPanel from './components/ObjectPanel';
 import FloatingToolPanel from './components/FloatingToolPanel';
 import MenuBar from './components/MenuBar';
@@ -354,11 +355,13 @@ const AppContent = () => {
 
         const updatedNodes = nodes.map(node => ({
             ...node,
-            type: 'detailed',
-            data: {
-                ...node.data,
-                viewMode: mode
-            }
+            type: node.type === 'group' ? 'group' : 'detailed',
+            data: node.type === 'group'
+                ? node.data
+                : {
+                    ...node.data,
+                    viewMode: mode
+                }
         }));
 
         const layouted = getLayoutedElements(updatedNodes, edges, 'LR', mode);
@@ -715,10 +718,9 @@ const AppContent = () => {
             position: groupPosition,
             style: { width: groupWidth, height: groupHeight, zIndex: -1 },
             data: {
-                label: 'Group',
-                onChange: (newLabel) => {
-                    setNodes(nds => nds.map(n => n.id === groupId ? { ...n, data: { ...n.data, label: newLabel } } : n));
-                }
+                label: 'group',
+                groupId: '',
+                definition: '',
             },
         };
 
@@ -1874,22 +1876,30 @@ const AppContent = () => {
                             </div>
                             {selectedNode && !showCharacterPanel && (
                                 <div className="editors-container">
-                                    <NodeEditor
-                                        node={selectedNode}
-                                        onNodeChange={handleNodeChange}
-                                        onNodeClose={() => setSelectedNode(null)}
-                                        onShapeClick={handleShapeClick}
-                                        onSecondaryClose={() => {
-                                            setSecondaryEditorOpen(false);
-                                            setSelectedShape(null);
-                                        }}
-                                        selectedShape={selectedShape}
-                                        secondaryEditorOpen={secondaryEditorOpen}
-                                        shifted={secondaryEditorOpen}
-                                        availableCharacters={storyData.characters || []}
-                                        onUpdateCharacters={handleUpdateCharacters}
-                                        onEditCharacter={handleEditCharacter}
-                                    />
+                                    {selectedNode.type === 'group' ? (
+                                        <GroupEditor
+                                            node={selectedNode}
+                                            onGroupChange={handleNodeChange}
+                                            onClose={() => setSelectedNode(null)}
+                                        />
+                                    ) : (
+                                        <NodeEditor
+                                            node={selectedNode}
+                                            onNodeChange={handleNodeChange}
+                                            onNodeClose={() => setSelectedNode(null)}
+                                            onShapeClick={handleShapeClick}
+                                            onSecondaryClose={() => {
+                                                setSecondaryEditorOpen(false);
+                                                setSelectedShape(null);
+                                            }}
+                                            selectedShape={selectedShape}
+                                            secondaryEditorOpen={secondaryEditorOpen}
+                                            shifted={secondaryEditorOpen}
+                                            availableCharacters={storyData.characters || []}
+                                            onUpdateCharacters={handleUpdateCharacters}
+                                            onEditCharacter={handleEditCharacter}
+                                        />
+                                    )}
                                     <SecondaryEditor
                                         isOpen={secondaryEditorOpen}
                                         selectedShape={selectedShape}
@@ -1912,7 +1922,7 @@ const AppContent = () => {
                                         </button>
                                     </div>
                                     <div className="edge-inspector-meta">
-                                        <span>{selectedConnection.source} -> {(selectedConnection.targets || []).join(', ')}</span>
+                                        <span>{selectedConnection.source}{' -> '}{(selectedConnection.targets || []).join(', ')}</span>
                                     </div>
                                     <label className="edge-inspector-label">
                                         Connection ID
