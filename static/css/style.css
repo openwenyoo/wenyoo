@@ -74,9 +74,13 @@ body {
     margin-bottom: 20px;
 }
 
+.hidden {
+    display: none !important;
+}
+
 /* Story Selection */
 #story-selection {
-    display: none; /* Hidden by default */
+    display: none;
     padding: 20px;
 }
 
@@ -84,6 +88,8 @@ body {
     max-width: 1200px;
     margin: 40px auto;
     padding: 20px;
+    position: relative;
+    z-index: 2;
 }
 
 .story-selection-container h1 {
@@ -119,17 +125,19 @@ body {
 }
 
 .story-card {
+    position: relative;
     background-color: #ffffff;
     border-radius: 8px;
+    border: none;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease, filter 0.25s ease;
 }
 
 .story-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-6px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
@@ -138,134 +146,295 @@ body {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
+    gap: 16px;
+}
+
+.story-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
 }
 
 .story-card-content h3 {
-    font-size: 1.5em;
+    font-size: 1.45em;
     color: #2c3e50;
-    margin-top: 0;
-    margin-bottom: 15px;
+    margin: 0;
+}
+
+.story-card-session-badge {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(26, 115, 232, 0.1);
+    color: #1a73e8;
+    font-size: 0.82em;
+    font-weight: 700;
+    letter-spacing: 0.01em;
 }
 
 .story-card-content .story-description {
     font-size: 1em;
-    color: #7f8c8d;
-    line-height: 1.6;
+    color: #6f7d90;
+    line-height: 1.65;
     flex-grow: 1;
-    margin-bottom: 20px;
+    margin: 0;
 }
 
-.story-card-footer {
-    padding: 20px 25px;
-    background-color: #f8f9fa;
-    border-top: 1px solid #ecf0f1;
+.story-selection-focused .story-card:not(.story-card-selected) {
+    opacity: 0.42;
+    filter: saturate(0.75);
 }
 
-.play-button {
-    display: block;
-    width: 100%;
-    padding: 12px;
-    background-color: #3498db;
-    color: white;
-    text-align: center;
-    text-decoration: none;
+.story-card.story-card-selected {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 28px 56px rgba(23, 43, 77, 0.2);
+    border-color: rgba(26, 115, 232, 0.35);
+}
+
+.story-selection-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 12;
+    background: rgba(228, 237, 249, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.story-selection-backdrop.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Story Session Overlay */
+#session-selection.story-session-overlay {
+    position: fixed;
+    left: 50%;
+    top: 88px;
+    z-index: 14;
+    width: min(720px, calc(100vw - 32px));
+    max-height: none;
+    overflow: visible;
+    padding: 28px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(244,248,255,0.8) 100%);
+    box-shadow:
+        0 32px 80px rgba(24, 39, 75, 0.22),
+        inset 0 1px 0 rgba(255,255,255,0.55);
+    transform: translateX(-50%) scale(0.96);
+    transform-origin: top center;
+    text-align: left;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.24s ease, transform 0.28s ease;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+}
+
+#session-selection.story-session-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) scale(1);
+}
+
+.selection-container.story-session-overlay h2 {
+    color: #22324d;
+    margin: 8px 0 10px;
+    font-size: 2em;
+}
+
+.story-session-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 52px;
+    height: 52px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: none;
-    border-radius: 5px;
-    font-size: 1.1em;
-    font-weight: bold;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.56);
+    color: #3b4c68;
+    font-size: 34px;
+    line-height: 1;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    box-shadow: 0 10px 24px rgba(30, 55, 90, 0.12);
 }
 
-.play-button:hover {
-    background-color: #2980b9;
+.story-session-close:hover {
+    background: rgba(255,255,255,0.9);
 }
 
-/* Session选择界面 */
-#session-selection {
-    text-align: center;
-    margin: 40px auto;
-    max-width: 600px;
-    display: none;
+.story-session-header {
+    padding-right: 64px;
 }
 
-#session-selection h2 {
+.story-session-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 24px;
+    align-items: center;
+}
+
+.story-session-kicker {
+    font-size: 0.9em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b7c95;
+}
+
+.story-session-description {
+    margin: 0;
+    color: #5c6b82;
+    line-height: 1.65;
+}
+
+.story-session-meta {
+    margin-top: 14px;
     color: #1a73e8;
-    margin-bottom: 30px;
+    font-size: 0.95em;
+    font-weight: 700;
 }
 
-.session-options {
+.story-session-primary-actions {
     display: flex;
-    flex-direction: column;
-    gap: 20px;
+    justify-content: flex-end;
+    align-self: center;
+    margin: 0;
 }
 
-.join-session {
-    display: flex;
-    gap: 10px;
-}
-
-/* Session Selection Styles */
-.selection-container {
+.story-session-primary-btn {
+    width: 92px;
+    min-height: 92px;
+    padding: 12px;
+    border-radius: 8px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: 30px;
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    line-height: 1.35;
+    font-weight: 700;
+    font-size: 13px !important;
 }
 
-.selection-container h2 {
-    color: #333;
-    margin-bottom: 20px;
-}
-
-.selection-container button {
+.selection-container.story-session-overlay button:not(.story-session-close) {
     background-color: #1a73e8;
     color: white;
     border: none;
     padding: 12px 24px;
-    margin: 10px;
-    border-radius: 12px;
+    margin: 0;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 16px;
-    transition: background-color 0.3s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 12px 24px rgba(26, 115, 232, 0.22);
 }
 
-.selection-container button:hover {
+.selection-container.story-session-overlay button:not(.story-session-close):hover {
     background-color: #0d62c9;
+    transform: translateY(-1px);
+}
+
+.selection-container.story-session-overlay .story-session-close {
+    box-shadow: none;
+}
+
+.selection-container.story-session-overlay .story-session-close:hover {
+    background: rgba(255,255,255,0.9);
+    transform: none;
 }
 
 .join-session {
-    margin-top: 20px;
+    margin-top: 6px;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     flex-wrap: wrap;
+    gap: 12px;
 }
 
 .join-session input {
-    padding: 12px;
-    margin: 10px;
-    border-radius: 12px;
-    border: 1px solid #ddd;
-    background-color: #f0f2f5;
-    color: #333;
+    padding: 13px 16px;
+    margin: 0;
+    border-radius: 8px;
+    background-color: rgba(255,255,255,0.72);
+    color: #22324d;
     flex: 1;
-    min-width: 200px;
-    max-width: 300px;
-    border: none;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+    min-width: 220px;
+    border: 1px solid rgba(26, 115, 232, 0.14);
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.03);
 }
 
 /* Load Panel Styles */
 .load-panel {
-    background-color: #f8f9fa;
-    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.58);
+    border-radius: 8px;
     padding: 20px;
-    margin: 20px 0;
+    margin: 24px 0 0;
     text-align: left;
-    border: 1px solid #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    min-height: 360px;
+    display: flex;
+    flex-direction: column;
+}
+
+.story-session-hub-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.story-session-hub-header h3 {
+    margin: 0;
+}
+
+.story-session-tabs {
+    display: inline-flex;
+    gap: 8px;
+    padding: 6px;
+    background: rgba(225, 235, 249, 0.86);
+    border-radius: 8px;
+}
+
+.story-session-tab {
+    background: transparent !important;
+    color: #5f6368 !important;
+    box-shadow: none !important;
+    padding: 10px 16px !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+}
+
+.story-session-tab:hover {
+    background: rgba(26, 115, 232, 0.08) !important;
+    color: #1a73e8 !important;
+    transform: none !important;
+}
+
+.story-session-tab.active,
+.story-session-tab.active:hover {
+    background: #1a73e8 !important;
+    color: #fff !important;
+    box-shadow: 0 6px 16px rgba(26, 115, 232, 0.22) !important;
+}
+
+.story-session-join {
+    margin-top: 12px;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.story-session-panel {
+    min-height: 268px;
 }
 
 .load-panel h3 {
@@ -276,9 +445,77 @@ body {
 }
 
 .saved-games-list {
-    max-height: 200px;
+    max-height: 320px;
+    min-height: 220px;
     overflow-y: auto;
     margin: 10px 0;
+    padding-right: 6px;
+}
+
+@media (max-width: 768px) {
+    .story-selection-container {
+        padding: 12px;
+    }
+
+    .story-list {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    #session-selection.story-session-overlay {
+        width: calc(100vw - 20px);
+        top: 16px;
+        padding: 20px;
+    }
+
+    .story-session-header {
+        padding-right: 48px;
+    }
+
+    .story-session-top {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .selection-container.story-session-overlay h2 {
+        font-size: 1.6em;
+    }
+
+    .join-session {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .story-session-primary-actions {
+        margin-top: 0;
+        justify-content: flex-start;
+    }
+
+    .story-session-hub-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .story-session-tabs {
+        width: 100%;
+    }
+
+    .story-session-tab {
+        flex: 1;
+        text-align: center;
+    }
+
+    .join-session input,
+    .selection-container.story-session-overlay .story-session-primary-btn,
+    .selection-container.story-session-overlay .join-session > button {
+        width: 100%;
+    }
+
+    .story-session-primary-btn {
+        min-height: 68px;
+        width: 100%;
+        font-size: 14px !important;
+    }
 }
 
 .saved-game-item {
@@ -290,6 +527,90 @@ body {
     margin-bottom: 10px;
     border-radius: 12px;
     border: 1px solid #eee;
+}
+
+.saved-game-item.session-room-item {
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.session-room-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.session-room-title {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.session-room-name {
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.session-room-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #e8f0fe;
+    color: #1a73e8;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.session-room-status.archived {
+    background: #eef2f7;
+    color: #5f6368;
+}
+
+.session-room-meta,
+.session-room-preview,
+.session-room-participants {
+    margin: 4px 0;
+    color: #5f6368;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.session-room-preview {
+    color: #374151;
+}
+
+.session-room-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.session-secondary-btn {
+    background-color: #fff;
+    color: #5f6368;
+    border: 1px solid #d0d7e2;
+    padding: 8px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.session-secondary-btn:hover {
+    background: #f8fafc;
+    color: #1f2937;
+}
+
+.session-empty-state {
+    padding: 16px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px dashed #d7dde7;
+    color: #6b7280;
+    text-align: center;
 }
 
 .saved-game-item span {

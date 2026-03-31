@@ -19,6 +19,7 @@ import logging
 import re
 
 from src.models.story_models import Story
+from src.core.persistent_session_store import PersistentSessionStore
 
 logger = logging.getLogger(__name__)
 SAVE_CODE_PATTERN = re.compile(r"^[A-Z0-9]{8}$")
@@ -36,11 +37,40 @@ class StateManager:
         self.lock = threading.Lock()
         self.active_states = {}  # type: Dict[str, GameState]
         self.observers = {}  # type: Dict[str, List[callable]]
+        self.session_store = PersistentSessionStore(save_dir)
         
         # Create save directory if it doesn't exist
         os.makedirs(save_dir, exist_ok=True)
         
         logger.info(f"State manager initialized with save directory: {save_dir}")
+
+    def archive_all_persistent_rooms(self) -> None:
+        """Archive any persisted rooms left marked active by a previous process."""
+        self.session_store.archive_all_rooms()
+
+    def save_persistent_room(self, room_id: str, record: Dict[str, Any]) -> None:
+        """Persist a resumable room snapshot."""
+        self.session_store.save_room_record(room_id, record)
+
+    def load_persistent_room(self, room_id: str) -> Optional[Dict[str, Any]]:
+        """Load a persisted room snapshot."""
+        return self.session_store.load_room_record(room_id)
+
+    def list_persistent_rooms(
+        self,
+        player_id: Optional[str] = None,
+        story_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """List persisted resumable rooms."""
+        return self.session_store.list_room_records(player_id=player_id, story_id=story_id)
+
+    def delete_persistent_room(self, room_id: str) -> bool:
+        """Delete a persisted room snapshot."""
+        return self.session_store.delete_room(room_id)
+
+    def persistent_room_exists(self, room_id: str) -> bool:
+        """Return True when a persisted room exists on disk."""
+        return self.session_store.room_exists(room_id)
 
     def _sanitize_filename_part(self, value: Optional[str]) -> str:
         """Create a filesystem-safe filename segment."""

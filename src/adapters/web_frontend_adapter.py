@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional, Dict, Any
+import copy
 import hmac
 import logging
 import secrets
@@ -127,6 +128,11 @@ class WebFrontendAdapter(FrontendAdapter):
         self.persistent_player_to_session: Dict[str, str] = {}
         self.disconnected_players: Dict[str, float] = {}
         self._player_tokens: Dict[str, str] = {}
+        self._room_autosave_tasks: Dict[str, asyncio.Task] = {}
+        self._stream_message_types: Dict[str, str] = {}
+
+        if self.game_kernel and self.game_kernel.state_manager:
+            self.game_kernel.state_manager.archive_all_persistent_rooms()
 
         # Initialize handlers
         self._init_handlers()
@@ -146,7 +152,8 @@ class WebFrontendAdapter(FrontendAdapter):
             websocket_manager=self.websocket_manager,
             game_sessions=self.game_sessions,
             player_sessions=self.player_sessions,
-            persistent_player_to_session=self.persistent_player_to_session
+            persistent_player_to_session=self.persistent_player_to_session,
+            frontend_adapter=self,
         )
         
         self.pregame_handler = PregameHandler(
@@ -196,7 +203,8 @@ class WebFrontendAdapter(FrontendAdapter):
             self.game_kernel, 
             self.story_manager,
             self.game_sessions,
-            self.player_sessions
+            self.player_sessions,
+            self,
         )
         register_plan_routes(self.app, self.game_kernel, self.story_manager)
         
@@ -205,8 +213,240 @@ class WebFrontendAdapter(FrontendAdapter):
         async def websocket_endpoint(websocket: WebSocket):
             await self._handle_websocket(websocket)
 
+    def _get_room_member_ids(self, room_id: str) -> list[str]:
+        if room_id not in self.game_sessions:
+            return []
+        game_state = self.game_sessions[room_id].get("game_state")
+        if not game_state:
+            return []
+        return list((game_state.variables.get("players") or {}).keys())
+
+    def _serialize_pending_forms_for_room(self, room_id: str) -> Dict[str, Dict[str, Any]]:
+        pending_forms: Dict[str, Dict[str, Any]] = {}
+        session_entry = self.game_sessions.get(room_id) or {}
+        pending_forms.update(copy.deepcopy(session_entry.get("pending_forms") or {}))
+        game_kernel = self.game_kernel
+        if not game_kernel:
+            return pending_forms
+
+        for player_id in self._get_room_member_ids(room_id):
+            form_context = game_kernel._pending_forms.get(player_id)
+            if not form_context:
+                continue
+
+            on_submit_override = form_context.get("on_submit_override")
+            pending_forms[player_id] = {
+                "form_id": form_context.get("form_id"),
+                "prefill": copy.deepcopy(form_context.get("prefill") or {}),
+                "on_submit_override": (
+                    on_submit_override.dict()
+                    if hasattr(on_submit_override, "dict")
+                    else copy.deepcopy(on_submit_override)
+                ),
+            }
+
+        return pending_forms
+
+    def _build_room_record(self, room_id: str, status: str = "active") -> Optional[Dict[str, Any]]:
+        session_entry = self.game_sessions.get(room_id)
+        if not session_entry:
+            return None
+
+        game_state = session_entry.get("game_state")
+        if not game_state:
+            return None
+
+        metadata = game_state.ensure_save_metadata()
+        transcript = [
+            entry for entry in game_state.transcript_history
+            if isinstance(entry, dict)
+        ]
+        preview = ""
+        if transcript:
+            last_entry = transcript[-1]
+            preview = str(last_entry.get("content") or "")
+
+        return {
+            "room_id": room_id,
+            "story_id": game_state.story_id,
+            "story_title": getattr(game_state.story, "title", game_state.story_id),
+            "room_name": getattr(game_state.story, "title", room_id),
+            "status": status,
+            "created_at": game_state.created_at,
+            "updated_at": game_state.updated_at,
+            "participant_manifest": copy.deepcopy(metadata.get("participant_manifest", [])),
+            "participant_names": list(metadata.get("participant_names", [])),
+            "participant_ids": [entry.get("player_id") for entry in metadata.get("participant_manifest", []) if entry.get("player_id")],
+            "current_node": game_state.current_node_id,
+            "preview": preview,
+            "snapshot": game_state.to_dict(),
+            "transcript": copy.deepcopy(transcript),
+            "pending_forms": self._serialize_pending_forms_for_room(room_id),
+        }
+
+    def _persist_room_snapshot(self, room_id: str, status: str = "active") -> None:
+        if not self.game_kernel or room_id not in self.game_sessions:
+            return
+        record = self._build_room_record(room_id, status=status)
+        if not record:
+            return
+        self.game_kernel.state_manager.save_persistent_room(room_id, record)
+
+    def _cancel_room_autosave(self, room_id: str) -> None:
+        task = self._room_autosave_tasks.pop(room_id, None)
+        if task:
+            task.cancel()
+
+    async def _debounced_room_autosave(self, room_id: str, delay_seconds: float = 0.75) -> None:
+        try:
+            await asyncio.sleep(delay_seconds)
+            if room_id in self.game_sessions:
+                self._persist_room_snapshot(room_id, status="active")
+        except asyncio.CancelledError:
+            return
+        finally:
+            current_task = self._room_autosave_tasks.get(room_id)
+            if current_task is asyncio.current_task():
+                self._room_autosave_tasks.pop(room_id, None)
+
+    def _schedule_room_autosave(self, room_id: Optional[str]) -> None:
+        if not room_id or room_id not in self.game_sessions:
+            return
+        self._cancel_room_autosave(room_id)
+        self._room_autosave_tasks[room_id] = asyncio.create_task(
+            self._debounced_room_autosave(room_id)
+        )
+
+    def _restore_pending_form_for_player(self, room_id: str, player_id: str) -> None:
+        if not self.game_kernel or room_id not in self.game_sessions:
+            return
+        pending_forms = self.game_sessions[room_id].get("pending_forms") or {}
+        pending = pending_forms.get(player_id)
+        if not pending:
+            self.game_kernel._pending_forms.pop(player_id, None)
+            return
+
+        form_id = (pending or {}).get("form_id")
+        if not form_id:
+            self.game_kernel._pending_forms.pop(player_id, None)
+            return
+
+        story = self.game_sessions[room_id]["game_state"].story
+        form_def = story.get_form(form_id) if story else None
+        if not form_def:
+            self.game_kernel._pending_forms.pop(player_id, None)
+            return
+
+        on_submit_override = copy.deepcopy((pending or {}).get("on_submit_override"))
+        if on_submit_override and isinstance(on_submit_override, dict):
+            from src.models.story_models import FormOnSubmit
+
+            on_submit_override = FormOnSubmit(**on_submit_override)
+
+        self.game_kernel._pending_forms[player_id] = {
+            "form_id": form_id,
+            "form_def": form_def,
+            "prefill": dict((pending or {}).get("prefill") or {}),
+            "on_submit_override": on_submit_override,
+        }
+
+    def _activate_persisted_room(self, room_id: str) -> Optional[Dict[str, Any]]:
+        if room_id in self.game_sessions:
+            return self.game_sessions[room_id]
+        if not self.game_kernel:
+            return None
+
+        room_record = self.game_kernel.state_manager.load_persistent_room(room_id)
+        if not room_record:
+            return None
+
+        snapshot = room_record.get("snapshot") or {}
+        story_id = room_record.get("story_id") or snapshot.get("story_id")
+        story = self.story_manager.load_story(story_id) if story_id else None
+        if not story:
+            logger.warning("Could not load story '%s' while restoring room %s", story_id, room_id)
+            return None
+
+        game_state = GameState.from_dict(snapshot, story)
+        self.game_sessions[room_id] = {
+            "room_id": room_id,
+            "game_state": game_state,
+            "players": set(),
+            "lock": asyncio.Lock(),
+            "loaded_from_save": True,
+            "reserved_player_ids": set(),
+            "pending_forms": copy.deepcopy(room_record.get("pending_forms") or {}),
+        }
+        return self.game_sessions[room_id]
+
+    def _archive_room(self, room_id: str) -> None:
+        if room_id not in self.game_sessions:
+            return
+        self._cancel_room_autosave(room_id)
+        self._persist_room_snapshot(room_id, status="archived")
+        for player_id in self._get_room_member_ids(room_id):
+            self.game_kernel._pending_forms.pop(player_id, None)
+        self.game_kernel.stop_ticker(room_id)
+        del self.game_sessions[room_id]
+
+    async def _build_room_start_content(
+        self,
+        room_id: str,
+        player_id: str,
+        game_state: GameState,
+        *,
+        full_description: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        player_location = game_state.get_player_location(player_id)
+        if full_description is None:
+            full_description = await self.game_kernel.get_node_perception(
+                game_state,
+                player_location,
+                player_id,
+            )
+
+        game_state_dict = await build_game_state_dict(
+            game_state,
+            room_id,
+            player_id,
+            self.game_kernel,
+            current_perception=full_description,
+        )
+        self._format_game_state_for_player(game_state_dict, player_id)
+
+        transcript = game_state.get_transcript_for_player(player_id)
+        has_visible_game_transcript = any(
+            isinstance(entry, dict) and entry.get("message_type") == "game"
+            for entry in transcript
+        )
+        pending_form_payload = None
+        pending_form = self.game_kernel._pending_forms.get(player_id) if self.game_kernel else None
+        if pending_form:
+            form_def = pending_form.get("form_def")
+            if form_def:
+                pending_form_payload = form_def.to_frontend_format(
+                    game_state=game_state,
+                    player_id=player_id,
+                    substitute_func=self.game_kernel.text_processor.substitute_variables,
+                )
+                prefill = pending_form.get("prefill") or {}
+                if prefill:
+                    pending_form_payload["prefill"] = dict(prefill)
+
+        client_type = self.player_sessions.get(player_id, {}).get("client_type", "web")
+        response = ""
+        if not has_visible_game_transcript:
+            response = self.format_for_client(full_description, client_type)
+
+        return {
+            "game_state": game_state_dict,
+            "response": response,
+            "transcript": transcript,
+            "pending_form": pending_form_payload,
+        }
+
     async def _reaper_task(self):
-        """Periodically cleans up players who have been disconnected for too long."""
+        """Periodically clears stale disconnect markers."""
         while True:
             await asyncio.sleep(30)  # Check every 30 seconds
             now = time.time()
@@ -214,10 +454,6 @@ class WebFrontendAdapter(FrontendAdapter):
             
             for player_id, disconnected_time in list(self.disconnected_players.items()):
                 if now - disconnected_time > 300:  # 5-minute grace period
-                    logger.info(f"Reaping player {player_id} after grace period expired.")
-                    session_id = self.player_sessions.get(player_id, {}).get("session_id")
-                    if session_id:
-                        await self.session_handler.cleanup_player_session(player_id, session_id)
                     reaped_players.append(player_id)
             
             for player_id in reaped_players:
@@ -259,13 +495,14 @@ class WebFrontendAdapter(FrontendAdapter):
             # Main connection loop
             current_session_id = None
 
-            # Check if player is rejoining an active session
+            # Check if player is rejoining an active or archived room
             session_id = self.persistent_player_to_session.get(player_id)
-            if session_id and session_id in self.game_sessions:
+            if session_id and (session_id in self.game_sessions or self.game_kernel.state_manager.persistent_room_exists(session_id)):
                 logger.info(f"Player {player_id} is rejoining session {session_id}.")
                 if player_id in self.disconnected_players:
                     del self.disconnected_players[player_id]
 
+                self._activate_persisted_room(session_id)
                 game_state = self.game_sessions[session_id]["game_state"]
                 self.game_sessions[session_id].setdefault("reserved_player_ids", set()).discard(player_id)
                 if player_id not in game_state.variables.get('players', {}):
@@ -288,32 +525,26 @@ class WebFrontendAdapter(FrontendAdapter):
                         "client_type": client_type,
                     }
                     self.game_sessions[session_id]["players"].add(player_id)
-
-                    await self.websocket_manager.broadcast_to_session(session_id, {
-                        "type": "multiplayer", "content": f"{player_name} has reconnected."
-                    }, self.player_sessions, exclude_player_id=player_id)
-                    
-                    player_location = game_state.get_player_location(player_id)
-                    full_description = await self.game_kernel.get_node_perception(
-                        game_state,
-                        player_location,
-                        player_id
+                    self._restore_pending_form_for_player(session_id, player_id)
+                    self._schedule_room_autosave(session_id)
+                    if self.game_sessions[session_id]["players"] == {player_id}:
+                        self.game_kernel.start_ticker(session_id)
+                    await self.send_game_message(
+                        f"{player_name} has reconnected.",
+                        player_id,
+                        message_type="multiplayer",
+                        audience_scope="session",
+                        session_id=session_id,
+                        exclude_player_ids=[player_id],
                     )
-                    game_state_dict = await build_game_state_dict(
-                        game_state,
+                    start_content = await self._build_room_start_content(
                         session_id,
                         player_id,
-                        self.game_kernel,
-                        current_perception=full_description,
+                        game_state,
                     )
-                    self._format_game_state_for_player(game_state_dict, player_id)
-
                     await websocket.send_json({
                         "type": "rejoined",
-                        "content": {
-                            "game_state": game_state_dict,
-                            "response": self.format_for_client(full_description, client_type)
-                        }
+                        "content": start_content,
                     })
                     
                     current_session_id = session_id
@@ -354,13 +585,14 @@ class WebFrontendAdapter(FrontendAdapter):
             logger.info(f"Player {player_id} disconnected unexpectedly.")
             session_id = self.persistent_player_to_session.get(player_id)
             if session_id and session_id in self.game_sessions:
-                logger.info(f"Player {player_id} was in session {session_id}. Starting grace period.")
+                logger.info(f"Player {player_id} detached from session {session_id}.")
                 self.disconnected_players[player_id] = time.time()
-                self.game_sessions[session_id].setdefault("reserved_player_ids", set()).add(player_id)
-                await self.websocket_manager.broadcast_to_session(session_id, {
-                    "type": "multiplayer", 
-                    "content": f"{self.player_sessions.get(player_id, {}).get('name', 'A player')} has disconnected."
-                }, self.player_sessions)
+                await self.session_handler.detach_player_from_room(
+                    player_id,
+                    session_id,
+                    clear_persistent_mapping=False,
+                    announce=True,
+                )
 
         except Exception as e:
             logger.error(f"Error in WebSocket endpoint for player {player_id}: {e}", exc_info=True)
@@ -368,18 +600,6 @@ class WebFrontendAdapter(FrontendAdapter):
         finally:
             logger.info(f"Closing WebSocket connection for player {player_id}.")
             if player_id:
-                # Check if we should perform cleanup (not in grace period)
-                should_cleanup = True
-                if player_id in self.disconnected_players:
-                    logger.info(f"Player {player_id} is in grace period. Skipping immediate cleanup.")
-                    should_cleanup = False
-                
-                if should_cleanup:
-                    session_id = self.persistent_player_to_session.get(player_id)
-                    if session_id:
-                        logger.info(f"Performing final cleanup for player {player_id} in session {session_id}.")
-                        await self.session_handler.cleanup_player_session(player_id, session_id)
-                
                 self.websocket_manager.disconnect(player_id)
 
     # ---- Client-specific formatting ----
@@ -510,6 +730,17 @@ class WebFrontendAdapter(FrontendAdapter):
             if game_state.get_player_location(player_id) == location_id
         ]
 
+    def _get_room_member_ids_in_location(self, session_id: Optional[str], location_id: Optional[str]) -> list[str]:
+        """Get all room member IDs at a location, including detached players."""
+        if not session_id or not location_id or session_id not in self.game_sessions:
+            return []
+        game_state = self.game_sessions[session_id]["game_state"]
+        return [
+            player_id
+            for player_id in (game_state.variables.get("players") or {})
+            if game_state.get_player_location(player_id) == location_id
+        ]
+
     def update(self, game_state: GameState, session_id: Optional[str] = None):
         """Receive updates from the game kernel.
         
@@ -517,7 +748,40 @@ class WebFrontendAdapter(FrontendAdapter):
             game_state: The current game state.
             session_id: The session ID.
         """
+        if session_id:
+            self._schedule_room_autosave(session_id)
         asyncio.create_task(self.update_display(game_state, session_id))
+
+    def _record_transcript_entry(
+        self,
+        room_id: Optional[str],
+        *,
+        message_type: str,
+        content: str,
+        is_html: bool,
+        player_ids: Optional[list[str]] = None,
+        speaker: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        if not room_id or room_id not in self.game_sessions:
+            return
+        game_state = self.game_sessions[room_id].get("game_state")
+        if not game_state:
+            return
+        location = None
+        target_player_ids = list(player_ids or [])
+        if target_player_ids:
+            location = game_state.get_player_location(target_player_ids[0])
+        game_state.add_transcript_entry(
+            message_type,
+            content,
+            is_html=is_html,
+            player_ids=target_player_ids or None,
+            speaker=speaker,
+            location=location,
+            metadata=metadata,
+        )
+        self._schedule_room_autosave(room_id)
 
     async def send_response(self, response: Dict[str, Any]) -> bool:
         """Send a response to the frontend.
@@ -547,7 +811,25 @@ class WebFrontendAdapter(FrontendAdapter):
         Returns:
             True if successful, False otherwise.
         """
-        return await self.websocket_manager.send_to_player(player_id, message)
+        sent = await self.websocket_manager.send_to_player(player_id, message)
+        if sent:
+            room_id = self.player_sessions.get(player_id, {}).get("session_id")
+            message_type = message.get("type")
+            if message_type == "form":
+                form_title = message.get("title") or message.get("form_id") or "Form"
+                description = message.get("description") or ""
+                transcript_text = f"**{form_title}**"
+                if description:
+                    transcript_text += f"\n\n{description}"
+                self._record_transcript_entry(
+                    room_id,
+                    message_type="form",
+                    content=transcript_text,
+                    is_html=False,
+                    player_ids=[player_id],
+                    metadata={"form_payload": copy.deepcopy(message)},
+                )
+        return sent
 
     async def send_game_message(self, message: str, player_id: str, message_type: str = "game", **extra) -> bool:
         """Send a game message to a specific player.
@@ -607,10 +889,31 @@ class WebFrontendAdapter(FrontendAdapter):
             payload.update(extra)
             sent = await self.websocket_manager.send_to_player(target_player_id, payload)
             success = success or sent
+        transcript_targets: list[str]
+        if audience_scope == "session":
+            transcript_targets = self._get_room_member_ids(room_id=session_id)
+        elif audience_scope in {"players_here", "location_players"}:
+            transcript_targets = self._get_room_member_ids_in_location(session_id, location_id)
+        elif audience_scope == "specific_players":
+            transcript_targets = list(target_player_ids)
+        else:
+            transcript_targets = [player_id]
+
+        if transcript_targets:
+            transcript_content = self.format_for_client(message, "web")
+            self._record_transcript_entry(
+                session_id,
+                message_type=message_type,
+                content=transcript_content,
+                is_html=True,
+                player_ids=transcript_targets,
+                metadata={"formatted_via_client": True},
+            )
         return success
 
     async def send_stream_start(self, player_id: str, message_type: str = "game") -> bool:
         """Signal the start of a streaming message to the player."""
+        self._stream_message_types[player_id] = message_type
         return await self.websocket_manager.send_to_player(player_id, {
             "type": "stream_start",
             "message_type": message_type,
@@ -633,7 +936,19 @@ class WebFrontendAdapter(FrontendAdapter):
         msg = {"type": "stream_end"}
         if final_html is not None:
             msg["final_html"] = final_html
-        return await self.websocket_manager.send_to_player(player_id, msg)
+        sent = await self.websocket_manager.send_to_player(player_id, msg)
+        if sent and final_html is not None:
+            room_id = self.player_sessions.get(player_id, {}).get("session_id")
+            message_type = self._stream_message_types.get(player_id, "game")
+            self._record_transcript_entry(
+                room_id,
+                message_type=message_type,
+                content=final_html,
+                is_html=True,
+                player_ids=[player_id],
+            )
+        self._stream_message_types.pop(player_id, None)
+        return sent
 
     async def send_error(self, message: str, player_id: str) -> None:
         """Send an error message to a specific player.

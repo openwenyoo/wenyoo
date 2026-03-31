@@ -830,7 +830,8 @@ JSON array:"""
     async def process_input(self, user_input: str, game_state: GameState, story: 'Story', 
                            player_id: str, session_id: Optional[str] = None,
                            input_type: str = "typed",
-                           action_hint: str = "") -> Dict[str, Any]:
+                           action_hint: str = "",
+                           display_text: Optional[str] = None) -> Dict[str, Any]:
         """Process player input.
         
         The engine only keeps meta/infrastructure handling here.
@@ -847,6 +848,13 @@ JSON array:"""
             game_state.add_message_to_history(
                 role="player",
                 content=user_input.strip(),
+                player_ids=[player_id],
+                location=player_location,
+                metadata={"event_type": "player_input", "input_type": input_type},
+            )
+            game_state.add_transcript_entry(
+                "user",
+                (display_text or user_input).strip(),
                 player_ids=[player_id],
                 location=player_location,
                 metadata={"event_type": "player_input", "input_type": input_type},

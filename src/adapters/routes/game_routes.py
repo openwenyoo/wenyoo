@@ -1,4 +1,4 @@
-"""Game session and save/load routes."""
+"""Game session routes."""
 
 from fastapi import FastAPI, Request
 from typing import Any
@@ -15,7 +15,8 @@ def register_game_routes(
     game_kernel: Any, 
     story_manager: Any,
     game_sessions: dict,
-    player_sessions: dict
+    player_sessions: dict,
+    frontend_adapter: Any,
 ):
     """Register game-related routes on the FastAPI app.
     
@@ -56,48 +57,56 @@ def register_game_routes(
             return {"success": False, "error": "Failed to start new game."}
 
         game_state.variables['players'][player_id]['name'] = player_name
+        game_state.save_metadata["room_id"] = session_id
 
         game_sessions[session_id] = {
             "game_state": game_state,
-            "players": {player_id}
+            "players": {player_id},
+            "lock": None,
+            "loaded_from_save": False,
+            "reserved_player_ids": set(),
         }
         player_sessions[player_id] = {"name": player_name, "session_id": session_id}
         game_kernel.start_ticker(session_id)
+        frontend_adapter._persist_room_snapshot(session_id, status="active")
 
         return {"success": True, "session_id": session_id, "player_id": player_id}
 
-    @app.get("/api/saved-games")
-    async def get_saved_games(player_name: str, story_id: str):
-        """Get list of saved games for a player and story."""
+    @app.get("/api/sessions")
+    async def get_persistent_sessions(player_id: str, story_id: str = None):
+        """Get resumable room sessions for a player."""
         try:
-            saved_games = game_kernel.state_manager.get_saved_games_list(player_name, story_id)
-            return {"success": True, "saves": saved_games}
+            sessions = game_kernel.state_manager.list_persistent_rooms(
+                player_id=player_id,
+                story_id=story_id,
+            )
+            return {"success": True, "sessions": sessions}
         except Exception as e:
-            logger.error(f"Error getting saved games: {e}", exc_info=True)
+            logger.error(f"Error getting persistent sessions: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
-    @app.post("/api/load")
-    async def load_game(request: Request):
-        """Load a saved game."""
+    @app.post("/api/sessions/delete")
+    async def delete_persistent_session(request: Request):
+        """Delete a resumable room if the requester is a participant."""
         try:
             data = await request.json()
-            save_code = data.get("save_code")
-            player_name = data.get("player_name")
-            story_id = data.get("story_id")
-            
-            if not all([save_code, player_name, story_id]):
+            room_id = data.get("room_id")
+            player_id = data.get("player_id")
+            if not room_id or not player_id:
                 return {"success": False, "error": "Missing required parameters"}
-            
-            # Load the saved state
-            loaded_state_dict = game_kernel.state_manager.load_state_by_code(
-                save_code, player_name, story_id
-            )
-            
-            if not loaded_state_dict:
-                return {"success": False, "error": "Failed to load saved game. Save code may be invalid."}
-            
-            return {"success": True, "game_state": loaded_state_dict}
+
+            room_record = game_kernel.state_manager.load_persistent_room(room_id)
+            if not room_record:
+                return {"success": False, "error": "Room not found"}
+
+            participant_ids = set(room_record.get("participant_ids") or [])
+            if player_id not in participant_ids:
+                return {"success": False, "error": "You are not allowed to delete this room"}
+
+            deleted = await frontend_adapter.session_handler.delete_room(room_id)
+            return {"success": deleted}
         except Exception as e:
-            logger.error(f"Error loading game: {e}", exc_info=True)
+            logger.error(f"Error deleting persistent session: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
+
 

@@ -1,6 +1,7 @@
 """Session management handler."""
 
 import asyncio
+import copy
 from fastapi import WebSocket
 from typing import Dict, Any, Optional
 import logging
@@ -21,7 +22,8 @@ class SessionHandler:
         websocket_manager: Any,
         game_sessions: Dict[str, Dict[str, Any]],
         player_sessions: Dict[str, Dict[str, Any]],
-        persistent_player_to_session: Dict[str, str]
+        persistent_player_to_session: Dict[str, str],
+        frontend_adapter: Any = None,
     ):
         """Initialize the session handler.
         
@@ -37,6 +39,7 @@ class SessionHandler:
         self.game_sessions = game_sessions
         self.player_sessions = player_sessions
         self.persistent_player_to_session = persistent_player_to_session
+        self.frontend_adapter = frontend_adapter
 
     def _claim_or_add_player(
         self,
@@ -143,8 +146,6 @@ class SessionHandler:
         
         if msg_type == "create_session":
             return await self._create_session(message, player_id, player_name, story_or_template, websocket)
-        elif msg_type == "load_game":
-            return await self._load_game_session(message, player_id, player_name, story_or_template, websocket)
         elif msg_type == "join_session":
             return await self._join_session(message, player_id, player_name, websocket)
         
@@ -191,6 +192,7 @@ class SessionHandler:
 
         game_state.variables['players'][player_id]['name'] = player_name
         game_state.variables['players'][player_id]['client_type'] = client_type
+        game_state.save_metadata["room_id"] = session_id
         self.player_sessions[player_id]['client_type'] = client_type
 
         logger.info(f"Creating new game session {session_id}")
@@ -200,93 +202,24 @@ class SessionHandler:
             "lock": asyncio.Lock(),  # Session-level lock for command processing
             "loaded_from_save": False,
             "reserved_player_ids": set(),
+            "pending_forms": {},
         }
         self.game_kernel.start_ticker(session_id)
         self.player_sessions[player_id]["session_id"] = session_id
         self.persistent_player_to_session[player_id] = session_id
+        if self.frontend_adapter:
+            self.frontend_adapter._persist_room_snapshot(session_id, status="active")
         
         await websocket.send_json({"type": "session", "subtype": "created", "session_code": session_id})
         
-        await self.websocket_manager.broadcast_to_session(session_id, {
-            "type": "multiplayer", "content": f"{player_name} has created and joined the session."
-        }, self.player_sessions)
-
-        await self.broadcast_session_players(session_id)
-
-        return session_id
-
-    async def _load_game_session(
-        self, 
-        message: Dict, 
-        player_id: str,
-        player_name: str, 
-        story_or_template: Any,
-        websocket: WebSocket
-    ) -> Optional[str]:
-        """Load a saved game into a new session.
-        
-        Args:
-            message: The load_game message.
-            player_id: The player's ID.
-            player_name: The player's name.
-            story_or_template: The selected story or template.
-            websocket: The player's WebSocket connection.
-            
-        Returns:
-            The new session ID if successful, None otherwise.
-        """
-        save_code = message.get("save_code")
-        logger.info(f"Player {player_id} is loading game with code {save_code}.")
-        
-        loaded_state_dict = self.game_kernel.state_manager.load_state_by_code(
-            save_code, player_name, story_or_template.id
-        )
-
-        if not loaded_state_dict:
-            await websocket.send_json({
-                "type": "error", 
-                "content": "Failed to load saved game. Save code may be invalid."
-            })
-            return None
-
-        game_state = GameState.from_dict(loaded_state_dict, story_or_template)
-        if not game_state:
-            await websocket.send_json({
-                "type": "error", 
-                "content": "Failed to initialize game from saved state."
-            })
-            return None
-
-        client_type = message.get("client_type") or self.player_sessions[player_id].get("client_type", "web")
-        self._claim_or_add_player(
-            game_state,
-            player_id,
-            player_name,
-            client_type,
-            occupied_player_ids=set(),
-        )
-
-        session_id = generate_name()
-        logger.info(f"Creating new session {session_id} for loaded game.")
-        
-        self.game_sessions[session_id] = {
-            "game_state": game_state,
-            "players": {player_id},
-            "lock": asyncio.Lock(),  # Session-level lock for command processing
-            "loaded_from_save": True,
-            "save_slot_id": game_state.save_metadata.get("slot_id"),
-            "reserved_player_ids": set(),
-        }
-        self.game_kernel.start_ticker(session_id)
-        self.player_sessions[player_id]["session_id"] = session_id
-        self.player_sessions[player_id]["client_type"] = client_type
-        self.persistent_player_to_session[player_id] = session_id
-        
-        await websocket.send_json({"type": "session", "subtype": "joined", "session_code": session_id})
-        
-        await self.websocket_manager.broadcast_to_session(session_id, {
-            "type": "multiplayer", "content": f"{player_name} has loaded a saved game and started the session."
-        }, self.player_sessions)
+        if self.frontend_adapter:
+            await self.frontend_adapter.send_game_message(
+                f"{player_name} has created and joined the session.",
+                player_id,
+                message_type="multiplayer",
+                audience_scope="session",
+                session_id=session_id,
+            )
 
         await self.broadcast_session_players(session_id)
 
@@ -312,7 +245,10 @@ class SessionHandler:
         """
         session_id = message.get("session_code")
         logger.info(f"Player {player_id} is joining session {session_id}.")
-        
+
+        if session_id not in self.game_sessions and self.frontend_adapter:
+            self.frontend_adapter._activate_persisted_room(session_id)
+
         if session_id not in self.game_sessions:
             logger.warning(f"Player {player_id} failed to join session {session_id} (not found).")
             await websocket.send_json({"type": "session", "subtype": "error", "message": "Session not found."})
@@ -354,12 +290,23 @@ class SessionHandler:
                 self.game_sessions[session_id]["players"] - {player_id}
             ) | self.game_sessions[session_id].setdefault("reserved_player_ids", set()),
         )
+        if self.frontend_adapter:
+            self.frontend_adapter._restore_pending_form_for_player(session_id, player_id)
+        self.game_kernel.start_ticker(session_id)
+        if self.frontend_adapter:
+            self.frontend_adapter._persist_room_snapshot(session_id, status="active")
         
         await websocket.send_json({"type": "session", "subtype": "joined", "session_code": session_id})
         
-        await self.websocket_manager.broadcast_to_session(session_id, {
-            "type": "multiplayer", "content": f"{player_name} has joined the session."
-        }, self.player_sessions, exclude_player_id=player_id)
+        if self.frontend_adapter:
+            await self.frontend_adapter.send_game_message(
+                f"{player_name} has joined the session.",
+                player_id,
+                message_type="multiplayer",
+                audience_scope="session",
+                session_id=session_id,
+                exclude_player_ids=[player_id],
+            )
 
         await self.broadcast_session_players(session_id)
 
@@ -410,9 +357,15 @@ class SessionHandler:
 
         logger.info(f"Player {player_name} ({player_id}) reconnected to session {session_id}.")
 
-        await self.websocket_manager.broadcast_to_session(session_id, {
-            "type": "multiplayer", "content": f"{player_name} has reconnected."
-        }, self.player_sessions, exclude_player_id=player_id)
+        if self.frontend_adapter:
+            await self.frontend_adapter.send_game_message(
+                f"{player_name} has reconnected.",
+                player_id,
+                message_type="multiplayer",
+                audience_scope="session",
+                session_id=session_id,
+                exclude_player_ids=[player_id],
+            )
 
         await websocket.send_json({"type": "control", "subtype": "rejoin_success"})
         await websocket.send_json({"type": "control", "subtype": "ready_for_state_request"})
@@ -422,7 +375,7 @@ class SessionHandler:
         return session_id
 
     async def cleanup_player_session(self, player_id: str, session_id: str):
-        """Clean up after a player disconnects.
+        """Legacy destructive cleanup path.
         
         Args:
             player_id: The player's ID.
@@ -461,4 +414,90 @@ class SessionHandler:
             else:
                 logger.info(f"Session {session_id} still has {len(self.game_sessions[session_id]['players'])} players.")
                 await self.broadcast_session_players(session_id)
+
+    async def detach_player_from_room(
+        self,
+        player_id: str,
+        session_id: str,
+        *,
+        clear_persistent_mapping: bool = False,
+        announce: bool = True,
+    ) -> None:
+        """Detach a live player connection from a room without deleting membership."""
+        logger.info("Detaching player %s from room %s", player_id, session_id)
+
+        if clear_persistent_mapping:
+            self.persistent_player_to_session.pop(player_id, None)
+
+        session_data = self.player_sessions.get(player_id)
+        player_name = (session_data or {}).get("name", "A player")
+        if session_data:
+            session_data.pop("session_id", None)
+            session_data.pop("websocket", None)
+
+        if not session_id or session_id not in self.game_sessions:
+            return
+
+        session_entry = self.game_sessions[session_id]
+        pending_form = self.game_kernel._pending_forms.pop(player_id, None)
+        if pending_form:
+            on_submit_override = pending_form.get("on_submit_override")
+            session_entry.setdefault("pending_forms", {})[player_id] = {
+                "form_id": pending_form.get("form_id"),
+                "prefill": dict(pending_form.get("prefill") or {}),
+                "on_submit_override": (
+                    on_submit_override.dict()
+                    if hasattr(on_submit_override, "dict")
+                    else copy.deepcopy(on_submit_override)
+                ),
+            }
+        else:
+            session_entry.setdefault("pending_forms", {}).pop(player_id, None)
+        session_entry["players"].discard(player_id)
+        session_entry.setdefault("reserved_player_ids", set()).discard(player_id)
+
+        if announce and self.frontend_adapter:
+            await self.frontend_adapter.send_game_message(
+                f"{player_name} has left the room.",
+                player_id,
+                message_type="multiplayer",
+                audience_scope="session",
+                session_id=session_id,
+                exclude_player_ids=[player_id],
+            )
+
+        if not session_entry["players"]:
+            logger.info("No connected players remain in room %s; archiving.", session_id)
+            if self.frontend_adapter:
+                self.frontend_adapter._archive_room(session_id)
+            return
+
+        if self.frontend_adapter:
+            self.frontend_adapter._schedule_room_autosave(session_id)
+        await self.broadcast_session_players(session_id)
+
+    async def delete_room(self, room_id: str) -> bool:
+        """Delete a persistent room and any active in-memory copy."""
+        logger.info("Deleting room %s", room_id)
+
+        if self.frontend_adapter:
+            self.frontend_adapter._cancel_room_autosave(room_id)
+        if room_id in self.game_sessions:
+            self.game_kernel.stop_ticker(room_id)
+            del self.game_sessions[room_id]
+
+        for player_id, mapped_room_id in list(self.persistent_player_to_session.items()):
+            if mapped_room_id == room_id:
+                del self.persistent_player_to_session[player_id]
+
+        affected_player_ids = []
+        for player_id, session_data in self.player_sessions.items():
+            if session_data.get("session_id") == room_id:
+                session_data.pop("session_id", None)
+                affected_player_ids.append(player_id)
+
+        for player_id in affected_player_ids:
+            self.game_kernel._pending_forms.pop(player_id, None)
+
+        return self.game_kernel.state_manager.delete_persistent_room(room_id)
 

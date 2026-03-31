@@ -5,6 +5,7 @@ let sessionCode = '';
 let saveCode = ''; // 新增：保存的代码
 let selectedStory = ''; // 新增：当前选择的故事ID
 let selectedStoryTitle = '';
+let selectedStoryDescription = '';
 let isAwaitingGameStart = false;
 let currentNodeId = null;
 let messageQueue = [];
@@ -13,10 +14,14 @@ let typingSpeed = 30; // 打字速度（毫秒/字符）
 let currentGameMessage = null;
 let typewriterEffectEnabled = false; // 控制打字机效果是否启用
 let savedGames = []; // 新增：保存的列表
+let allPersistedSessions = [];
+let storySessionCounts = {};
+let availableStories = [];
 let stashedStoryChoices = null; // For stashing story choices when showing object actions
 let pendingObjectActionRequest = null;
 let loadingBubbleEl = null;
 let isExportingMessages = false;
+let sessionSelectionHideTimer = null;
 
 // --- WebSocket Reconnection ---
 let reconnectAttempts = 0;
@@ -50,10 +55,18 @@ const playerNameField = document.getElementById('player-name');
 const submitNameButton = document.getElementById('submit-name');
 const storySelection = document.getElementById('story-selection');
 const storyList = document.querySelector('.story-list');
+const storySelectionBackdrop = document.getElementById('story-selection-backdrop');
 const sessionSelection = document.getElementById('session-selection');
+const closeSessionSelectionButton = document.getElementById('close-session-selection');
+const sessionSelectionTitle = document.getElementById('session-selection-title');
+const sessionSelectionDescription = document.getElementById('session-selection-description');
+const sessionSelectionMeta = document.getElementById('session-selection-meta');
 const createSessionButton = document.getElementById('create-session');
 const joinSessionButton = document.getElementById('join-session');
 const sessionCodeInput = document.getElementById('session-code-input');
+const sessionRoomsList = document.getElementById('session-rooms-list');
+const sessionEmptyState = document.getElementById('session-empty-state');
+const sessionTabs = document.querySelectorAll('.story-session-tab');
 const mainContent = document.querySelector('.main-content');
 const gameMessages = document.getElementById('game-messages');
 const userInput = document.getElementById('user-input');
@@ -107,6 +120,103 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function t(key) {
+    return window.TextAdventureI18n?.t?.(key) || key;
+}
+
+function formatSessionCountLabel(count) {
+    const locale = window.TextAdventureI18n?.getLocale?.() || 'en';
+    if (locale === 'zh-CN') {
+        return `${count} 个会话`;
+    }
+    return `${count} ${count === 1 ? 'session' : 'sessions'}`;
+}
+
+function getStoryById(storyId) {
+    return availableStories.find(story => story.id === storyId) || null;
+}
+
+function setSelectedStoryCard(storyId) {
+    document.querySelectorAll('.story-card').forEach(card => {
+        const isSelected = card.dataset.storyId === storyId;
+        card.classList.toggle('story-card-selected', isSelected);
+    });
+}
+
+function renderStoryCardCounts() {
+    document.querySelectorAll('.story-card').forEach(card => {
+        const storyId = card.dataset.storyId;
+        const badge = card.querySelector('.story-card-session-badge');
+        if (!badge) return;
+        const count = storySessionCounts[storyId] || 0;
+        if (count > 0) {
+            badge.textContent = formatSessionCountLabel(count);
+            badge.classList.remove('hidden');
+        } else {
+            badge.textContent = '';
+            badge.classList.add('hidden');
+        }
+    });
+}
+
+function updateSessionOverlayHeader() {
+    if (!sessionSelectionTitle || !sessionSelectionDescription || !sessionSelectionMeta) {
+        return;
+    }
+    sessionSelectionTitle.textContent = selectedStoryTitle || t('session.title');
+    sessionSelectionDescription.textContent = selectedStoryDescription || '';
+    const count = savedGames.length;
+    sessionSelectionMeta.textContent = count > 0 ? `${formatSessionCountLabel(count)}` : '';
+}
+
+async function fetchPersistentSessions(storyId = null) {
+    let url = `/api/sessions?player_id=${encodeURIComponent(playerId)}`;
+    if (storyId) {
+        url += `&story_id=${encodeURIComponent(storyId)}`;
+    }
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.success && Array.isArray(data.sessions) ? data.sessions : [];
+}
+
+async function refreshStorySessionIndex() {
+    if (!playerId) return;
+    try {
+        allPersistedSessions = await fetchPersistentSessions();
+        storySessionCounts = allPersistedSessions.reduce((acc, session) => {
+            const storyId = session.story_id;
+            if (!storyId) return acc;
+            acc[storyId] = (acc[storyId] || 0) + 1;
+            return acc;
+        }, {});
+        renderStoryCardCounts();
+    } catch (error) {
+        console.error('Error fetching session counts:', error);
+    }
+}
+
+function hideSessionSelection() {
+    if (sessionSelectionHideTimer) {
+        clearTimeout(sessionSelectionHideTimer);
+        sessionSelectionHideTimer = null;
+    }
+    sessionSelection.classList.remove('is-open');
+    sessionSelection.setAttribute('aria-hidden', 'true');
+    storySelectionBackdrop?.classList.remove('is-visible');
+    storySelection.classList.remove('story-selection-focused');
+    setSelectedStoryCard('');
+    sessionSelectionHideTimer = setTimeout(() => {
+        sessionSelection.classList.add('hidden');
+        sessionSelection.style.display = 'none';
+        storySelectionBackdrop?.classList.add('hidden');
+        sessionSelectionHideTimer = null;
+    }, 220);
+}
+
+function closeSessionSelection() {
+    hideSessionSelection();
 }
 
 function normalizeMentionText(text) {
@@ -398,6 +508,11 @@ function setupEventListeners() {
     playerNameField.addEventListener('keypress', (e) => e.key === 'Enter' && submitPlayerName());
     createSessionButton.addEventListener('click', createSession);
     joinSessionButton.addEventListener('click', joinSession);
+    sessionTabs.forEach(tab => {
+        tab.addEventListener('click', () => switchSessionHubTab(tab.dataset.sessionTab));
+    });
+    closeSessionSelectionButton?.addEventListener('click', closeSessionSelection);
+    storySelectionBackdrop?.addEventListener('click', closeSessionSelection);
     sendButton.addEventListener('click', () => {
         console.log('Send button clicked, mainContent display:', mainContent.style.display);
         // Only send command if we're in the game interface
@@ -456,6 +571,13 @@ function setupEventListeners() {
         if (slashCommandState.isOpen) {
             renderSlashCommandPalette();
         }
+        renderStoryCardCounts();
+        updateSessionOverlayHeader();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !sessionSelection.classList.contains('hidden') && mainContent.style.display === 'none') {
+            closeSessionSelection();
+        }
     });
     // Add listener to restore stashed choices
     gameMessages.addEventListener('click', () => {
@@ -469,7 +591,6 @@ function setupEventListeners() {
 
 function saveGame(options = {}) {
     const { showUserMessage = true, displayText = '/save' } = options;
-    // TODO: Replace manual slash-triggered saves with autosave session support.
     dispatchSocketCommand('save', displayText, null, null, {
         showUserMessage
     });
@@ -1118,7 +1239,7 @@ function handleWebSocketMessage(message) {
             break;
         case 'combat':
         case 'game':
-            if (message.content.startsWith('Game saved successfully!')) {
+            if (message.content.startsWith('Game saved successfully')) {
                 const originalText = saveGameButton.textContent;
                 saveGameButton.textContent = '✓';
                 setTimeout(() => { saveGameButton.textContent = originalText; }, 1500);
@@ -1140,10 +1261,14 @@ function handleWebSocketMessage(message) {
             break;
         case 'control':
             if (message.subtype === 'story_info') {
-                // The server will follow up with a session_selection prompt, do nothing here.
+                if (message.story?.title) {
+                    selectedStoryTitle = message.story.title;
+                }
                 console.log('Received story info for:', message.story.title);
             } else if (message.subtype === 'session_selection') {
-                showSessionSelection();
+                if (sessionSelection.classList.contains('hidden')) {
+                    showSessionSelection();
+                }
             } else if (message.subtype === 'ready_for_state_request') {
                 socket.send(JSON.stringify({ type: 'request_initial_state' }));
             }
@@ -1440,7 +1565,7 @@ function handleSessionMessage(message) {
             isAwaitingGameStart = false;
             hideGameLoadingScreen();
             addGameMessage(`会话错误: ${message.message}`, 'system-message');
-            sessionSelection.style.display = 'block';
+            showSessionSelection();
             break;
         case 'saved_games':
             // 处理保存的列表
@@ -1454,66 +1579,43 @@ function handleSessionMessage(message) {
 
 let isReturningToMenu = false; // Flag to track return to menu state
 
-function handleReturn() {
-    if (confirm("Are you sure you want to return to the story list? You will be disconnected from the current session.")) {
-        console.log('handleReturn: user confirmed, sending leave_session');
+function clearActiveRoomUi(options = {}) {
+    const { keepSelectedStory = false } = options;
+    mainContent.style.display = 'none';
+    displayPanel.classList.add('hidden');
+    gameMessages.innerHTML = '';
+    messageQueue = [];
+    isTyping = false;
+    userInput.value = '';
+    currentNodeId = null;
+    sessionCode = '';
+    isAwaitingGameStart = false;
+    hideGameLoadingScreen();
 
-        // 1. Notify the server that the player is leaving.
-        console.log('[CLIENT_SEND]', 'Sending leave_session message to server.');
-        socket.send(JSON.stringify({ type: 'leave_session' }));
-
-        // 2. Clean up the UI immediately.
-        mainContent.style.display = 'none';
-        displayPanel.classList.add('hidden');
-        gameMessages.innerHTML = '';
-        userInput.value = '';
-        currentNodeId = null;
-        sessionCode = '';
+    if (!keepSelectedStory) {
         selectedStory = '';
         selectedStoryTitle = '';
-        isAwaitingGameStart = false;
         localStorage.removeItem('selectedStory');
+    }
 
-        // Reset sticky description state
-        resetStickyDescription();
+    resetStickyDescription();
+    document.querySelector('.container').classList.remove('in-game');
+}
 
-        // Remove in-game class to allow container scrolling
-        document.querySelector('.container').classList.remove('in-game');
-
-        // 3. Show the story selection screen. 
-        // It will be populated when the server sends the 'stories' message.
-        storySelection.style.display = 'block';
+function handleReturn() {
+    if (confirm("Detach from this room and return to the session list? The room will remain resumable until you explicitly delete it.")) {
+        console.log('handleReturn: user confirmed, sending detach_session');
+        socket.send(JSON.stringify({ type: 'detach_session' }));
+        clearActiveRoomUi({ keepSelectedStory: true });
+        showSessionSelection();
     }
 }
 
 function handleReload(_options = {}) {
-    if (confirm("Are you sure you want to reload the game? This will start a new game of the current story and disconnect you from the current session.")) {
-        // Don't send leave_session - just clear local state and restart story
-
-        // Hide game interface
-        mainContent.style.display = 'none';
-        displayPanel.classList.add('hidden');
-
-        // Clear game state but keep the selected story
-        gameMessages.innerHTML = '';
-        currentNodeId = null;
-        sessionCode = '';
-
-        // Reset sticky description state
-        resetStickyDescription();
-
-        // Remove in-game class temporarily
-        document.querySelector('.container').classList.remove('in-game');
-
-        // Restart the same story
-        if (selectedStory) {
-            isAwaitingGameStart = true;
-            showGameLoadingScreen(selectedStoryTitle || selectedStory);
-            socket.send(JSON.stringify({ type: 'select_story', story_id: selectedStory }));
-        } else {
-            // Fallback: show story selection if no story is selected
-            socket.send(JSON.stringify({ type: 'request_stories' }));
-        }
+    if (confirm("Detach from the current room and create a fresh session for this story? The old room will remain in your session list.")) {
+        socket.send(JSON.stringify({ type: 'detach_session' }));
+        clearActiveRoomUi({ keepSelectedStory: true });
+        showSessionSelection();
     }
 }
 
@@ -1541,31 +1643,37 @@ function submitPlayerName() {
 }
 
 function displayStories(stories) {
+    availableStories = Array.isArray(stories) ? stories : [];
     const predefinedList = document.getElementById('story-list-predefined');
     predefinedList.innerHTML = '';
 
     const createStoryCard = (story) => {
         const card = document.createElement('div');
         card.className = 'story-card';
+        card.dataset.storyId = story.id;
 
         const title = story.title ? story.title : story.name;
         const description = story.description || 'No description available.';
+        const count = storySessionCounts[story.id] || 0;
 
         card.innerHTML = `
             <div class="story-card-content">
-                <h3>${title}</h3>
+                <div class="story-card-header">
+                    <h3>${title}</h3>
+                    <span class="story-card-session-badge ${count > 0 ? '' : 'hidden'}">${count > 0 ? escapeHtml(formatSessionCountLabel(count)) : ''}</span>
+                </div>
                 <p class="story-description">${description}</p>
             </div>
         `;
 
-        card.addEventListener('click', () => selectStory(story.id, title));
+        card.addEventListener('click', () => selectStory(story.id, title, description));
 
         return card;
     };
 
-    if (stories && stories.length > 0) {
+    if (availableStories.length > 0) {
         document.getElementById('handcrafted-stories').style.display = 'block';
-        stories.forEach(story => {
+        availableStories.forEach(story => {
             predefinedList.appendChild(createStoryCard(story));
         });
     } else {
@@ -1576,108 +1684,158 @@ function displayStories(stories) {
     if (mainContent.style.display === 'none') {
         storySelection.style.display = 'block';
     }
+    renderStoryCardCounts();
+    refreshStorySessionIndex();
 }
 
 // 选择故事
-function selectStory(storyId, title) {
+function selectStory(storyId, title, description = '') {
     selectedStory = storyId;
     selectedStoryTitle = title || storyId;
+    selectedStoryDescription = description || '';
     localStorage.setItem('selectedStory', storyId);
-    showLoading('Loading story...');
+    hideSessionSelection();
+    setSelectedStoryCard(storyId);
+    showSessionSelection();
     socket.send(JSON.stringify({ type: 'select_story', story_id: storyId }));
-    storySelection.style.display = 'none';
     console.log(`已选择故事: ${storyId}`);
 }
 
 // 显示会话选择界面
 function showSessionSelection() {
-    // Fetch saved games for this player and selected story
-    fetch(`/api/saved-games?player_name=${encodeURIComponent(playerName)}&story_id=${selectedStory}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.saves) {
-                savedGames = data.saves;
-                displaySavedGames();
-            }
+    if (!selectedStory) return;
+    const selectedStoryRecord = getStoryById(selectedStory);
+    if (selectedStoryRecord) {
+        selectedStoryTitle = selectedStoryRecord.title || selectedStoryRecord.name || selectedStoryTitle || selectedStory;
+        selectedStoryDescription = selectedStoryRecord.description || selectedStoryDescription;
+    }
+
+    storySelection.style.display = 'block';
+    storySelection.classList.add('story-selection-focused');
+    setSelectedStoryCard(selectedStory);
+    switchSessionHubTab('saved');
+    if (sessionSelectionHideTimer) {
+        clearTimeout(sessionSelectionHideTimer);
+        sessionSelectionHideTimer = null;
+    }
+    storySelectionBackdrop?.classList.remove('hidden');
+    sessionSelection.classList.remove('hidden');
+    sessionSelection.setAttribute('aria-hidden', 'false');
+    sessionSelection.style.display = 'block';
+    requestAnimationFrame(() => {
+        storySelectionBackdrop?.classList.add('is-visible');
+        sessionSelection.classList.add('is-open');
+    });
+    sessionCodeInput.value = '';
+    savedGames = [];
+    displaySavedGames();
+    updateSessionOverlayHeader();
+
+    Promise.all([
+        fetchPersistentSessions(selectedStory),
+        refreshStorySessionIndex(),
+    ])
+        .then(([sessions]) => {
+            savedGames = sessions;
+            displaySavedGames();
+            updateSessionOverlayHeader();
         })
         .catch(error => {
-            console.error('Error fetching saved games:', error);
+            console.error('Error fetching sessions:', error);
         });
+}
 
-    sessionSelection.style.display = 'block';
+function switchSessionHubTab(tabName) {
+    document.querySelectorAll('.story-session-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.sessionTab === tabName);
+    });
+    document.querySelectorAll('.story-session-panel').forEach(panel => {
+        panel.classList.toggle('hidden', panel.id !== `session-panel-${tabName}`);
+    });
+}
+
+function deleteRoom(roomId) {
+    if (!confirm('Delete this room permanently? This cannot be undone.')) {
+        return;
+    }
+
+    fetch('/api/sessions/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            room_id: roomId,
+            player_id: playerId
+        })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert(data.error || 'Failed to delete room.');
+                return;
+            }
+            savedGames = savedGames.filter(session => session.room_id !== roomId);
+            displaySavedGames();
+            refreshStorySessionIndex();
+            updateSessionOverlayHeader();
+        })
+        .catch(error => {
+            console.error('Error deleting room:', error);
+            alert('Failed to delete room.');
+        });
 }
 
 // Display saved games in the load panel
 function displaySavedGames() {
-    const joinSessionContainer = document.querySelector('.join-session');
-
-    // Remove any existing load panel
-    const existingLoadPanel = document.getElementById('load-panel');
-    if (existingLoadPanel) {
-        existingLoadPanel.remove();
+    if (!sessionRoomsList || !sessionEmptyState) {
+        return;
     }
 
-    // Create load panel if there are saved games
-    if (savedGames.length > 0) {
-        const loadPanel = document.createElement('div');
-        loadPanel.id = 'load-panel';
-        loadPanel.className = 'load-panel';
-        loadPanel.innerHTML = `
-            <h3>saved games</h3>
-            <div class="saved-games-list">
-                ${savedGames.map(game => `
-                    <div class="saved-game-item" data-code="${game.save_code}">
-                        <span>saving code: ${game.save_code}</span>
-                        <span>last saved: ${new Date(game.updated_at).toLocaleString()}</span>
-                        <button class="load-game-btn" data-code="${game.save_code}">load</button>
-                    </div>
-                `).join('')}
+    sessionRoomsList.innerHTML = '';
+    sessionEmptyState.style.display = savedGames.length > 0 ? 'none' : 'block';
+
+    savedGames.forEach(session => {
+        const item = document.createElement('div');
+        item.className = 'saved-game-item session-room-item';
+        const participantNames = Array.isArray(session.participant_names) && session.participant_names.length > 0
+            ? session.participant_names.join(', ')
+            : 'No participants yet';
+        const preview = session.preview ? escapeHtml(session.preview) : 'No transcript yet.';
+        const statusClass = session.status === 'active' ? 'active' : 'archived';
+        item.innerHTML = `
+            <div class="session-room-main">
+                <div class="session-room-title">
+                    <span class="session-room-name">${escapeHtml(session.room_name || session.story_title || session.room_id)}</span>
+                    <span class="session-room-status ${statusClass}">${escapeHtml(session.status || 'archived')}</span>
+                </div>
+                <div class="session-room-meta">Room code: <strong>${escapeHtml(session.room_id)}</strong> · Last updated: ${new Date(session.updated_at).toLocaleString()}</div>
+                <div class="session-room-participants">Players: ${escapeHtml(participantNames)}</div>
+                <div class="session-room-preview">${preview}</div>
             </div>
-            <div class="load-by-code">
-                <h4>or enter the saving code:</h4>
-                <input type="text" id="save-code-input" placeholder="input saving code">
-                <button id="load-by-code-btn">load</button>
+            <div class="session-room-actions">
+                <button class="load-game-btn" data-room-id="${escapeHtml(session.room_id)}">Resume</button>
+                <button class="session-secondary-btn" data-delete-room-id="${escapeHtml(session.room_id)}">Delete</button>
             </div>
         `;
+        sessionRoomsList.appendChild(item);
+    });
 
-        // Insert the load panel before the join session container
-        joinSessionContainer.parentNode.insertBefore(loadPanel, joinSessionContainer);
-
-        // Add event listeners for load buttons
-        document.querySelectorAll('.load-game-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const saveCode = e.target.getAttribute('data-code');
-                loadGame(saveCode);
-            });
-        });
-
-        // Add event listener for load by code button
-        document.getElementById('load-by-code-btn').addEventListener('click', () => {
-            const saveCodeInput = document.getElementById('save-code-input');
-            const saveCode = saveCodeInput.value.trim();
-            if (saveCode) {
-                loadGame(saveCode);
+    document.querySelectorAll('[data-room-id]').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const roomId = event.currentTarget.getAttribute('data-room-id');
+            if (roomId) {
+                joinRoomByCode(roomId);
             }
         });
-    }
-}
+    });
 
-// Load a saved game
-function loadGame(saveCode) {
-    isAwaitingGameStart = true;
-    showGameLoadingScreen(selectedStoryTitle || selectedStory || 'Saved Game');
-    sessionSelection.style.display = 'none';
-
-    // Send load request to server
-    const message = {
-        type: 'load_game',
-        save_code: saveCode,
-        player_name: playerName,
-        story_id: selectedStory
-    };
-
-    console.log('Sending WebSocket message:', JSON.stringify(message));
-    socket.send(JSON.stringify(message));
+    document.querySelectorAll('[data-delete-room-id]').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const roomId = event.currentTarget.getAttribute('data-delete-room-id');
+            if (roomId) {
+                deleteRoom(roomId);
+            }
+        });
+    });
 }
 
 // 创建会话
@@ -1685,7 +1843,7 @@ function createSession() {
     isAwaitingGameStart = true;
     showGameLoadingScreen(selectedStoryTitle || selectedStory);
     socket.send(JSON.stringify({ type: 'create_session', story_id: selectedStory }));
-    sessionSelection.style.display = 'none';
+    hideSessionSelection();
     console.log('正在创建新会话...');
 }
 
@@ -1693,14 +1851,18 @@ function createSession() {
 function joinSession() {
     const code = sessionCodeInput.value.trim();
     if (code) {
-        isAwaitingGameStart = true;
-        showGameLoadingScreen(selectedStoryTitle || 'Adventure');
-        socket.send(JSON.stringify({ type: 'join_session', session_code: code }));
-        sessionSelection.style.display = 'none';
-        console.log(`正在尝试加入会话: ${code}`);
+        joinRoomByCode(code);
     } else {
         alert('请输入有效的代码');
     }
+}
+
+function joinRoomByCode(roomId) {
+    isAwaitingGameStart = true;
+    showGameLoadingScreen(selectedStoryTitle || 'Adventure');
+    socket.send(JSON.stringify({ type: 'join_session', session_code: roomId }));
+    hideSessionSelection();
+    console.log(`正在尝试加入会话: ${roomId}`);
 }
 
 // 显示界面
@@ -1708,7 +1870,7 @@ function showGameInterface() {
     welcomeMessage.style.display = 'none';
     playerNameInput.style.display = 'none';
     storySelection.style.display = 'none';
-    sessionSelection.style.display = 'none';
+    hideSessionSelection();
     mainContent.style.display = 'flex';
     // Add in-game class to container to prevent container scrolling
     document.querySelector('.container').classList.add('in-game');
@@ -1780,6 +1942,7 @@ function dispatchSocketCommand(command, displayText, inputType, actionHint, opti
     const msg = { type: 'command', content: command };
     if (inputType) msg.input_type = inputType;
     if (actionHint) msg.action_hint = actionHint;
+    if (displayText) msg.display_text = displayText;
     console.log('Sending WebSocket message:', JSON.stringify(msg));
     socket.send(JSON.stringify(msg));
     if (showUserMessage) {
@@ -2555,9 +2718,71 @@ function handleCommandResult(content) {
     }
 }
 
+function transcriptTypeToClass(messageType) {
+    switch (messageType) {
+        case 'user':
+            return 'user-message';
+        case 'system':
+            return 'system-message';
+        case 'multiplayer':
+            return 'multiplayer-message';
+        case 'chat':
+            return 'chat-message';
+        case 'combat':
+            return 'combat-message';
+        case 'error':
+            return 'error-message';
+        case 'form':
+            return 'system-message';
+        case 'game':
+        default:
+            return 'game-message';
+    }
+}
+
+function appendTranscriptEntry(entry) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${transcriptTypeToClass(entry.message_type)}`;
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.innerHTML = entry.is_html
+        ? (entry.content || '')
+        : converter.makeHtml(entry.content || '');
+
+    const timestampDiv = document.createElement('div');
+    timestampDiv.className = 'message-timestamp';
+    const timestampValue = entry.timestamp
+        ? new Date(entry.timestamp * 1000).toLocaleTimeString()
+        : new Date().toLocaleTimeString();
+    timestampDiv.textContent = timestampValue;
+
+    messageDiv.appendChild(contentDiv);
+    messageDiv.appendChild(timestampDiv);
+    gameMessages.appendChild(messageDiv);
+}
+
+// TODO(paginated-history): For larger stories, load only recent transcript entries
+// first and fetch older chunks incrementally as the user scrolls upward.
+function replayTranscript(entries) {
+    gameMessages.innerHTML = '';
+    messageQueue = [];
+    isTyping = false;
+
+    (entries || []).forEach(entry => appendTranscriptEntry(entry));
+    gameMessages.scrollTop = gameMessages.scrollHeight;
+}
+
 function handleGameStart(content) {
     const gameState = content.game_state;
     const response = content.response; // This can be a string or an object
+    const transcript = content.transcript || [];
+    const pendingForm = content.pending_form || null;
+
+    gameMessages.innerHTML = '';
+    messageQueue = [];
+    isTyping = false;
+    resetStickyDescription();
 
     if (gameState) {
         if (gameState.characters) {
@@ -2588,6 +2813,10 @@ function handleGameStart(content) {
         }
     }
 
+    if (transcript.length > 0) {
+        replayTranscript(transcript);
+    }
+
     // Display the response, handling both string and object formats
     if (response) {
         let narrativeResponse = "";
@@ -2616,6 +2845,9 @@ function handleGameStart(content) {
             sendButton.disabled = false;
             userInput.focus();
         }
+    }
+    if (pendingForm) {
+        displayForm(pendingForm);
     }
     showGameInterface();
     isAwaitingGameStart = false;
@@ -2872,7 +3104,7 @@ function showGameLoadingScreen(storyTitle) {
     welcomeMessage.style.display = 'none';
     playerNameInput.style.display = 'none';
     storySelection.style.display = 'none';
-    sessionSelection.style.display = 'none';
+    hideSessionSelection();
 }
 
 function hideGameLoadingScreen() {

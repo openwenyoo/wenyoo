@@ -94,8 +94,8 @@ class GameLoopHandler:
                 message = json.loads(data)
                 msg_type = message.get("type")
                 
-                # Handle leave session
-                if msg_type == "leave_session":
+                # Handle detach / leave session
+                if msg_type in {"leave_session", "detach_session"}:
                     return await self._handle_leave_session(websocket, player_id, session_id)
 
                 # Handle various message types
@@ -123,13 +123,14 @@ class GameLoopHandler:
 
                 input_type = message.get("input_type", "typed")
                 action_hint = message.get("action_hint", "")
+                display_text = message.get("display_text") or content
                 logger.info(
                     "Received command from player %s in session %s: %s",
                     player_id,
                     session_id,
                     content,
                 )
-                await self._process_game_command(websocket, player_id, session_id, content, input_type, action_hint)
+                await self._process_game_command(websocket, player_id, session_id, content, input_type, action_hint, display_text)
 
             except WebSocketDisconnect:
                 raise  # Re-raise to be caught by the outer handler
@@ -151,7 +152,7 @@ class GameLoopHandler:
                 return False
 
     async def _handle_leave_session(self, websocket: WebSocket, player_id: str, session_id: str) -> bool:
-        """Handle a player intentionally leaving a session.
+        """Handle a player intentionally detaching from a room.
         
         Args:
             websocket: The player's WebSocket connection.
@@ -161,36 +162,17 @@ class GameLoopHandler:
         Returns:
             True to signal intentional leave.
         """
-        logger.info(f"Player {player_id} is intentionally leaving session {session_id}.")
+        logger.info(f"Player {player_id} is intentionally detaching from session {session_id}.")
 
-        player_name = self.player_sessions.get(player_id, {}).get('name', 'A player')
+        await self.session_handler.detach_player_from_room(
+            player_id,
+            session_id,
+            clear_persistent_mapping=True,
+            announce=True,
+        )
 
-        # Remove from persistent mapping
-        if player_id in self.persistent_player_to_session:
-            del self.persistent_player_to_session[player_id]
-        
-        # Clear session data but keep player session alive
         if player_id in self.player_sessions:
-            self.player_sessions[player_id].pop('session_id', None)
             self.player_sessions[player_id].pop('selected_story', None)
-
-        # Remove from game session
-        if session_id and session_id in self.game_sessions:
-            game_state = self.game_sessions[session_id]["game_state"]
-            self.game_sessions[session_id]["players"].discard(player_id)
-            game_state.variables.get("players", {}).pop(player_id, None)
-
-            await self.websocket_manager.broadcast_to_session(session_id, {
-                "type": "multiplayer", "content": f"{player_name} has left the session."
-            }, self.player_sessions)
-
-            # Clean up empty sessions
-            if not self.game_sessions[session_id]["players"]:
-                logger.info(f"Session {session_id} is now empty, cleaning it up.")
-                self.game_kernel.stop_ticker(session_id)
-                del self.game_sessions[session_id]
-            else:
-                await self.session_handler.broadcast_session_players(session_id)
 
         # Send story list back to client
         await self._send_stories_list(websocket)
@@ -267,7 +249,8 @@ class GameLoopHandler:
         session_id: str, 
         content: str,
         input_type: str = "typed",
-        action_hint: str = ""
+        action_hint: str = "",
+        display_text: Optional[str] = None,
     ):
         """Process a game command from a player.
         
@@ -284,18 +267,13 @@ class GameLoopHandler:
             await self._handle_save_command(websocket, player_id, session_id)
             return
         
-        if content.lower().startswith("load "):
-            save_code = content.split(" ", 1)[1]
-            await self._handle_load_command(websocket, player_id, save_code)
-            return
-        
         if content.startswith("get_object_actions:"):
             object_id = content.split(":", 1)[1].strip()
             await self._handle_get_object_actions(player_id, session_id, object_id)
             return
             
         # Handle regular game command
-        await self._handle_game_command(websocket, player_id, session_id, content, input_type, action_hint)
+        await self._handle_game_command(websocket, player_id, session_id, content, input_type, action_hint, display_text)
 
     async def _handle_save_command(self, websocket: WebSocket, player_id: str, session_id: str):
         """Handle the save command.
@@ -316,33 +294,24 @@ class GameLoopHandler:
                 await websocket.send_json({"type": "error", "content": "No active game state found."})
                 return
 
-            save_code = self.game_kernel.state_manager.save_state(game_state.to_dict())
-            
-            if save_code:
-                await websocket.send_json({
-                    "type": "game", 
-                    "content": f"Game saved successfully! Your save code is: {save_code}"
-                })
+            if self.frontend_adapter:
+                self.frontend_adapter._cancel_room_autosave(session_id)
+                self.frontend_adapter._persist_room_snapshot(session_id, status="active")
+                await self.frontend_adapter.send_game_message(
+                    "Game saved successfully.",
+                    player_id,
+                    message_type="game",
+                    session_id=session_id,
+                )
             else:
-                await websocket.send_json({"type": "error", "content": "Failed to save game."})
+                await websocket.send_json({
+                    "type": "error",
+                    "content": "Manual save requires the web frontend persistence layer."
+                })
                 
         except Exception as e:
             logger.error(f"Error handling save command: {e}", exc_info=True)
             await websocket.send_json({"type": "error", "content": f"Error saving game: {str(e)}"})
-
-    async def _handle_load_command(self, websocket: WebSocket, player_id: str, save_code: str):
-        """Handle the load command.
-        
-        Args:
-            websocket: The player's WebSocket connection.
-            player_id: The player's ID.
-            save_code: The save code to load.
-        """
-        # For now, inform the player they need to use the menu to load
-        await websocket.send_json({
-            "type": "game", 
-            "content": "To load a saved game, please return to the main menu and select 'Load Game'."
-        })
 
     async def _handle_get_object_actions(self, player_id: str, session_id: str, object_id: str):
         """Send available actions for an object to the requesting player."""
@@ -411,7 +380,8 @@ class GameLoopHandler:
         session_id: str, 
         command: str,
         input_type: str = "typed",
-        action_hint: str = ""
+        action_hint: str = "",
+        display_text: Optional[str] = None,
     ):
         """Handle a regular game command.
         
@@ -445,7 +415,7 @@ class GameLoopHandler:
         ping_task = asyncio.create_task(self._keepalive_ping_loop(websocket))
         try:
             if self._is_instant_command(command):
-                response = await self.game_kernel.process_input(command, game_state, story, player_id, session_id, input_type=input_type, action_hint=action_hint)
+                response = await self.game_kernel.process_input(command, game_state, story, player_id, session_id, input_type=input_type, action_hint=action_hint, display_text=display_text)
                 await self._post_command_update(
                     websocket, player_id, session_id, response, command,
                     original_location, original_version, game_state,
@@ -454,13 +424,13 @@ class GameLoopHandler:
                 session_lock = game_session.get("lock")
                 if session_lock:
                     async with session_lock:
-                        response = await self.game_kernel.process_input(command, game_state, story, player_id, session_id, input_type=input_type, action_hint=action_hint)
+                        response = await self.game_kernel.process_input(command, game_state, story, player_id, session_id, input_type=input_type, action_hint=action_hint, display_text=display_text)
                         await self._post_command_update(
                             websocket, player_id, session_id, response, command,
                             original_location, original_version, game_state,
                         )
                 else:
-                    response = await self.game_kernel.process_input(command, game_state, story, player_id, session_id, input_type=input_type, action_hint=action_hint)
+                    response = await self.game_kernel.process_input(command, game_state, story, player_id, session_id, input_type=input_type, action_hint=action_hint, display_text=display_text)
                     await self._post_command_update(
                         websocket, player_id, session_id, response, command,
                         original_location, original_version, game_state,

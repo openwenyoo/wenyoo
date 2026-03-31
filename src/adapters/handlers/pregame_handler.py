@@ -108,7 +108,7 @@ class PregameHandler:
                 else:
                     await websocket.send_json({"type": "error", "content": "Failed to load story."})
 
-            elif msg_type in ["create_session", "join_session", "load_game"]:
+            elif msg_type in ["create_session", "join_session"]:
                 logger.info(f"Handling {msg_type} for player {player_id}")
                 
                 if not story_or_template:
@@ -157,32 +157,53 @@ class PregameHandler:
             session_id: The session ID.
         """
         game_state = self.game_sessions[session_id]["game_state"]
-        # Use pointer model to get player location
-        player_location = game_state.get_player_location(player_id)
-
-        full_description = await self.game_kernel.get_node_perception(
-            game_state, player_location, player_id
-        )
-        game_state_dict = await build_game_state_dict(
-            game_state,
-            session_id,
-            player_id,
-            self.game_kernel,
-            current_perception=full_description,
-        )
-
         if self.frontend_adapter:
-            self.frontend_adapter._format_game_state_for_player(game_state_dict, player_id)
-            client_type = self.player_sessions.get(player_id, {}).get('client_type', 'web')
-            full_description = self.frontend_adapter.format_for_client(full_description, client_type)
+            content = await self.frontend_adapter._build_room_start_content(
+                session_id,
+                player_id,
+                game_state,
+            )
+        else:
+            # Fallback used by non-web contexts.
+            player_location = game_state.get_player_location(player_id)
+            full_description = await self.game_kernel.get_node_perception(
+                game_state, player_location, player_id
+            )
+            game_state_dict = await build_game_state_dict(
+                game_state,
+                session_id,
+                player_id,
+                self.game_kernel,
+                current_perception=full_description,
+            )
+            content = {
+                "game_state": game_state_dict,
+                "response": full_description,
+                "transcript": [],
+                "pending_form": None,
+            }
 
         await websocket.send_json({
             "type": "game_start",
-            "content": {
-                "game_state": game_state_dict,
-                "response": full_description
-            }
+            "content": content,
         })
+
+        transcript_entries = content.get("transcript") or []
+        has_visible_game_transcript = any(
+            isinstance(entry, dict) and entry.get("message_type") == "game"
+            for entry in transcript_entries
+        )
+        if content.get("response") and not has_visible_game_transcript:
+            game_state.add_transcript_entry(
+                "game",
+                content["response"],
+                is_html=True,
+                player_ids=[player_id],
+                location=game_state.get_player_location(player_id),
+                metadata={"event_type": "initial_room_render"},
+            )
+            if self.frontend_adapter:
+                self.frontend_adapter._schedule_room_autosave(session_id)
 
     async def _auto_assign_character(self, player_id: str, session_id: str, character: Any):
         """Auto-assign a playable character to a player.

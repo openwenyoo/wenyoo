@@ -37,13 +37,42 @@
             </div>
         </div>
 
-        <!-- 会话选择界面 -->
-        <div id="session-selection" class="selection-container" style="display: none;">
-            <h2 data-i18n="session.title">Join or Create a Game</h2>
-            <button id="create-session" data-i18n="session.create">Create New Session</button>
-            <div class="join-session">
-                <input type="text" id="session-code-input" placeholder="Enter game code" data-i18n-placeholder="session.codePlaceholder">
-                <button id="join-session" data-i18n="session.join">Join Session</button>
+        <div id="story-selection-backdrop" class="story-selection-backdrop hidden"></div>
+
+        <!-- 故事卡片扩展会话面板 -->
+        <div id="session-selection" class="selection-container story-session-overlay hidden" aria-hidden="true">
+            <button id="close-session-selection" class="story-session-close" type="button" aria-label="Close">
+                <span aria-hidden="true">×</span>
+            </button>
+            <div class="story-session-top">
+                <div class="story-session-header">
+                    <div class="story-session-kicker" data-i18n="session.kicker">Continue or start a session</div>
+                    <h2 id="session-selection-title" data-i18n="session.title">Choose how to play</h2>
+                    <p id="session-selection-description" class="story-session-description"></p>
+                    <div id="session-selection-meta" class="story-session-meta"></div>
+                </div>
+                <div class="story-session-primary-actions">
+                    <button id="create-session" class="story-session-primary-btn" data-i18n="session.create">Start New Session</button>
+                </div>
+            </div>
+            <div id="load-panel" class="load-panel story-session-hub">
+                <div class="story-session-hub-header">
+                    <h3 data-i18n="session.sessionsArea">Sessions</h3>
+                    <div class="story-session-tabs">
+                        <button class="story-session-tab active" data-session-tab="saved" data-i18n="session.mySessions">Saved Sessions</button>
+                        <button class="story-session-tab" data-session-tab="join" data-i18n="session.joinByCode">Join a Room</button>
+                    </div>
+                </div>
+                <div id="session-panel-saved" class="story-session-panel">
+                    <div id="session-empty-state" class="session-empty-state" data-i18n="session.emptyForStory">No resumable sessions yet.</div>
+                    <div id="session-rooms-list" class="saved-games-list"></div>
+                </div>
+                <div id="session-panel-join" class="story-session-panel hidden">
+                    <div class="join-session story-session-join">
+                    <input type="text" id="session-code-input" placeholder="Enter room code" data-i18n-placeholder="session.codePlaceholder">
+                    <button id="join-session" data-i18n="session.join">Join Session</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -76,7 +105,7 @@
                         <div class="panel-tab-content hidden" id="tab-settings">
                             <div class="settings-list">
                                 <div class="setting-item">
-                                    <span class="setting-label" data-i18n="settings.gameCode">Game Code</span>
+                                    <span class="setting-label" data-i18n="settings.gameCode">Session Code</span>
                                     <div class="session-code-container">
                                         <span id="session-code-display" class="session-code-badge"></span>
                                         <button id="copy-session-code" class="setting-btn" title="Copy to clipboard" data-i18n-title="settings.copyTitle">

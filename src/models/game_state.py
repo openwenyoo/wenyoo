@@ -111,6 +111,7 @@ class GameState:
         # Message history for conversation context tracking
         # Used by LLM to understand player responses like "yes" or "no"
         self.message_history: List[Dict[str, Any]] = []
+        self.transcript_history: List[Dict[str, Any]] = []
         self.save_metadata: Dict[str, Any] = {}
 
         # Lazy-initialized Lua runtime for evaluating derived variables
@@ -218,6 +219,31 @@ class GameState:
             derived_character_ids = self.get_character_ids_for_players(normalized.get("player_ids"))
             normalized["character_ids"] = derived_character_ids or None
 
+        if "metadata" not in normalized or normalized.get("metadata") is None:
+            normalized["metadata"] = {}
+        if "timestamp" not in normalized:
+            normalized["timestamp"] = time.time()
+
+        return normalized
+
+    def _normalize_transcript_entry(self, entry: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize a persisted transcript entry."""
+        normalized = self._serialize_json_safe(copy.deepcopy(entry))
+
+        player_ids = normalized.get("player_ids")
+        if player_ids is not None:
+            normalized["player_ids"] = list(player_ids)
+
+        character_ids = normalized.get("character_ids")
+        if character_ids is not None:
+            normalized["character_ids"] = list(character_ids)
+        elif normalized.get("player_ids"):
+            derived_character_ids = self.get_character_ids_for_players(normalized.get("player_ids"))
+            normalized["character_ids"] = derived_character_ids or None
+
+        normalized["message_type"] = normalized.get("message_type") or "game"
+        normalized["content"] = str(normalized.get("content") or "")
+        normalized["is_html"] = bool(normalized.get("is_html"))
         if "metadata" not in normalized or normalized.get("metadata") is None:
             normalized["metadata"] = {}
         if "timestamp" not in normalized:
@@ -764,6 +790,58 @@ class GameState:
         if len(self.message_history) > max_history:
             self.message_history = self.message_history[-max_history:]
 
+    def add_transcript_entry(
+        self,
+        message_type: str,
+        content: str,
+        *,
+        is_html: bool = False,
+        speaker: Optional[str] = None,
+        player_ids: Optional[List[str]] = None,
+        character_ids: Optional[List[str]] = None,
+        location: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Append a player-visible transcript entry for future session restore."""
+        resolved_character_ids = list(character_ids) if character_ids else None
+        if resolved_character_ids is None and player_ids:
+            resolved_character_ids = self.get_character_ids_for_players(player_ids)
+
+        self.transcript_history.append({
+            "message_type": message_type,
+            "content": content,
+            "is_html": is_html,
+            "speaker": speaker,
+            "timestamp": time.time(),
+            "player_ids": list(player_ids) if player_ids else None,
+            "character_ids": resolved_character_ids or None,
+            "location": location,
+            "metadata": metadata or {},
+        })
+
+    def get_transcript_for_player(
+        self,
+        player_id: str,
+        *,
+        character_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Return the visible transcript for a specific player."""
+        effective_character_id = character_id or self.get_controlled_character_id(player_id)
+        visible_entries: List[Dict[str, Any]] = []
+
+        for entry in self.transcript_history:
+            visible_to = entry.get("player_ids")
+            if visible_to and player_id not in visible_to:
+                continue
+
+            visible_characters = entry.get("character_ids")
+            if effective_character_id and visible_characters and effective_character_id not in visible_characters:
+                continue
+
+            visible_entries.append(self._normalize_transcript_entry(entry))
+
+        return visible_entries
+
     def get_recent_messages(
         self,
         count: int = 5,
@@ -1046,6 +1124,11 @@ class GameState:
             "updated_at": self.updated_at,
             "version": self.version,
             "save_metadata": metadata,
+            "transcript_history": [
+                self._normalize_transcript_entry(entry)
+                for entry in self.transcript_history
+                if isinstance(entry, dict)
+            ],
             "diff": diff
         }
             
@@ -1724,6 +1807,12 @@ class GameState:
             game_state._normalize_message_history_entry(message)
             for message in raw_message_history
             if isinstance(message, dict)
+        ]
+        raw_transcript_history = data.get("transcript_history", diff.get("transcript_history", []))
+        game_state.transcript_history = [
+            game_state._normalize_transcript_entry(entry)
+            for entry in raw_transcript_history
+            if isinstance(entry, dict)
         ]
         game_state.save_metadata = copy.deepcopy(data.get("save_metadata", {}))
         # Restore node states
