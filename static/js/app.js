@@ -66,6 +66,11 @@ const sessionCodeInput = document.getElementById('session-code-input');
 const sessionRoomsList = document.getElementById('session-rooms-list');
 const sessionEmptyState = document.getElementById('session-empty-state');
 const sessionTabs = document.querySelectorAll('.story-session-tab');
+const userBadge = document.getElementById('user-badge');
+const userBadgeName = document.getElementById('user-badge-name');
+const userLogoutBtn = document.getElementById('user-logout-btn');
+const settingsPlayerName = document.getElementById('settings-player-name');
+const settingsLogoutBtn = document.getElementById('settings-logout-btn');
 const mainContent = document.querySelector('.main-content');
 const gameMessages = document.getElementById('game-messages');
 const userInput = document.getElementById('user-input');
@@ -201,19 +206,43 @@ function hideSessionSelection() {
         clearTimeout(sessionSelectionHideTimer);
         sessionSelectionHideTimer = null;
     }
+
+    sessionSelection.classList.remove('content-ready');
     sessionSelection.classList.remove('is-open');
-    sessionSelection.setAttribute('aria-hidden', 'true');
+    sessionSelection.style.opacity = '1';
+    sessionSelection.style.overflowY = '';
     storySelectionBackdrop?.classList.remove('is-visible');
-    storySelection.classList.remove('story-selection-focused');
-    setSelectedStoryCard('');
+
+    const card = selectedStory
+        ? document.querySelector(`.story-card[data-story-id="${selectedStory}"]`)
+        : null;
+    const targetRect = card
+        ? card.getBoundingClientRect()
+        : _overlayCardRect;
+
+    if (targetRect) {
+        setOverlayRect({
+            top: targetRect.top,
+            left: targetRect.left,
+            width: targetRect.width,
+            height: targetRect.height,
+            padding: 0,
+        }, true);
+        setTimeout(() => {
+            sessionSelection.style.opacity = '0';
+        }, 250);
+    }
+
     sessionSelectionHideTimer = setTimeout(() => {
+        sessionSelection.inert = true;
         sessionSelection.classList.add('hidden');
-        sessionSelection.style.display = 'none';
-        sessionSelection.style.left = '';
-        sessionSelection.style.top = '';
+        sessionSelection.style.cssText = '';
+        storySelection.classList.remove('story-selection-focused');
+        setSelectedStoryCard('');
         storySelectionBackdrop?.classList.add('hidden');
+        _overlayCardRect = null;
         sessionSelectionHideTimer = null;
-    }, 220);
+    }, 380);
 }
 
 function closeSessionSelection() {
@@ -513,6 +542,8 @@ function setupEventListeners() {
         tab.addEventListener('click', () => switchSessionHubTab(tab.dataset.sessionTab));
     });
     storySelectionBackdrop?.addEventListener('click', closeSessionSelection);
+    userLogoutBtn?.addEventListener('click', handleLogout);
+    settingsLogoutBtn?.addEventListener('click', handleLogout);
     sendButton.addEventListener('click', () => {
         console.log('Send button clicked, mainContent display:', mainContent.style.display);
         // Only send command if we're in the game interface
@@ -1194,7 +1225,7 @@ function handleWebSocketMessage(message) {
                 localStorage.setItem('sessionToken', message.session_token);
             }
             playerName = message.player_name;
-            // If player has no name, show input, otherwise request stories
+            updatePlayerNameDisplay();
             if (!playerName) {
                 welcomeMessage.style.display = 'none';
                 playerNameInput.style.display = 'block';
@@ -1202,6 +1233,15 @@ function handleWebSocketMessage(message) {
                 playerNameInput.style.display = 'none';
                 socket.send(JSON.stringify({ type: 'request_stories' }));
             }
+            break;
+        case 'identity_changed':
+            playerId = message.player_id;
+            playerName = message.player_name;
+            localStorage.setItem('persistentPlayerId', playerId);
+            localStorage.setItem('sessionToken', message.session_token);
+            updatePlayerNameDisplay();
+            socket.close();
+            connectWebSocket();
             break;
         case 'session_exists':
             // Server tells us we already have a session
@@ -1636,10 +1676,49 @@ function submitPlayerName() {
         }
 
         playerNameInput.style.display = 'none';
-        console.log(`玩家名称设置为: ${playerName}`);
+        updatePlayerNameDisplay();
     } else {
         alert('请输入有效的名称');
     }
+}
+
+function updatePlayerNameDisplay() {
+    if (playerName) {
+        userBadgeName.textContent = playerName;
+        userBadge.classList.remove('hidden');
+        settingsPlayerName.textContent = playerName;
+    } else {
+        userBadge.classList.add('hidden');
+        settingsPlayerName.textContent = '';
+    }
+}
+
+function handleLogout() {
+    const msg = t('user.logoutConfirm') || 'Log out? Your name will be cleared and you will return to the name input screen.';
+    if (!confirm(msg)) return;
+
+    playerName = '';
+    localStorage.removeItem('selectedStory');
+    localStorage.removeItem('persistentPlayerId');
+    localStorage.removeItem('sessionToken');
+    updatePlayerNameDisplay();
+
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+    }
+
+    hideSessionSelection();
+    mainContent.style.display = 'none';
+    storySelection.style.display = 'none';
+    welcomeMessage.style.display = 'none';
+    playerNameField.value = '';
+    playerNameInput.style.display = 'block';
+    sessionCode = '';
+
+    setTimeout(() => {
+        playerId = getOrSetPersistentPlayerId();
+        connectWebSocket();
+    }, 300);
 }
 
 function displayStories(stories) {
@@ -1688,33 +1767,59 @@ function displayStories(stories) {
     refreshStorySessionIndex();
 }
 
-// 选择故事
 function selectStory(storyId, title, description = '') {
+    const wasOpen = sessionSelection.classList.contains('is-open');
+    if (wasOpen && selectedStory !== storyId) {
+        hideSessionSelection();
+        setTimeout(() => {
+            selectedStory = storyId;
+            selectedStoryTitle = title || storyId;
+            selectedStoryDescription = description || '';
+            localStorage.setItem('selectedStory', storyId);
+            showSessionSelection();
+            socket.send(JSON.stringify({ type: 'select_story', story_id: storyId }));
+        }, 400);
+        return;
+    }
     selectedStory = storyId;
     selectedStoryTitle = title || storyId;
     selectedStoryDescription = description || '';
     localStorage.setItem('selectedStory', storyId);
-    hideSessionSelection();
-    setSelectedStoryCard(storyId);
-    positionOverlayNearCard(storyId);
     showSessionSelection();
     socket.send(JSON.stringify({ type: 'select_story', story_id: storyId }));
-    console.log(`已选择故事: ${storyId}`);
 }
 
-function positionOverlayNearCard(storyId) {
-    const card = document.querySelector(`.story-card[data-story-id="${storyId}"]`);
-    if (!card) return;
-    const rect = card.getBoundingClientRect();
-    const overlayWidth = Math.min(640, window.innerWidth - 32);
-    let left = rect.left + rect.width / 2 - overlayWidth / 2;
-    left = Math.max(16, Math.min(left, window.innerWidth - overlayWidth - 16));
-    let top = rect.top;
+let _overlayCardRect = null;
+
+function getExpandedRect(cardRect) {
+    const w = Math.min(640, window.innerWidth - 32);
+    const margin = 16;
+
+    let left = cardRect
+        ? cardRect.left + cardRect.width / 2 - w / 2
+        : (window.innerWidth - w) / 2;
+    left = Math.max(margin, Math.min(left, window.innerWidth - w - margin));
+
+    let top = cardRect ? cardRect.top : window.innerHeight * 0.08;
     const maxTop = window.innerHeight - 400;
-    if (top > maxTop) top = maxTop;
-    if (top < 16) top = 16;
-    sessionSelection.style.left = `${left}px`;
-    sessionSelection.style.top = `${top}px`;
+    top = Math.max(margin, Math.min(top, maxTop));
+
+    return { top, left, width: w, padding: 24 };
+}
+
+function setOverlayRect(r, withTransition) {
+    if (!withTransition) {
+        sessionSelection.style.transition = 'none';
+    }
+    sessionSelection.style.top = `${r.top}px`;
+    sessionSelection.style.left = `${r.left}px`;
+    sessionSelection.style.width = `${r.width}px`;
+    sessionSelection.style.height = r.height != null ? `${r.height}px` : 'auto';
+    sessionSelection.style.padding = `${r.padding || 0}px`;
+    if (!withTransition) {
+        sessionSelection.offsetHeight;
+        sessionSelection.style.transition = '';
+    }
 }
 
 function showSessionSelection() {
@@ -1728,20 +1833,77 @@ function showSessionSelection() {
     storySelection.style.display = 'block';
     storySelection.classList.add('story-selection-focused');
     setSelectedStoryCard(selectedStory);
-    positionOverlayNearCard(selectedStory);
     switchSessionHubTab('saved');
     if (sessionSelectionHideTimer) {
         clearTimeout(sessionSelectionHideTimer);
         sessionSelectionHideTimer = null;
     }
+
+    const card = document.querySelector(`.story-card[data-story-id="${selectedStory}"]`);
+    if (card) {
+        _overlayCardRect = card.getBoundingClientRect();
+    }
+    const startRect = _overlayCardRect || { top: window.innerHeight / 3, left: window.innerWidth / 3, width: 300, height: 160, padding: 0 };
+
     storySelectionBackdrop?.classList.remove('hidden');
     sessionSelection.classList.remove('hidden');
-    sessionSelection.setAttribute('aria-hidden', 'false');
+    sessionSelection.inert = false;
     sessionSelection.style.display = 'block';
+
+    setOverlayRect({
+        top: startRect.top,
+        left: startRect.left,
+        width: startRect.width,
+        height: startRect.height,
+        padding: 0,
+    }, false);
+    sessionSelection.style.opacity = '1';
+
     requestAnimationFrame(() => {
-        storySelectionBackdrop?.classList.add('is-visible');
-        sessionSelection.classList.add('is-open');
+        const expanded = getExpandedRect(_overlayCardRect);
+        sessionSelection.style.transition = 'none';
+        sessionSelection.style.height = 'auto';
+        sessionSelection.style.width = `${expanded.width}px`;
+        sessionSelection.style.padding = `${expanded.padding}px`;
+        const naturalH = sessionSelection.scrollHeight;
+
+        const margin = 16;
+        const availableH = window.innerHeight - margin * 2;
+        let finalTop = expanded.top;
+        let finalH = naturalH;
+        let needsScroll = false;
+
+        if (finalTop + naturalH > window.innerHeight - margin) {
+            finalTop = window.innerHeight - margin - naturalH;
+        }
+        if (finalTop < margin) {
+            finalTop = margin;
+            finalH = availableH;
+            needsScroll = true;
+        }
+
+        setOverlayRect({
+            top: startRect.top,
+            left: startRect.left,
+            width: startRect.width,
+            height: startRect.height,
+            padding: 0,
+        }, false);
+
+        requestAnimationFrame(() => {
+            setOverlayRect({ ...expanded, top: finalTop, height: finalH }, true);
+            if (needsScroll) {
+                sessionSelection.style.overflowY = 'auto';
+            }
+            storySelectionBackdrop?.classList.add('is-visible');
+            sessionSelection.classList.add('is-open');
+            setTimeout(() => {
+                sessionSelection.style.height = 'auto';
+                sessionSelection.classList.add('content-ready');
+            }, 360);
+        });
     });
+
     sessionCodeInput.value = '';
     savedGames = [];
     displaySavedGames();
@@ -2090,7 +2252,11 @@ let slashCommandState = {
 };
 
 function toggleDisplayPanel() {
+    displayPanel.classList.remove('hidden');
     const isOpen = displayPanel.classList.toggle('visible');
+    if (!isOpen) {
+        displayPanel.classList.add('hidden');
+    }
     displayToggleBtn.classList.toggle('is-open', isOpen);
     return isOpen;
 }
@@ -2924,7 +3090,7 @@ function updateDisplayPanel(gameState) {
     if (player && player.location) {
         const currentNode = worldData.nodes[player.location];
         if (currentNode) {
-            const description = currentNode.processed_description || currentNode.description;
+            const description = currentNode.processed_description || currentNode.explicit_state || currentNode.description;
             if (description) {
                 const processedDescription = preprocessDescription(description);
                 const descriptionHtml = converter.makeHtml(processedDescription);

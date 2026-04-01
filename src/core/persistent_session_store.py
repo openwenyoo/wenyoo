@@ -79,8 +79,12 @@ class PersistentSessionStore:
             return False
 
         if player_id:
-            participant_ids = set(record.get("participant_ids") or [])
-            if player_id not in participant_ids:
+            manifest = record.get("participant_manifest") or []
+            manifest_ids = {
+                entry.get("player_id") for entry in manifest if isinstance(entry, dict)
+            }
+            active_ids = set(record.get("participant_ids") or [])
+            if player_id not in manifest_ids and player_id not in active_ids:
                 return False
 
         return True

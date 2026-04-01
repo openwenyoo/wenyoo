@@ -86,7 +86,29 @@ class PregameHandler:
 
             if msg_type == "set_player_name":
                 player_name = message.get("name", "Player")
+
+                if self.frontend_adapter:
+                    existing = self.frontend_adapter.find_player_id_by_name(
+                        player_name, exclude_player_id=player_id
+                    )
+                    if existing:
+                        old_pid, old_token = existing
+                        logger.info(
+                            f"Name '{player_name}' belongs to existing player {old_pid}. "
+                            f"Migrating current connection from {player_id}."
+                        )
+                        self.frontend_adapter.cleanup_ephemeral_player(player_id)
+                        await websocket.send_json({
+                            "type": "identity_changed",
+                            "player_id": old_pid,
+                            "player_name": player_name,
+                            "session_token": old_token,
+                        })
+                        return None
+
                 session_entry["name"] = player_name
+                if self.frontend_adapter:
+                    self.frontend_adapter.update_player_name_in_token(player_id, player_name)
                 logger.info(f"Player {player_id} set name to {player_name}")
             
             elif msg_type == "request_stories":

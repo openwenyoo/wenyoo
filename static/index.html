@@ -27,6 +27,13 @@
         <!-- 故事选择界面 -->
         <div id="story-selection">
             <div class="story-selection-container">
+                <div class="story-selection-topbar">
+                    <div></div>
+                    <div id="user-badge" class="user-badge hidden">
+                        <span id="user-badge-name" class="user-badge-name"></span>
+                        <button id="user-logout-btn" class="user-logout-btn" data-i18n="user.logout">Log out</button>
+                    </div>
+                </div>
                 <h1 data-i18n="story.selectTitle">Select Your Adventure</h1>
                 <p data-i18n="story.selectSubtitle">Choose your adventure.</p>
                 
@@ -40,7 +47,7 @@
         <div id="story-selection-backdrop" class="story-selection-backdrop hidden"></div>
 
         <!-- 故事卡片扩展会话面板 -->
-        <div id="session-selection" class="story-session-overlay hidden" aria-hidden="true">
+        <div id="session-selection" class="story-session-overlay hidden" inert>
             <div class="story-session-top">
                 <div class="story-session-header">
                     <h2 id="session-selection-title"></h2>
@@ -129,6 +136,13 @@
                                 <div class="setting-item">
                                     <span class="setting-label" data-i18n="settings.exportHistory">Export History</span>
                                     <button id="export-history-button" class="setting-btn" data-i18n="settings.export">Export</button>
+                                </div>
+                            </div>
+                            <div class="settings-player">
+                                <span class="settings-player-label" data-i18n="settings.playerName">Player</span>
+                                <div class="settings-player-info">
+                                    <span id="settings-player-name" class="settings-player-name"></span>
+                                    <button id="settings-logout-btn" class="setting-link settings-logout-link" data-i18n="user.logout">Log out</button>
                                 </div>
                             </div>
                             <div class="settings-footer">

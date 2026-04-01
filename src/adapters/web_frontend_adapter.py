@@ -13,14 +13,16 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import copy
 import hmac
+import json
 import logging
 import secrets
 import asyncio
 import os
 import re
+import tempfile
 import time
 from pathlib import Path
 
@@ -133,6 +135,8 @@ class WebFrontendAdapter(FrontendAdapter):
 
         if self.game_kernel and self.game_kernel.state_manager:
             self.game_kernel.state_manager.archive_all_persistent_rooms()
+            self._load_player_tokens()
+            self._rebuild_player_to_session_mapping()
 
         # Initialize handlers
         self._init_handlers()
@@ -144,6 +148,103 @@ class WebFrontendAdapter(FrontendAdapter):
         asyncio.create_task(self._reaper_task())
         
         logger.info(f"Web Frontend Adapter initialized on {host}:{port}")
+
+    def _get_player_tokens_path(self) -> str:
+        return os.path.join(self.game_kernel.state_manager.save_dir, "player_tokens.json")
+
+    def _load_player_tokens(self) -> None:
+        """Load persisted player tokens from disk so rejoin works across restarts.
+
+        The file maps player_id -> {"token": str, "player_name": str | None}.
+        Legacy files that stored bare token strings are migrated transparently.
+        """
+        path = self._get_player_tokens_path()
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                migrated: Dict[str, Dict[str, Any]] = {}
+                for pid, value in data.items():
+                    if isinstance(value, str):
+                        migrated[pid] = {"token": value, "player_name": None}
+                    elif isinstance(value, dict):
+                        migrated[pid] = value
+                self._player_tokens = migrated
+                logger.info("Loaded %d player token(s) from disk.", len(migrated))
+        except FileNotFoundError:
+            pass
+        except Exception as exc:
+            logger.warning("Failed to load player tokens from %s: %s", path, exc)
+
+    def find_player_id_by_name(self, name: str, exclude_player_id: str = "") -> Optional[tuple]:
+        """Find an existing player ID and token by display name.
+
+        Returns (player_id, token) if found, else None.
+        """
+        for pid, entry in self._player_tokens.items():
+            if pid == exclude_player_id:
+                continue
+            if isinstance(entry, dict) and entry.get("player_name") == name:
+                return pid, entry.get("token")
+        return None
+
+    def cleanup_ephemeral_player(self, player_id: str) -> None:
+        """Remove a temporary player entry that was created during registration
+        but is being replaced by an existing identity."""
+        self._player_tokens.pop(player_id, None)
+        self.player_sessions.pop(player_id, None)
+        self.websocket_manager.disconnect(player_id)
+        self._save_player_tokens()
+
+    def update_player_name_in_token(self, player_id: str, player_name: str) -> None:
+        """Update the stored player name in the token registry and persist."""
+        entry = self._player_tokens.get(player_id)
+        if isinstance(entry, dict):
+            entry["player_name"] = player_name
+            self._save_player_tokens()
+
+    def _save_player_tokens(self) -> None:
+        """Atomically persist the player token registry to disk."""
+        path = self._get_player_tokens_path()
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                "w", encoding="utf-8", dir=os.path.dirname(path), delete=False
+            ) as tmp:
+                json.dump(self._player_tokens, tmp, indent=2, ensure_ascii=False)
+                tmp_path = tmp.name
+            os.replace(tmp_path, path)
+        except Exception as exc:
+            logger.warning("Failed to save player tokens: %s", exc)
+
+    def _rebuild_player_to_session_mapping(self) -> None:
+        """Reconstruct persistent_player_to_session from room files on disk.
+
+        Each room file stores participant_ids. For every player that appears in
+        at least one room, map them to the most recently updated room.
+        """
+        if not self.game_kernel or not self.game_kernel.state_manager:
+            return
+
+        rooms = self.game_kernel.state_manager.list_persistent_rooms()
+        best: Dict[str, tuple] = {}
+        for room in rooms:
+            room_id = room.get("room_id")
+            updated_at = room.get("updated_at", "")
+            for pid in room.get("participant_ids") or []:
+                prev = best.get(pid)
+                if prev is None or updated_at > prev[1]:
+                    best[pid] = (room_id, updated_at)
+
+        for pid, (room_id, _) in best.items():
+            if pid in self._player_tokens:
+                self.persistent_player_to_session[pid] = room_id
+
+        if self.persistent_player_to_session:
+            logger.info(
+                "Rebuilt player-to-session mapping for %d player(s).",
+                len(self.persistent_player_to_session),
+            )
 
     def _init_handlers(self):
         """Initialize the handler instances."""
@@ -276,7 +377,11 @@ class WebFrontendAdapter(FrontendAdapter):
             "updated_at": game_state.updated_at,
             "participant_manifest": copy.deepcopy(metadata.get("participant_manifest", [])),
             "participant_names": list(metadata.get("participant_names", [])),
-            "participant_ids": [entry.get("player_id") for entry in metadata.get("participant_manifest", []) if entry.get("player_id")],
+            "participant_ids": [
+                pid for entry in metadata.get("participant_manifest", [])
+                if (pid := entry.get("player_id"))
+                and self.persistent_player_to_session.get(pid) == room_id
+            ],
             "current_node": game_state.current_node_id,
             "preview": preview,
             "snapshot": game_state.to_dict(),
@@ -291,6 +396,20 @@ class WebFrontendAdapter(FrontendAdapter):
         if not record:
             return
         self.game_kernel.state_manager.save_persistent_room(room_id, record)
+
+    def remove_player_from_persisted_room(self, player_id: str, room_id: str) -> None:
+        """Remove a player from a room's participant_ids on disk so they
+        won't be auto-rejoined on server restart."""
+        if not self.game_kernel or not self.game_kernel.state_manager:
+            return
+        record = self.game_kernel.state_manager.load_persistent_room(room_id)
+        if not record:
+            return
+        pids = record.get("participant_ids") or []
+        if player_id in pids:
+            pids.remove(player_id)
+            record["participant_ids"] = pids
+            self.game_kernel.state_manager.save_persistent_room(room_id, record)
 
     def _cancel_room_autosave(self, room_id: str) -> None:
         task = self._room_autosave_tasks.pop(room_id, None)
@@ -397,8 +516,14 @@ class WebFrontendAdapter(FrontendAdapter):
         *,
         full_description: Optional[str] = None,
     ) -> Dict[str, Any]:
+        transcript = game_state.get_transcript_for_player(player_id)
+        has_visible_game_transcript = any(
+            isinstance(entry, dict) and entry.get("message_type") == "game"
+            for entry in transcript
+        )
+
         player_location = game_state.get_player_location(player_id)
-        if full_description is None:
+        if full_description is None and not has_visible_game_transcript:
             full_description = await self.game_kernel.get_node_perception(
                 game_state,
                 player_location,
@@ -413,12 +538,6 @@ class WebFrontendAdapter(FrontendAdapter):
             current_perception=full_description,
         )
         self._format_game_state_for_player(game_state_dict, player_id)
-
-        transcript = game_state.get_transcript_for_player(player_id)
-        has_visible_game_transcript = any(
-            isinstance(entry, dict) and entry.get("message_type") == "game"
-            for entry in transcript
-        )
         pending_form_payload = None
         pending_form = self.game_kernel._pending_forms.get(player_id) if self.game_kernel else None
         if pending_form:
@@ -483,12 +602,15 @@ class WebFrontendAdapter(FrontendAdapter):
                 return
 
             # Validate session token on rejoin attempts
-            existing_token = self._player_tokens.get(player_id)
+            token_entry = self._player_tokens.get(player_id)
+            existing_token = token_entry.get("token") if isinstance(token_entry, dict) else None
             if existing_token:
                 if not client_token or not hmac.compare_digest(client_token, existing_token):
                     logger.warning(f"Session token mismatch for player {player_id}. Rejecting rejoin, treating as new player.")
                     self._player_tokens.pop(player_id, None)
+                    self._save_player_tokens()
                     self.persistent_player_to_session.pop(player_id, None)
+                    token_entry = None
 
             await self.websocket_manager.connect(websocket, player_id)
 
@@ -549,18 +671,29 @@ class WebFrontendAdapter(FrontendAdapter):
                     
                     current_session_id = session_id
             else:
-                # New player registration — issue a session token
-                logger.info(f"Registering new player {player_id}.")
-                new_token = secrets.token_urlsafe(32)
-                self._player_tokens[player_id] = new_token
-                self.player_sessions[player_id] = {"name": None, "websocket": websocket}
-                player_name = self.player_sessions[player_id].get('name')
-                await websocket.send_json({
-                    "type": "registered", 
-                    "player_id": player_id, 
-                    "player_name": player_name,
-                    "session_token": new_token,
-                })
+                # Returning player (valid token, no active room) or brand-new player
+                if token_entry and existing_token:
+                    logger.info(f"Returning player {player_id} (no active room).")
+                    player_name = token_entry.get("player_name")
+                    self.player_sessions[player_id] = {"name": player_name, "websocket": websocket}
+                    await websocket.send_json({
+                        "type": "registered",
+                        "player_id": player_id,
+                        "player_name": player_name,
+                        "session_token": existing_token,
+                    })
+                else:
+                    logger.info(f"Registering new player {player_id}.")
+                    new_token = secrets.token_urlsafe(32)
+                    self._player_tokens[player_id] = {"token": new_token, "player_name": None}
+                    self._save_player_tokens()
+                    self.player_sessions[player_id] = {"name": None, "websocket": websocket}
+                    await websocket.send_json({
+                        "type": "registered",
+                        "player_id": player_id,
+                        "player_name": None,
+                        "session_token": new_token,
+                    })
 
             while True:
                 # If we are not already in a session (from rejoin), run pre-game setup
@@ -581,8 +714,8 @@ class WebFrontendAdapter(FrontendAdapter):
                 # Reset session ID so we go back to pregame setup on next loop
                 current_session_id = None
 
-        except WebSocketDisconnect:
-            logger.info(f"Player {player_id} disconnected unexpectedly.")
+        except (WebSocketDisconnect, ConnectionError):
+            logger.info(f"Player {player_id} disconnected.")
             session_id = self.persistent_player_to_session.get(player_id)
             if session_id and session_id in self.game_sessions:
                 logger.info(f"Player {player_id} detached from session {session_id}.")
@@ -595,7 +728,10 @@ class WebFrontendAdapter(FrontendAdapter):
                 )
 
         except Exception as e:
-            logger.error(f"Error in WebSocket endpoint for player {player_id}: {e}", exc_info=True)
+            if "ConnectionClosed" in type(e).__name__:
+                logger.info(f"Player {player_id} disconnected (ws closed).")
+            else:
+                logger.error(f"Error in WebSocket endpoint for player {player_id}: {e}", exc_info=True)
 
         finally:
             logger.info(f"Closing WebSocket connection for player {player_id}.")

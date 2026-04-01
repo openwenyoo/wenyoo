@@ -428,6 +428,8 @@ class SessionHandler:
 
         if clear_persistent_mapping:
             self.persistent_player_to_session.pop(player_id, None)
+            if self.frontend_adapter:
+                self.frontend_adapter.remove_player_from_persisted_room(player_id, session_id)
 
         session_data = self.player_sessions.get(player_id)
         player_name = (session_data or {}).get("name", "A player")
