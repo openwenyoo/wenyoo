@@ -62,41 +62,50 @@ Wenyoo is an AI-native game engine built in Python. Authors define worlds declar
    cd wenyoo
    ```
 
-2. Create and activate a virtual environment:
+2. Quick setup and run:
+   On Linux:
+   ```bash
+   ./scripts/run-linux.sh
+   ```
+   On Windows PowerShell:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\run-windows.ps1
+   ```
+   On first run, the script opens an interactive terminal wizard. It can help
+   you choose whether to use `venv`, set up `config.yaml`, save your API key in
+   `.env`, and configure the provider base URL and model name.
+   On later runs with no args, it shows a simple launcher menu so you can choose
+   a config group or reopen the setup wizard.
+   If you already know which group you want, you can still pass normal args such
+   as `./scripts/run-linux.sh --config-group claude`.
+
+3. Manual alternative:
    ```bash
    python -m venv venv
    # On Windows
    venv\Scripts\activate
    # On macOS/Linux
    source venv/bin/activate
-   ```
-
-3. Install dependencies:
-   ```bash
    pip install -r requirements.txt
-   ```
-
-4. Set up configuration:
-   ```bash
    cp config.example.yaml config.yaml
    cp .env.example .env
-   # Edit .env to add your API key
-   # Edit config.yaml to configure your LLM provider
    ```
+   Edit `.env` to add your API key and adjust `config.yaml` if you want to use a
+   real provider instead of mock mode.
 
-5. **(Optional) Build the story editor from source:**
+4. **(Optional) Build the story editor from source:**
    ```bash
    cd editor && npm install && npm run build && cd ..
    ```
    Pre-built editor files are included in `static/editor/`. You only need
    this step if you modify the editor source code.
 
-6. Run the server:
+5. Run the server manually:
    ```bash
    python -m src.main
    ```
 
-7. Open your browser:
+6. Open your browser:
    - **Game**: http://localhost:8000
    - **Story Editor**: http://localhost:8000/editor
 

@@ -62,40 +62,45 @@
    cd wenyoo
    ```
 
-2. 创建并激活虚拟环境:
+2. 快速安装并启动:
+   Linux:
+   ```bash
+   ./scripts/run-linux.sh
+   ```
+   Windows PowerShell:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\run-windows.ps1
+   ```
+   第一次运行时，脚本会进入交互式终端向导，帮助你选择是否使用 `venv`、
+   配置 `config.yaml`、把 API Key 写入 `.env`，以及设置 provider 的 base URL 和 model name。
+   之后如果你不带参数再次运行，它会显示一个简单的启动菜单，让你选择 config group 或重新打开设置向导。
+   如果你已经知道要用哪个 group，也可以继续直接传参，例如 `./scripts/run-linux.sh --config-group claude`。
+
+3. 手动方式:
    ```bash
    python -m venv venv
    # Windows
    venv\Scripts\activate
    # macOS/Linux
    source venv/bin/activate
-   ```
-
-3. 安装依赖:
-   ```bash
    pip install -r requirements.txt
-   ```
-
-4. 配置环境:
-   ```bash
    cp config.example.yaml config.yaml
    cp .env.example .env
-   # 编辑 .env 填写 API 密钥
-   # 编辑 config.yaml 配置你的 LLM 供应商
    ```
+   如果你想使用真实 LLM，请编辑 `.env` 填写 API 密钥，并按需调整 `config.yaml`。
 
-5. **（可选）从源码构建故事编辑器:**
+4. **（可选）从源码构建故事编辑器:**
    ```bash
    cd editor && npm install && npm run build && cd ..
    ```
    仓库已经包含 `static/editor/` 下的预构建编辑器文件。只有在你修改编辑器源码时才需要这一步。
 
-6. 启动服务器:
+5. 手动启动服务器:
    ```bash
    python -m src.main
    ```
 
-7. 打开浏览器:
+6. 打开浏览器:
    - **游戏**: http://localhost:8000
    - **故事编辑器**: http://localhost:8000/editor
 

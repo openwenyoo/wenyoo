@@ -34,6 +34,7 @@ saves/
 .env
 .env.local
 .env*.local
+.wenyoo-launcher.json
 config.yaml
 config.yml
 

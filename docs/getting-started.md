@@ -12,42 +12,56 @@ This guide gets the game server and the story editor running on a local machine.
 ## Quickest First Run
 
 1. Clone the repository and enter the project directory.
-2. Copy `config.example.yaml` to `config.yaml`.
-3. Copy `.env.example` to `.env`.
-4. Start the server with the mock provider:
+2. Start the interactive launcher:
 
 ```bash
-python -m src.main --llm-provider mock
+./scripts/run-linux.sh
 ```
 
-5. Open:
+On Windows PowerShell use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-windows.ps1
+```
+
+The first run opens a setup wizard that can configure `venv`, `config.yaml`,
+`.env`, API keys, base URLs, and model names. Later runs with no args show a
+config-group chooser.
+
+3. Open:
    - Game: `http://localhost:8000`
    - Editor: `http://localhost:8000/editor`
 
-Mock mode is the fastest way to verify that the server, web client, and editor all start correctly.
+If you just want the fastest smoke test, choose the mock profile in the wizard.
 
 ## Local Python Setup
 
 ### Windows PowerShell
 
 ```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-Copy-Item config.example.yaml config.yaml
-Copy-Item .env.example .env
-python -m src.main
+powershell -ExecutionPolicy Bypass -File .\scripts\run-windows.ps1
+```
+
+The run script handles first-run setup automatically, then starts the server.
+With no args after setup, it shows a config-group chooser. To skip the chooser
+and go straight to a known profile, pass normal server args such as:
+
+```powershell
+.\scripts\run-windows.ps1 --config-group claude
 ```
 
 ### macOS and Linux
 
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp config.example.yaml config.yaml
-cp .env.example .env
-python -m src.main
+./scripts/run-linux.sh
+```
+
+The run script handles first-run setup automatically, then starts the server.
+With no args after setup, it shows a config-group chooser. To skip the chooser
+and go straight to a known profile, pass normal server args such as:
+
+```bash
+./scripts/run-linux.sh --config-group claude
 ```
 
 ## Configure a Real LLM

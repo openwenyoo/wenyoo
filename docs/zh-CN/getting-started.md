@@ -12,42 +12,55 @@
 ## 最快启动方式
 
 1. 克隆仓库并进入项目目录。
-2. 将 `config.example.yaml` 复制为 `config.yaml`。
-3. 将 `.env.example` 复制为 `.env`。
-4. 使用 mock provider 启动服务：
+2. 启动交互式启动脚本：
 
 ```bash
-python -m src.main --llm-provider mock
+./scripts/run-linux.sh
 ```
 
-5. 打开：
+Windows PowerShell 使用：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-windows.ps1
+```
+
+第一次运行时会进入设置向导，可以配置 `venv`、`config.yaml`、`.env`、
+API Key、base URL 和 model name。之后如果不带参数再次运行，它会显示 config group 选择菜单。
+
+3. 打开：
    - 游戏：`http://localhost:8000`
    - 编辑器：`http://localhost:8000/editor`
 
-如果你只是想先确认服务、Web 客户端和编辑器是否都能启动，mock 模式是最快的方式。
+如果你只是想先做一次快速联调检查，可以在向导里选择 mock 配置。
 
 ## 本地 Python 安装
 
 ### Windows PowerShell
 
 ```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-Copy-Item config.example.yaml config.yaml
-Copy-Item .env.example .env
-python -m src.main
+powershell -ExecutionPolicy Bypass -File .\scripts\run-windows.ps1
+```
+
+运行脚本会自动处理首次安装，然后直接启动服务。
+完成设置后，如果你不带参数运行，它会显示 config group 选择菜单。
+如果你想直接进入已知配置，也可以正常传入服务参数，例如：
+
+```powershell
+.\scripts\run-windows.ps1 --config-group claude
 ```
 
 ### macOS 与 Linux
 
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp config.example.yaml config.yaml
-cp .env.example .env
-python -m src.main
+./scripts/run-linux.sh
+```
+
+运行脚本会自动处理首次安装，然后直接启动服务。
+完成设置后，如果你不带参数运行，它会显示 config group 选择菜单。
+如果你想直接进入已知配置，也可以正常传入服务参数，例如：
+
+```bash
+./scripts/run-linux.sh --config-group claude
 ```
 
 ## 配置真实 LLM
