@@ -182,26 +182,26 @@ body {
 }
 
 .story-selection-focused .story-card:not(.story-card-selected) {
-    opacity: 0.42;
-    filter: saturate(0.75);
+    opacity: 0.5;
+    filter: saturate(0.8);
 }
 
 .story-card.story-card-selected {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 28px 56px rgba(23, 43, 77, 0.2);
-    border-color: rgba(26, 115, 232, 0.35);
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 12px 32px rgba(23, 43, 77, 0.15);
+    border: 1px solid rgba(26, 115, 232, 0.25);
 }
 
 .story-selection-backdrop {
     position: fixed;
     inset: 0;
     z-index: 12;
-    background: rgba(228, 237, 249, 0.35);
+    background: rgba(0, 0, 0, 0.18);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.22s ease;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
 }
 
 .story-selection-backdrop.is-visible {
@@ -212,67 +212,37 @@ body {
 /* Story Session Overlay */
 #session-selection.story-session-overlay {
     position: fixed;
-    left: 50%;
-    top: 88px;
     z-index: 14;
-    width: min(720px, calc(100vw - 32px));
-    max-height: none;
-    overflow: visible;
-    padding: 28px;
+    width: min(640px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    padding: 24px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    background:
-        linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(244,248,255,0.8) 100%);
-    box-shadow:
-        0 32px 80px rgba(24, 39, 75, 0.22),
-        inset 0 1px 0 rgba(255,255,255,0.55);
-    transform: translateX(-50%) scale(0.96);
-    transform-origin: top center;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: #ffffff;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.14);
+    transform: scale(0.96) translateY(-6px);
+    transform-origin: top left;
     text-align: left;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.24s ease, transform 0.28s ease;
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    transition: opacity 0.2s ease, transform 0.22s cubic-bezier(0.2, 0, 0.13, 1);
 }
 
 #session-selection.story-session-overlay.is-open {
     opacity: 1;
     pointer-events: auto;
-    transform: translateX(-50%) scale(1);
+    transform: scale(1) translateY(0);
 }
 
-.selection-container.story-session-overlay h2 {
+.story-session-overlay h2 {
     color: #22324d;
-    margin: 8px 0 10px;
-    font-size: 2em;
-}
-
-.story-session-close {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    width: 52px;
-    height: 52px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.56);
-    color: #3b4c68;
-    font-size: 34px;
-    line-height: 1;
-    cursor: pointer;
-    box-shadow: 0 10px 24px rgba(30, 55, 90, 0.12);
-}
-
-.story-session-close:hover {
-    background: rgba(255,255,255,0.9);
+    margin: 0 0 6px;
+    font-size: 1.5em;
 }
 
 .story-session-header {
-    padding-right: 64px;
+    padding-right: 0;
 }
 
 .story-session-top {
@@ -282,174 +252,142 @@ body {
     align-items: center;
 }
 
-.story-session-kicker {
-    font-size: 0.9em;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #6b7c95;
-}
-
 .story-session-description {
     margin: 0;
-    color: #5c6b82;
-    line-height: 1.65;
+    color: #6f7d90;
+    font-size: 0.92em;
+    line-height: 1.6;
 }
 
 .story-session-meta {
-    margin-top: 14px;
+    margin-top: 8px;
     color: #1a73e8;
-    font-size: 0.95em;
-    font-weight: 700;
+    font-size: 0.85em;
+    font-weight: 600;
 }
 
 .story-session-primary-actions {
     display: flex;
-    justify-content: flex-end;
     align-self: center;
     margin: 0;
 }
 
 .story-session-primary-btn {
-    width: 92px;
-    min-height: 92px;
-    padding: 12px;
-    border-radius: 8px !important;
+    padding: 10px 20px !important;
+    border-radius: 6px !important;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    line-height: 1.35;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 13px !important;
+    white-space: nowrap;
 }
 
-.selection-container.story-session-overlay button:not(.story-session-close) {
+.story-session-overlay button {
     background-color: #1a73e8;
     color: white;
     border: none;
-    padding: 12px 24px;
+    padding: 10px 18px;
     margin: 0;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.2s ease, transform 0.2s ease;
-    box-shadow: 0 12px 24px rgba(26, 115, 232, 0.22);
+    font-size: 14px;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+    box-shadow: none;
 }
 
-.selection-container.story-session-overlay button:not(.story-session-close):hover {
+.story-session-overlay button:hover {
     background-color: #0d62c9;
     transform: translateY(-1px);
 }
 
-.selection-container.story-session-overlay .story-session-close {
-    box-shadow: none;
-}
-
-.selection-container.story-session-overlay .story-session-close:hover {
-    background: rgba(255,255,255,0.9);
-    transform: none;
-}
-
 .join-session {
-    margin-top: 6px;
+    margin-top: 8px;
     display: flex;
-    justify-content: flex-start;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
 }
 
 .join-session input {
-    padding: 13px 16px;
+    padding: 10px 14px;
     margin: 0;
-    border-radius: 8px;
-    background-color: rgba(255,255,255,0.72);
+    border-radius: 6px;
+    background-color: #f6f8fa;
     color: #22324d;
     flex: 1;
-    min-width: 220px;
-    border: 1px solid rgba(26, 115, 232, 0.14);
-    box-shadow: inset 0 2px 8px rgba(0,0,0,0.03);
+    min-width: 180px;
+    border: 1px solid #dce3eb;
+    font-size: 14px;
 }
 
-/* Load Panel Styles */
-.load-panel {
-    background: rgba(255, 255, 255, 0.58);
-    border-radius: 8px;
-    padding: 20px;
-    margin: 24px 0 0;
-    text-align: left;
-    border: 1px solid rgba(255, 255, 255, 0.62);
-    min-height: 360px;
-    display: flex;
-    flex-direction: column;
+.join-session input:focus {
+    outline: none;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.12);
+}
+
+.story-session-hub {
+    margin-top: 16px;
+    border-top: 1px solid #edf0f4;
+    padding-top: 14px;
 }
 
 .story-session-hub-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-}
-
-.story-session-hub-header h3 {
-    margin: 0;
+    gap: 8px;
+    margin-bottom: 10px;
 }
 
 .story-session-tabs {
     display: inline-flex;
-    gap: 8px;
-    padding: 6px;
-    background: rgba(225, 235, 249, 0.86);
-    border-radius: 8px;
+    gap: 0;
+    padding: 3px;
+    background: #f0f3f7;
+    border-radius: 6px;
 }
 
 .story-session-tab {
     background: transparent !important;
-    color: #5f6368 !important;
+    color: #5f6b7a !important;
     box-shadow: none !important;
-    padding: 10px 16px !important;
-    border-radius: 6px !important;
-    font-size: 14px !important;
+    padding: 7px 14px !important;
+    border-radius: 4px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
 }
 
 .story-session-tab:hover {
-    background: rgba(26, 115, 232, 0.08) !important;
+    background: rgba(26, 115, 232, 0.06) !important;
     color: #1a73e8 !important;
     transform: none !important;
 }
 
 .story-session-tab.active,
 .story-session-tab.active:hover {
-    background: #1a73e8 !important;
-    color: #fff !important;
-    box-shadow: 0 6px 16px rgba(26, 115, 232, 0.22) !important;
+    background: #fff !important;
+    color: #22324d !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+    font-weight: 600 !important;
 }
 
 .story-session-join {
-    margin-top: 12px;
-    margin-bottom: 0;
-    padding-bottom: 0;
-    border-bottom: none;
+    margin: 0;
+    padding: 0;
+    border: none;
 }
 
 .story-session-panel {
-    min-height: 268px;
-}
-
-.load-panel h3 {
-    color: #333;
-    margin-top: 0;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
+    min-height: 140px;
 }
 
 .saved-games-list {
-    max-height: 320px;
-    min-height: 220px;
+    max-height: 280px;
+    min-height: 100px;
     overflow-y: auto;
-    margin: 10px 0;
-    padding-right: 6px;
+    margin: 0;
+    padding-right: 4px;
 }
 
 @media (max-width: 768px) {
@@ -464,21 +402,17 @@ body {
 
     #session-selection.story-session-overlay {
         width: calc(100vw - 20px);
-        top: 16px;
-        padding: 20px;
-    }
-
-    .story-session-header {
-        padding-right: 48px;
+        left: 10px !important;
+        padding: 18px;
     }
 
     .story-session-top {
         grid-template-columns: 1fr;
-        gap: 16px;
+        gap: 12px;
     }
 
-    .selection-container.story-session-overlay h2 {
-        font-size: 1.6em;
+    .story-session-overlay h2 {
+        font-size: 1.3em;
     }
 
     .join-session {
@@ -491,11 +425,6 @@ body {
         justify-content: flex-start;
     }
 
-    .story-session-hub-header {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
     .story-session-tabs {
         width: 100%;
     }
@@ -503,18 +432,6 @@ body {
     .story-session-tab {
         flex: 1;
         text-align: center;
-    }
-
-    .join-session input,
-    .selection-container.story-session-overlay .story-session-primary-btn,
-    .selection-container.story-session-overlay .join-session > button {
-        width: 100%;
-    }
-
-    .story-session-primary-btn {
-        min-height: 68px;
-        width: 100%;
-        font-size: 14px !important;
     }
 }
 
@@ -594,9 +511,9 @@ body {
     color: #5f6368;
     border: 1px solid #d0d7e2;
     padding: 8px 12px;
-    border-radius: 12px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 }
 
 .session-secondary-btn:hover {
@@ -605,12 +522,10 @@ body {
 }
 
 .session-empty-state {
-    padding: 16px;
-    background: #fff;
-    border-radius: 12px;
-    border: 1px dashed #d7dde7;
-    color: #6b7280;
+    padding: 24px 16px;
+    color: #9ca3af;
     text-align: center;
+    font-size: 0.9em;
 }
 
 .saved-game-item span {
@@ -628,10 +543,10 @@ body {
     color: white;
     border: none;
     padding: 5px 10px;
-    border-radius: 12px;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.3s;
+    font-size: 13px;
+    transition: background-color 0.15s;
 }
 
 .load-game-btn:hover {

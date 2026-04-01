@@ -57,7 +57,6 @@ const storySelection = document.getElementById('story-selection');
 const storyList = document.querySelector('.story-list');
 const storySelectionBackdrop = document.getElementById('story-selection-backdrop');
 const sessionSelection = document.getElementById('session-selection');
-const closeSessionSelectionButton = document.getElementById('close-session-selection');
 const sessionSelectionTitle = document.getElementById('session-selection-title');
 const sessionSelectionDescription = document.getElementById('session-selection-description');
 const sessionSelectionMeta = document.getElementById('session-selection-meta');
@@ -210,6 +209,8 @@ function hideSessionSelection() {
     sessionSelectionHideTimer = setTimeout(() => {
         sessionSelection.classList.add('hidden');
         sessionSelection.style.display = 'none';
+        sessionSelection.style.left = '';
+        sessionSelection.style.top = '';
         storySelectionBackdrop?.classList.add('hidden');
         sessionSelectionHideTimer = null;
     }, 220);
@@ -511,7 +512,6 @@ function setupEventListeners() {
     sessionTabs.forEach(tab => {
         tab.addEventListener('click', () => switchSessionHubTab(tab.dataset.sessionTab));
     });
-    closeSessionSelectionButton?.addEventListener('click', closeSessionSelection);
     storySelectionBackdrop?.addEventListener('click', closeSessionSelection);
     sendButton.addEventListener('click', () => {
         console.log('Send button clicked, mainContent display:', mainContent.style.display);
@@ -1696,12 +1696,27 @@ function selectStory(storyId, title, description = '') {
     localStorage.setItem('selectedStory', storyId);
     hideSessionSelection();
     setSelectedStoryCard(storyId);
+    positionOverlayNearCard(storyId);
     showSessionSelection();
     socket.send(JSON.stringify({ type: 'select_story', story_id: storyId }));
     console.log(`已选择故事: ${storyId}`);
 }
 
-// 显示会话选择界面
+function positionOverlayNearCard(storyId) {
+    const card = document.querySelector(`.story-card[data-story-id="${storyId}"]`);
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const overlayWidth = Math.min(640, window.innerWidth - 32);
+    let left = rect.left + rect.width / 2 - overlayWidth / 2;
+    left = Math.max(16, Math.min(left, window.innerWidth - overlayWidth - 16));
+    let top = rect.top;
+    const maxTop = window.innerHeight - 400;
+    if (top > maxTop) top = maxTop;
+    if (top < 16) top = 16;
+    sessionSelection.style.left = `${left}px`;
+    sessionSelection.style.top = `${top}px`;
+}
+
 function showSessionSelection() {
     if (!selectedStory) return;
     const selectedStoryRecord = getStoryById(selectedStory);
@@ -1713,6 +1728,7 @@ function showSessionSelection() {
     storySelection.style.display = 'block';
     storySelection.classList.add('story-selection-focused');
     setSelectedStoryCard(selectedStory);
+    positionOverlayNearCard(selectedStory);
     switchSessionHubTab('saved');
     if (sessionSelectionHideTimer) {
         clearTimeout(sessionSelectionHideTimer);
