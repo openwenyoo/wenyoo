@@ -115,8 +115,7 @@ const CharacterPanel = ({ isOpen, onClose, characters, onUpdateCharacters, nodes
             id: `char_${Date.now()}`,
             name: t('character.newCharacter'),
             definition: '',
-            explicit_state: '',
-            implicit_state: '',
+            state: '',
             memory: [],
             properties: {},
             is_playable: false,
@@ -153,7 +152,6 @@ const CharacterPanel = ({ isOpen, onClose, characters, onUpdateCharacters, nodes
     };
 
     // Collapsible section state
-    const [showImplicitState, setShowImplicitState] = useState(false);
     const [showMemory, setShowMemory] = useState(false);
     const [showProperties, setShowProperties] = useState(false);
 
@@ -287,37 +285,14 @@ const CharacterPanel = ({ isOpen, onClose, characters, onUpdateCharacters, nodes
                         </div>
 
                         <div className="form-group">
-                            <label>{t('node.explicitState')} <span className="field-hint">({t('character.explicitStateHint')})</span></label>
+                            <label>{t('character.state')} <span className="field-hint">({t('character.stateHint')})</span></label>
                             <textarea
                                 className="notebook-textarea"
-                                value={selectedChar.explicit_state || ''}
-                                onChange={(e) => updateSelectedChar({ explicit_state: e.target.value })}
-                                rows={2}
-                                placeholder={t('character.explicitStatePlaceholder')}
+                                value={selectedChar.state || ''}
+                                onChange={(e) => updateSelectedChar({ state: e.target.value })}
+                                rows={3}
+                                placeholder={t('character.statePlaceholder')}
                             />
-                        </div>
-
-                        <div className="section collapsible-section">
-                            <div
-                                className="section-header clickable"
-                                onClick={() => setShowImplicitState(!showImplicitState)}
-                            >
-                                <h4>
-                                    <span className="collapse-indicator">{showImplicitState ? '▼' : '▶'}</span>
-                                    {t('character.implicitState')} <span className="field-hint">({t('character.implicitHint')})</span>
-                                </h4>
-                            </div>
-                            {showImplicitState && (
-                                <div className="form-group">
-                                    <textarea
-                                        className="notebook-textarea"
-                                        value={selectedChar.implicit_state || ''}
-                                        onChange={(e) => updateSelectedChar({ implicit_state: e.target.value })}
-                                        rows={2}
-                                        placeholder={t('character.implicitPlaceholder')}
-                                    />
-                                </div>
-                            )}
                         </div>
 
                         <div className="section collapsible-section">

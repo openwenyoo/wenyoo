@@ -77,7 +77,7 @@ ${EDITOR_PROMPT_LANGUAGE_SECTION.replace('# LANGUAGE\n', '')}
 # CRITICAL INSTRUCTIONS
 1. **Maintain Consistency**: Match the story's vibe, tone, vocabulary level, and perspective
 2. **Follow Format Exactly**: Use the node format specification above - this is CRITICAL
-3. **Required Fields**: Every node MUST have: id, name, explicit_state (DSPP model)
+3. **Required Fields**: Every node MUST have: id, name, state (DSPP model)
 4. **Actions Format**: Actions MUST have: id, text (LLM uses for intent matching), and may use \`intent\` instead of only structured \`effects\`
 5. **Navigation**: Use \`target\` in goto_node effects
 6. **Proper Indentation**: Use 2 spaces for YAML indentation
@@ -145,9 +145,8 @@ Example - "Add a secret room accessible from the library":
         {
           "id": "secret_room",
           "name": "Secret Room",
-          "explicit_state": "A hidden chamber behind the bookshelf...",
+          "state": "A hidden chamber behind the bookshelf...",
           "definition": "",
-          "implicit_state": "",
           "properties": {},
           "objects": [],
           "actions": [

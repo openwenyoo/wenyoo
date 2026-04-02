@@ -70,7 +70,7 @@ function updateExistingNodes(updatedNodes, existingNodes, existingEdges) {
         if (update) {
             // If updating a pseudo/generated node, convert it to detailed
             const isConversion = node.type === 'pseudo' || node.type === 'generated';
-            const hasContent = update.name && (update.explicit_state || update.definition);
+            const hasContent = update.name && (update.state || update.definition);
             const newType = (isConversion && hasContent) ? 'detailed' : node.type;
 
             return {
@@ -83,8 +83,7 @@ function updateExistingNodes(updatedNodes, existingNodes, existingEdges) {
                     name: update.name !== undefined ? update.name : node.data.name,
                     // DSPP fields
                     definition: update.definition !== undefined ? update.definition : node.data.definition,
-                    explicit_state: update.explicit_state !== undefined ? update.explicit_state : node.data.explicit_state,
-                    implicit_state: update.implicit_state !== undefined ? update.implicit_state : node.data.implicit_state,
+                    state: update.state !== undefined ? update.state : node.data.state,
                     properties: update.properties !== undefined ? update.properties : node.data.properties,
                     // Merge arrays instead of replacing - ignore empty arrays from LLM
                     actions: mergeArraysById(node.data.actions, update.actions),

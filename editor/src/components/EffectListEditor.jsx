@@ -10,7 +10,7 @@ const EFFECT_TYPES = [
     { value: 'remove_from_inventory', label: 'Remove from Inventory', category: 'inventory' },
     { value: 'update_object_status', label: 'Update Object Status', category: 'state' },
     { value: 'set_node_description', label: 'Set Node Description', category: 'narrative' },
-    { value: 'set_object_explicit_state', label: 'Set Object Explicit State', category: 'narrative' },
+    { value: 'set_object_state', label: 'Set Object State', category: 'narrative' },
     { value: 'move_to_node', label: 'Move Character to Node', category: 'navigation' },
     { value: 'random_number', label: 'Random Number', category: 'utility' },
     { value: 'dice_roll', label: 'Dice Roll', category: 'utility' },
@@ -140,7 +140,7 @@ const EffectFields = ({ effect, onChange, t }) => {
                 </div>
             );
         case 'set_node_description':
-        case 'set_object_explicit_state':
+        case 'set_object_state':
             return (
                 <div className="effect-fields">
                     <input
@@ -151,7 +151,7 @@ const EffectFields = ({ effect, onChange, t }) => {
                     <textarea
                         value={effect.text || effect.value || ''}
                         onChange={(e) => handleChange('text', e.target.value)}
-                        placeholder={t('effect.newDescriptionPlaceholder')}
+                        placeholder={t('effect.newStatePlaceholder')}
                         rows={2}
                     />
                 </div>

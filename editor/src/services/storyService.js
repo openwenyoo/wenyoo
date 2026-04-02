@@ -218,8 +218,7 @@ export const saveStory = async (storyId, nodes, storyData) => {
         id: obj.id || '',
         name: obj.name || '',
         definition: obj.definition || '',
-        explicit_state: obj.explicit_state || '',
-        implicit_state: obj.implicit_state || '',
+        state: obj.state || '',
         properties: obj.properties || {},
     });
 
@@ -394,8 +393,7 @@ export const createNewStory = (title, viewMode, handleShapeClickFromNode) => {
                 id: 'start',
                 name: 'Start Node',
                 definition: '',
-                explicit_state: 'The story begins here.',
-                implicit_state: '',
+                state: 'The story begins here.',
                 properties: {},
                 groups: [],
                 objects: [],

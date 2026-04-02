@@ -10,15 +10,13 @@ const NodeEditor = ({ node, onNodeChange, onNodeClose, onShapeClick, onSecondary
     const [name, setName] = useState(nodeData.name || '');
     // DSPP model fields
     const [definition, setDefinition] = useState(nodeData.definition || '');
-    const [explicit_state, setExplicitState] = useState(nodeData.explicit_state || '');
-    const [implicit_state, setImplicitState] = useState(nodeData.implicit_state || '');
+    const [state, setState] = useState(nodeData.state || '');
     const [properties, setProperties] = useState(nodeData.properties || {});
     const [objects, setObjects] = useState(nodeData.objects || []);
     const [actions, setActions] = useState(nodeData.actions || []);
     const [triggers, setTriggers] = useState(nodeData.triggers || []);
 
     const [showAI, setShowAI] = useState(false);
-    const [showImplicitState, setShowImplicitState] = useState(false);
     const [showProperties, setShowProperties] = useState(false);
     const { t } = useLocale();
 
@@ -27,8 +25,7 @@ const NodeEditor = ({ node, onNodeChange, onNodeClose, onShapeClick, onSecondary
         setId(node.id || '');
         setName(nodeData.name || '');
         setDefinition(nodeData.definition || '');
-        setExplicitState(nodeData.explicit_state || '');
-        setImplicitState(nodeData.implicit_state || '');
+        setState(nodeData.state || '');
         setProperties(nodeData.properties || {});
         setObjects(nodeData.objects || []);
         setActions(nodeData.actions || []);
@@ -36,7 +33,7 @@ const NodeEditor = ({ node, onNodeChange, onNodeClose, onShapeClick, onSecondary
     }, [node]);
 
     const handleSave = () => {
-        onNodeChange({ ...node.data, name, definition, explicit_state, implicit_state, properties, objects, actions, triggers });
+        onNodeChange({ ...node.data, name, definition, state, properties, objects, actions, triggers });
     };
 
     const handleAIRequest = async (prompt) => {
@@ -52,8 +49,7 @@ const NodeEditor = ({ node, onNodeChange, onNodeClose, onShapeClick, onSecondary
                     const d = updated.data;
                     if (d.name) setName(d.name);
                     if (d.definition) setDefinition(d.definition);
-                    if (d.explicit_state) setExplicitState(d.explicit_state);
-                    if (d.implicit_state) setImplicitState(d.implicit_state);
+                    if (d.state) setState(d.state);
                     if (d.properties) setProperties(d.properties);
                     if (d.objects) setObjects(d.objects);
                     if (d.actions) setActions(d.actions);
@@ -80,16 +76,15 @@ const NodeEditor = ({ node, onNodeChange, onNodeClose, onShapeClick, onSecondary
             // DSPP field checks
             const nameChanged = name !== (currentData.name || '');
             const definitionChanged = definition !== (currentData.definition || '');
-            const explicitStateChanged = explicit_state !== (currentData.explicit_state || '');
-            const implicitStateChanged = implicit_state !== (currentData.implicit_state || '');
+            const stateChanged = state !== (currentData.state || '');
             const idChanged = id !== (node.id || '');
 
-            if (idChanged || nameChanged || definitionChanged || explicitStateChanged || implicitStateChanged || propertiesChanged || objectsChanged || actionsChanged || triggersChanged) {
+            if (idChanged || nameChanged || definitionChanged || stateChanged || propertiesChanged || objectsChanged || actionsChanged || triggersChanged) {
                 handleSave();
             }
         }, 800);
         return () => clearTimeout(timer);
-    }, [id, name, definition, explicit_state, implicit_state, properties, objects, actions, triggers, node.id, node.data]);
+    }, [id, name, definition, state, properties, objects, actions, triggers, node.id, node.data]);
 
     // ... (rest of methods)
 
@@ -124,19 +119,19 @@ const NodeEditor = ({ node, onNodeChange, onNodeClose, onShapeClick, onSecondary
     const addObject = () => {
         const newObjects = [...objects, { id: generateId('obj'), name: t('object.newObject') }];
         setObjects(newObjects);
-        onNodeChange({ ...node.data, name, definition, explicit_state, implicit_state, properties, objects: newObjects, actions, triggers });
+        onNodeChange({ ...node.data, name, definition, state, properties, objects: newObjects, actions, triggers });
     };
 
     const addAction = () => {
         const newActions = [...actions, { id: generateId('act'), text: t('action.singular'), effects: [] }];
         setActions(newActions);
-        onNodeChange({ ...node.data, name, definition, explicit_state, implicit_state, properties, objects, actions: newActions, triggers });
+        onNodeChange({ ...node.data, name, definition, state, properties, objects, actions: newActions, triggers });
     };
 
     const addTrigger = () => {
         const newTriggers = [...triggers, { id: generateId('trig'), type: 'post_enter', effects: [] }];
         setTriggers(newTriggers);
-        onNodeChange({ ...node.data, name, definition, explicit_state, implicit_state, properties, objects, actions, triggers: newTriggers });
+        onNodeChange({ ...node.data, name, definition, state, properties, objects, actions, triggers: newTriggers });
     };
 
     const [isAddingCharacter, setIsAddingCharacter] = useState(false);
@@ -244,39 +239,15 @@ const NodeEditor = ({ node, onNodeChange, onNodeClose, onShapeClick, onSecondary
                 </div>
 
                 <div className="form-group">
-                    <label>{t('node.explicitState')} <span className="field-hint">({t('node.explicitStateHint')})</span></label>
+                    <label>{t('node.state')} <span className="field-hint">({t('node.stateHint')})</span></label>
                     <textarea
                         className="notebook-textarea"
-                        value={explicit_state}
-                        onChange={(e) => setExplicitState(e.target.value)}
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
                         onBlur={handleSave}
-                        rows={4}
-                        placeholder={t('node.explicitStatePlaceholder')}
+                        rows={5}
+                        placeholder={t('node.statePlaceholder')}
                     />
-                </div>
-
-                <div className="section collapsible-section">
-                    <div 
-                        className="section-header clickable"
-                        onClick={() => setShowImplicitState(!showImplicitState)}
-                    >
-                        <h4>
-                            <span className="collapse-indicator">{showImplicitState ? '▼' : '▶'}</span>
-                            {t('node.implicitState')} <span className="field-hint">({t('node.implicitStateHint')})</span>
-                        </h4>
-                    </div>
-                    {showImplicitState && (
-                        <div className="form-group">
-                            <textarea
-                                className="notebook-textarea"
-                                value={implicit_state}
-                                onChange={(e) => setImplicitState(e.target.value)}
-                                onBlur={handleSave}
-                                rows={3}
-                                placeholder={t('node.implicitStatePlaceholder')}
-                            />
-                        </div>
-                    )}
                 </div>
 
                 <div className="section collapsible-section">
@@ -294,7 +265,7 @@ const NodeEditor = ({ node, onNodeChange, onNodeClose, onShapeClick, onSecondary
                             properties={properties}
                             onChange={(newProps) => {
                                 setProperties(newProps);
-                                onNodeChange({ ...node.data, name, definition, explicit_state, implicit_state, properties: newProps, objects, actions, triggers });
+                                onNodeChange({ ...node.data, name, definition, state, properties: newProps, objects, actions, triggers });
                             }}
                         />
                     )}

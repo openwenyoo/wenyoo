@@ -8,11 +8,9 @@ const ObjectEditor = ({ object = {}, onChange, onRemove, elementType = 'object' 
     const [name, setName] = useState(object.name || '');
     // DSPP model fields
     const [definition, setDefinition] = useState(object.definition || '');
-    const [explicit_state, setExplicitState] = useState(object.explicit_state || '');
-    const [implicit_state, setImplicitState] = useState(object.implicit_state || '');
+    const [state, setState] = useState(object.state || '');
     const [properties, setProperties] = useState(object.properties || {});
 
-    const [showImplicitState, setShowImplicitState] = useState(false);
     const [showProperties, setShowProperties] = useState(false);
 
     // Sync state when object prop changes
@@ -20,13 +18,12 @@ const ObjectEditor = ({ object = {}, onChange, onRemove, elementType = 'object' 
         setId(object.id || '');
         setName(object.name || '');
         setDefinition(object.definition || '');
-        setExplicitState(object.explicit_state || '');
-        setImplicitState(object.implicit_state || '');
+        setState(object.state || '');
         setProperties(object.properties || {});
     }, [object]);
 
     const handleSave = () => {
-        onChange({ id, name, definition, explicit_state, implicit_state, properties });
+        onChange({ id, name, definition, state, properties });
     };
 
     return (
@@ -56,39 +53,15 @@ const ObjectEditor = ({ object = {}, onChange, onRemove, elementType = 'object' 
             </div>
 
             <div className="form-group">
-                <label>{t('node.explicitState')} <span className="field-hint">({t('object.explicitStateHint')})</span></label>
+                <label>{t('object.state')} <span className="field-hint">({t('object.stateHint')})</span></label>
                 <textarea
                     className="notebook-textarea"
-                    value={explicit_state}
-                    onChange={(e) => setExplicitState(e.target.value)}
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
                     onBlur={handleSave}
-                    rows={2}
-                    placeholder={t('object.explicitStatePlaceholder')}
+                    rows={3}
+                    placeholder={t('object.statePlaceholder')}
                 />
-            </div>
-
-            <div className="section collapsible-section">
-                <div 
-                    className="section-header clickable"
-                    onClick={() => setShowImplicitState(!showImplicitState)}
-                >
-                    <h4>
-                        <span className="collapse-indicator">{showImplicitState ? '▼' : '▶'}</span>
-                        {t('object.implicitState')} <span className="field-hint">({t('object.implicitMeaningHint')})</span>
-                    </h4>
-                </div>
-                {showImplicitState && (
-                    <div className="form-group">
-                        <textarea
-                            className="notebook-textarea"
-                            value={implicit_state}
-                            onChange={(e) => setImplicitState(e.target.value)}
-                            onBlur={handleSave}
-                            rows={2}
-                            placeholder={t('node.implicitStatePlaceholder')}
-                        />
-                    </div>
-                )}
             </div>
 
             <div className="section collapsible-section">
@@ -106,7 +79,7 @@ const ObjectEditor = ({ object = {}, onChange, onRemove, elementType = 'object' 
                         properties={properties}
                         onChange={(newProps) => {
                             setProperties(newProps);
-                            onChange({ id, name, definition, explicit_state, implicit_state, properties: newProps });
+                            onChange({ id, name, definition, state, properties: newProps });
                         }}
                     />
                 )}

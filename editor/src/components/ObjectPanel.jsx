@@ -9,7 +9,6 @@ const ObjectPanel = ({ isOpen, onClose, objects = [], onUpdateObjects, storyData
     const [showAI, setShowAI] = useState(false);
     const [aiThinking, setAiThinking] = useState(false);
     const [aiMessage, setAiMessage] = useState('');
-    const [showImplicitStateIds, setShowImplicitStateIds] = useState(new Set());
     const [showPropertiesIds, setShowPropertiesIds] = useState(new Set());
     const { t } = useLocale();
 
@@ -19,8 +18,7 @@ const ObjectPanel = ({ isOpen, onClose, objects = [], onUpdateObjects, storyData
         id: obj.id || '',
         name: obj.name || '',
         definition: obj.definition || '',
-        explicit_state: obj.explicit_state || '',
-        implicit_state: obj.implicit_state || '',
+        state: obj.state || '',
         properties: obj.properties || {},
     });
 
@@ -126,8 +124,7 @@ const ObjectPanel = ({ isOpen, onClose, objects = [], onUpdateObjects, storyData
             id,
             name: t('object.newObject'),
             definition: '',
-            explicit_state: '',
-            implicit_state: '',
+            state: '',
             properties: { status: [] },
         };
         onUpdateObjects([...objects, newObj]);
@@ -139,18 +136,6 @@ const ObjectPanel = ({ isOpen, onClose, objects = [], onUpdateObjects, storyData
         if (window.confirm(t('object.deleteConfirm'))) {
             onUpdateObjects(objects.filter(o => o.id !== id));
         }
-    };
-
-    const toggleImplicitState = (id) => {
-        setShowImplicitStateIds(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
-            return next;
-        });
     };
 
     const toggleProperties = (id) => {
@@ -199,7 +184,6 @@ const ObjectPanel = ({ isOpen, onClose, objects = [], onUpdateObjects, storyData
             <div className="object-list-container">
                 {objects.map(obj => {
                     const isExpanded = expandedIds.has(obj.id);
-                    const showImplicitState = showImplicitStateIds.has(obj.id);
                     const showProperties = showPropertiesIds.has(obj.id);
                     const safeObject = sanitizeObject(obj);
                     return (
@@ -253,34 +237,14 @@ const ObjectPanel = ({ isOpen, onClose, objects = [], onUpdateObjects, storyData
                                     </div>
 
                                     <div className="object-field">
-                                        <label>{t('node.explicitState')}</label>
+                                        <label>{t('object.state')}</label>
                                         <textarea
-                                            value={safeObject.explicit_state}
-                                            onChange={(e) => updateObject(obj.id, { explicit_state: e.target.value })}
+                                            value={safeObject.state}
+                                            onChange={(e) => updateObject(obj.id, { state: e.target.value })}
                                             className="state-description"
-                                            placeholder={t('object.explicitStatePlaceholder')}
+                                            placeholder={t('object.statePlaceholder')}
                                             rows={3}
                                         />
-                                    </div>
-
-                                    <div className="section collapsible-section">
-                                        <div className="section-header clickable" onClick={() => toggleImplicitState(obj.id)}>
-                                            <h4>
-                                                <span className="collapse-indicator">{showImplicitState ? '▼' : '▶'}</span>
-                                                {t('object.implicitState')} <span className="field-hint">({t('object.implicitStateHint')})</span>
-                                            </h4>
-                                        </div>
-                                        {showImplicitState && (
-                                            <div className="object-field">
-                                                <textarea
-                                                    value={safeObject.implicit_state}
-                                                    onChange={(e) => updateObject(obj.id, { implicit_state: e.target.value })}
-                                                    className="state-description"
-                                                    placeholder={t('object.implicitStatePlaceholder')}
-                                                    rows={3}
-                                                />
-                                            </div>
-                                        )}
                                     </div>
 
                                     <div className="section collapsible-section">

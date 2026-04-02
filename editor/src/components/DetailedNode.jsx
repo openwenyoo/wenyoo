@@ -16,7 +16,7 @@ const DetailedNode = ({ data, selected }) => {
     const {
         label,
         definition,
-        explicit_state,
+        state,
         generatedDescription,
         generatedDescriptionPost,
         objects = [],
@@ -58,15 +58,15 @@ const DetailedNode = ({ data, selected }) => {
 
             {data.viewMode === 'detailed' && (
                 <div className="node-body">
-                    {/* Explicit State - What player sees */}
-                    {explicit_state && (
-                        <div className="node-description node-explicit_state">
-                            {truncateText(explicit_state)}
+                    {/* State - current authored world state */}
+                    {state && (
+                        <div className="node-description node-state">
+                            {truncateText(state)}
                         </div>
                     )}
                     
                     {/* Definition - Static rules (shown smaller) */}
-                    {definition && !explicit_state && (
+                    {definition && !state && (
                         <div className="node-description node-definition">
                             {truncateText(definition, 200)}
                         </div>

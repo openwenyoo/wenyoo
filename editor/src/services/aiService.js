@@ -48,7 +48,7 @@ ${edgeContext}
 ${realNodeContext}
 
 INSTRUCTIONS:
-1. For each Pseudo-Node, generate a full node definition (id, name, definition, explicit_state, implicit_state, properties, objects, actions, triggers).
+1. For each Pseudo-Node, generate a full node definition (id, name, definition, state, properties, objects, actions, triggers).
    - Use the ID of the pseudo-node for the new real node (or a derived one, but keeping it simple is better).
    - The content should be based on the user's prompt.
 2. You may also need to update EXISTING nodes.
@@ -75,8 +75,7 @@ Each object MUST have:
 - id: unique identifier
 - name: display name
 - definition: static rules for LLM
-- explicit_state: what player sees
-- implicit_state: hidden AI context
+- state: current dynamic state description; mark non-ordinary visibility in the text when needed
 - properties: key-value data
 - interactions live in definition, not in a separate actions array
 
@@ -1693,7 +1692,7 @@ export const editorStateToStory = (editorState) => {
         storyNodes[node.id] = {
             id: node.id,
             name: nodeData.name || nodeData.label || node.id,
-            description: nodeData.description || nodeData.explicit_state || '',
+            description: nodeData.description || nodeData.state || '',
             actions: nodeData.actions || [],
             objects: nodeData.objects || [],
             triggers: nodeData.triggers || [],

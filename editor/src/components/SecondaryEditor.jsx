@@ -46,8 +46,7 @@ For objects, use this format:
   "id": "object_id",
   "name": "Object Name",
   "definition": "Static description and interaction rules",
-  "explicit_state": "What the player currently sees",
-  "implicit_state": "Hidden AI-only state",
+  "state": "Current dynamic object state. If some details are not normally visible, mark them in the text.",
   "properties": {"status": []}
 }
 
