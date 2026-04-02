@@ -205,7 +205,7 @@ class QualityReport:
                 severity=IssueSeverity.WARNING,
                 location=f"node:{node_id}",
                 message="Node has no description",
-                suggestion="Add a explicit_state or description for this location"
+                suggestion="Add a state or description for this location"
             ))
         
         for node_id, word_count in self.short_descriptions:
@@ -587,7 +587,7 @@ class StoryReviewAgent:
         
         for node_id, node_data in nodes.items():
             # Check description
-            description = node_data.get("description", node_data.get("explicit_state", ""))
+            description = node_data.get("description", node_data.get("state", ""))
             if not description or not description.strip():
                 empty_descriptions.append(node_id)
             elif len(description.split()) < 20:

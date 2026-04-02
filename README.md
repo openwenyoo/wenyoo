@@ -8,7 +8,7 @@ Wenyoo is an AI-native game engine built in Python. Authors define worlds declar
 
 - **Declarative world authoring**: Define entities (nodes, characters, objects) with natural-language definitions that the LLM follows as rules — combat, puzzles, trade, dialogue, or any mechanic you can describe
 - **LLM Architect agent**: A unified tool-calling agent interprets free-form player input, resolves actions against author-written rules, and commits world events
-- **Entity model**: Each entity carries a `definition` (static rules for the LLM), `explicit_state` (what the player sees), and `properties` (mechanical state like inventory, status, and location)
+- **Entity model**: Each entity carries a `definition` (static rules for the LLM), `state` (what the player sees), and `properties` (mechanical state like inventory, status, and location)
 - **Connection graph**: A relationship map between entities that lets the Architect propagate consequences — when a lever is pulled in one room, the effect reaches a locked cradle in another
 - **Multiplayer**: Multiple players share the same world with per-player state, local speech, item handoff, and cross-room communication
 - **Web-based interface**: Modern frontend with real-time WebSocket communication
@@ -235,16 +235,16 @@ Start here:
 - **initial_variables**: Story-wide variables, counters, flags, lore, and derived values
 - **nodes**: Story locations or scenes, authored with the DSPP model:
   - **definition**: What the node is and how it should behave
-  - **explicit_state**: What the player currently perceives
+  - **state**: What the player currently perceives
   - **properties**: Mechanical state and custom structured data
   - plus local **actions**, **objects**, and **triggers**
 - **objects**: World objects also use DSPP:
   - **definition**: Identity and authored interaction rules
-  - **explicit_state**: Visible current presentation
+  - **state**: Visible current presentation
   - **properties**: Mechanical state such as containment, status, or custom fields
 - **characters**: Characters use DSPPM:
   - **definition**: Identity, personality, and behavior rules
-  - **explicit_state**: What is visibly true now
+  - **state**: What is visibly true now
   - **properties**: Stats, location, inventory, status, and other mechanics
   - **memory**: Accumulated interaction history for that character
 

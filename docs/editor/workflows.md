@@ -21,8 +21,8 @@ For each node, review:
 
 - `name`
 - `definition`
-- `explicit_state`
-- `implicit_state`
+- `state`
+- `state`
 - `objects`
 - `actions`
 - `triggers`

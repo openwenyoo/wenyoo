@@ -74,8 +74,7 @@ definition: |        # Static: interaction rules, description
   [Interaction Rules]
   ## Examine
   When player examines: ...
-explicit_state: "..."      # Dynamic: current visible state
-implicit_state: "..."    # Dynamic: hidden state (optional)
+state: "..."               # Dynamic: current state; embed invisibility markers in the text when needed
 properties:
   status: []          # Dynamic: status tags
 ```
@@ -94,8 +93,7 @@ definition: |         # Static: identity, personality, behavior
   ## Behavior Rules
   ### Greeting
   When player greets: ...
-explicit_state: "..."      # Dynamic: current appearance
-implicit_state: "..."    # Dynamic: hidden thoughts (optional)
+state: "..."               # Dynamic: current character state
 memory: []            # Dynamic: accumulated experiences
 properties:
   status: []
@@ -109,9 +107,9 @@ id: node_id
 name: "Node Name"
 definition: |         # Static: generation template (optional)
   Location type, atmosphere, what should be here...
-explicit_state: |          # Dynamic: current visible description
+state: |          # Dynamic: current visible description
   Rich description with {object_id: links} and {@char_id: characters}...
-implicit_state: "..."    # Dynamic: hidden secrets (optional)
+state: "..."    # Dynamic: hidden secrets (optional)
 ```
 
 ## Effect Format in Definitions

@@ -135,8 +135,8 @@ In Wenyoo, the goal is not "beautiful prose at any cost." The goal is coherent w
 The Architect operates over a layered entity model:
 
 - `definition`: what an entity is, and the rules that define it
-- `explicit_state`: what is visibly true now
-- `implicit_state`: hidden context
+- `state`: what is visibly true now
+- `state`: hidden context
 - `memory`: accumulated interaction history for characters
 - `properties`: mechanical state such as stats, inventory, status, and location
 

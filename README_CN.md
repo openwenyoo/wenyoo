@@ -8,7 +8,7 @@
 
 - **声明式世界构建**: 用自然语言定义实体（节点、角色、物品）的规则, LLM 会将其作为运行时指令执行, 无论是战斗、谜题、交易、对话, 还是你能描述的其他机制
 - **LLM Architect 智能体**: 统一的工具调用智能体, 解析玩家自由文本输入, 根据作者编写的规则处理行为, 并提交世界事件
-- **实体模型**: 每个实体都包含 `definition`（LLM 遵循的静态规则）、`explicit_state`（玩家看到的内容）和 `properties`（如背包、状态、位置等机械数据）
+- **实体模型**: 每个实体都包含 `definition`（LLM 遵循的静态规则）、`state`（玩家看到的内容）和 `properties`（如背包、状态、位置等机械数据）
 - **连接图谱**: 实体关系图帮助 Architect 传播后果, 例如一个房间中的拉杆会影响另一个房间里的机关
 - **多人游戏**: 多名玩家共享同一个世界, 同时保留各自的玩家状态、本地发言、物品交接和跨房间通信
 - **Web 界面**: 基于 WebSocket 的现代前端界面
@@ -230,16 +230,16 @@ python -m src.main --llm-base-url http://localhost:8080/v1 --llm-model mistral-7
 - **initial_variables**: 故事级变量、计数器、标记、lore 和派生值
 - **nodes**: 故事中的地点或场景, 使用 DSPP 模型编写:
   - **definition**: 节点是什么, 以及它应如何运作
-  - **explicit_state**: 玩家当前能感知到的内容
+  - **state**: 玩家当前能感知到的内容
   - **properties**: 机械状态与自定义结构化数据
   - 以及局部的 **actions**、**objects** 和 **triggers**
 - **objects**: 世界中的物品同样使用 DSPP:
   - **definition**: 物品身份与作者定义的交互规则
-  - **explicit_state**: 当前可见表现
+  - **state**: 当前可见表现
   - **properties**: 例如容器关系、状态标记或自定义字段等机械数据
 - **characters**: 角色使用 DSPPM:
   - **definition**: 身份、性格与行为规则
-  - **explicit_state**: 当前对玩家可见的真实状态
+  - **state**: 当前对玩家可见的真实状态
   - **properties**: 属性、位置、背包、状态和其他机制数据
   - **memory**: 该角色累计的互动历史
 

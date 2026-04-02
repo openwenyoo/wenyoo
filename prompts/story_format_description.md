@@ -41,7 +41,7 @@ metadata: {}
 nodes:
   intro:
     name: "Intro"
-    explicit_state: "You arrive at the city gates."
+    state: "You arrive at the city gates."
     actions: []
 ```
 
@@ -147,8 +147,7 @@ Avoid circular dependencies between derived variables.
 Characters use the DSPP-style entity model:
 
 - `definition`: static identity, behavior rules, and lore
-- `explicit_state`: mutable visible baseline / compatibility field
-- `implicit_state`: hidden runtime context / compatibility field
+- `state`: mutable current state description. If some facts are not normally perceivable, mark them in the text itself and let the Architect decide what a viewer can perceive.
 - `memory`: accumulated interaction history
 - `properties`: mechanical state such as `location`, `status`, `inventory`, `stats`, `affinity`
 
@@ -161,8 +160,7 @@ characters:
     is_playable: true
     definition: |
       A disciplined knight from the northern kingdoms.
-    explicit_state: "A knight in polished armor stands ready."
-    implicit_state: ""
+    state: "A knight in polished armor stands ready."
     memory: []
     properties:
       location: town_square
@@ -189,8 +187,7 @@ characters:
       When the player greets you:
       - Respond warmly
       - Effect: {"type": "set_variable", "target": "met_hermit", "value": true}
-    explicit_state: "An old hermit sits beside a mossy stump."
-    implicit_state: "Knows where the silver key is hidden"
+    state: "An old hermit sits beside a mossy stump.\n\n[Invisible to ordinary observers] Knows where the silver key is hidden"
     memory: []
     properties:
       location: hidden_grove
@@ -212,8 +209,7 @@ Object fields:
 - `id`
 - `name`
 - `definition`
-- `explicit_state`
-- `implicit_state`
+- `state`
 - `properties`
 
 Example:
@@ -224,8 +220,7 @@ objects:
     name: "Rusty Key"
     definition: |
       An old iron key with deep rust along the teeth.
-    explicit_state: "A rusty key lies half-buried in the dust."
-    implicit_state: ""
+    state: "A rusty key lies half-buried in the dust."
     properties:
       status: []
 ```
@@ -245,8 +240,7 @@ objects:
       When player examines the well:
       - Display: You peer down and spot {{silver_key: a silver key}} at the bottom.
       - Effect: {"type": "set_variable", "target": "well_examined", "value": true}
-    explicit_state: "An old stone well stands in the clearing."
-    implicit_state: "Contains the silver key needed for the cave door"
+    state: "An old stone well stands in the clearing.\n\n[Invisible to ordinary observers] Contains the silver key needed for the cave door"
     properties:
       status: []
       contains: [silver_key]
@@ -273,8 +267,7 @@ objects:
       【Timed Rules】
       If the lever is left on, it automatically snaps back to off after 15 seconds.
       Anyone in Relay Gallery should notice the reset.
-    explicit_state: "The lever rests in the off position."
-    implicit_state: ""
+    state: "The lever rests in the off position."
     properties:
       status: []
       switch_state: off
@@ -301,8 +294,7 @@ nodes:
     name: "Town Square"
     definition: |
       The busy commercial heart of the city.
-    explicit_state: "Merchants shout over one another in the crowded square."
-    implicit_state: ""
+    state: "Merchants shout over one another in the crowded square."
     properties:
       status: []
       visit_count: 0
@@ -317,7 +309,7 @@ nodes:
     triggers: []
 ```
 
-Use `explicit_state`, not legacy node `description`, in new authored content.
+Use `state`, not legacy node `description`, in new authored content.
 
 ---
 
@@ -657,8 +649,7 @@ characters:
     name: "Investigator"
     is_playable: true
     definition: "A determined investigator of the occult."
-    explicit_state: "A wary figure clutching a notebook."
-    implicit_state: ""
+    state: "A wary figure clutching a notebook."
     memory: []
     properties:
       location: mansion_gate
@@ -672,8 +663,7 @@ objects:
   - id: flashlight
     name: "Flashlight"
     definition: "A sturdy metal flashlight."
-    explicit_state: "A flashlight lies in the weeds."
-    implicit_state: ""
+    state: "A flashlight lies in the weeds."
     properties:
       status: []
 
@@ -682,8 +672,7 @@ nodes:
     name: "Mansion Gate"
     definition: |
       Rusted iron gates stand before a looming Victorian manor.
-    explicit_state: "The iron gate hangs crooked as fog curls through the garden."
-    implicit_state: ""
+    state: "The iron gate hangs crooked as fog curls through the garden."
     properties:
       status: []
       visit_count: 0
@@ -700,8 +689,7 @@ nodes:
   main_hall:
     name: "Main Hall"
     definition: "A vast entrance hall lined with portraits."
-    explicit_state: "Dusty portraits stare down from the walls of the hall."
-    implicit_state: ""
+    state: "Dusty portraits stare down from the walls of the hall."
     properties:
       status: []
       visit_count: 0
@@ -716,7 +704,7 @@ nodes:
 - [ ] Story has `id`, `name`, `start_node_id`, and `nodes`
 - [ ] `start_node_id` points to an existing node
 - [ ] Node IDs are unique and snake_case
-- [ ] New authored nodes use `explicit_state`, not legacy `description`
+- [ ] New authored nodes use `state`, not legacy `description`
 - [ ] Effects use `type`
 - [ ] `set_variable` uses `target`, not `variable`
 - [ ] `goto_node` uses `target`, not `target_node`

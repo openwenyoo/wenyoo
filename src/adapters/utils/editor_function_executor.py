@@ -244,8 +244,7 @@ class EditorFunctionExecutor:
             'id': node_id,
             'name': args.get('name', node_id),
             'definition': args.get('definition', ''),
-            'explicit_state': args.get('explicit_state', args.get('description', '')),
-            'implicit_state': args.get('implicit_state', ''),
+            'state': args.get('state', args.get('description', '')),
             'properties': args.get('properties', {'status': []}),
             'actions': args.get('actions', []),
             'objects': args.get('objects', []),
@@ -290,7 +289,7 @@ class EditorFunctionExecutor:
         existing = self.state.nodes[node_id]
         updated_fields = []
         
-        entity_fields = ['name', 'definition', 'explicit_state', 'implicit_state', 'properties', 
+        entity_fields = ['name', 'definition', 'state', 'properties', 
                          'actions', 'objects', 'triggers', 'is_ending']
         for field in entity_fields:
             if field in args and args[field] is not None:
@@ -300,9 +299,9 @@ class EditorFunctionExecutor:
                     existing[field] = args[field]
                 updated_fields.append(field)
         
-        if 'description' in args and args['description'] is not None and 'explicit_state' not in args:
-            existing['explicit_state'] = args['description']
-            updated_fields.append('explicit_state')
+        if 'description' in args and args['description'] is not None and 'state' not in args:
+            existing['state'] = args['description']
+            updated_fields.append('state')
         
         self.state.add_change('update', node_id, fields=updated_fields)
         
@@ -618,8 +617,7 @@ class EditorFunctionExecutor:
             'id': char_id,
             'name': args.get('name', char_id),
             'definition': args.get('definition', ''),
-            'explicit_state': args.get('explicit_state', args.get('description', '')),
-            'implicit_state': args.get('implicit_state', ''),
+            'state': args.get('state', args.get('description', '')),
             'properties': args.get('properties', {}),
             'is_playable': args.get('is_playable', False),
             'parameters': args.get('parameters', {}),
@@ -652,16 +650,16 @@ class EditorFunctionExecutor:
         existing = self.state.characters[char_id]
         updated_fields = []
         
-        entity_fields = ['name', 'definition', 'explicit_state', 'implicit_state', 'properties',
+        entity_fields = ['name', 'definition', 'state', 'properties',
                          'is_playable', 'parameters', 'stats']
         for field in entity_fields:
             if field in args and args[field] is not None:
                 existing[field] = args[field]
                 updated_fields.append(field)
         
-        if 'description' in args and args['description'] is not None and 'explicit_state' not in args:
-            existing['explicit_state'] = args['description']
-            updated_fields.append('explicit_state')
+        if 'description' in args and args['description'] is not None and 'state' not in args:
+            existing['state'] = args['description']
+            updated_fields.append('state')
         
         self.state.add_change('update', char_id, entity_type='character', fields=updated_fields)
         
@@ -736,8 +734,7 @@ class EditorFunctionExecutor:
             'id': obj_id,
             'name': args.get('name', obj_id),
             'definition': args.get('definition', ''),
-            'explicit_state': args.get('explicit_state', args.get('description', '')),
-            'implicit_state': args.get('implicit_state', ''),
+            'state': args.get('state', args.get('description', '')),
             'properties': args.get('properties', {'status': []}),
         }
         
@@ -767,15 +764,15 @@ class EditorFunctionExecutor:
         existing = self.state.objects[obj_id]
         updated_fields = []
         
-        entity_fields = ['name', 'definition', 'explicit_state', 'implicit_state', 'properties']
+        entity_fields = ['name', 'definition', 'state', 'properties']
         for field in entity_fields:
             if field in args and args[field] is not None:
                 existing[field] = args[field]
                 updated_fields.append(field)
         
-        if 'description' in args and args['description'] is not None and 'explicit_state' not in args:
-            existing['explicit_state'] = args['description']
-            updated_fields.append('explicit_state')
+        if 'description' in args and args['description'] is not None and 'state' not in args:
+            existing['state'] = args['description']
+            updated_fields.append('state')
         
         self.state.add_change('update', obj_id, entity_type='object', fields=updated_fields)
         

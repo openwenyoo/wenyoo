@@ -67,7 +67,7 @@ class StateContextBuilder:
                 "id": item_id,
                 "name": resolved.name if resolved else item_id,
                 "definition": (
-                    getattr(resolved, 'definition', '') or getattr(resolved, 'explicit_state', '')
+                    getattr(resolved, 'definition', '') or getattr(resolved, 'state', '')
                 ) if resolved else ''
             })
         
@@ -116,12 +116,12 @@ class StateContextBuilder:
         current_node = game_state.nodes.get(location_id) if location_id else None
         
         if not current_node:
-            return {"id": location_id, "name": "Unknown", "explicit_state": ""}
+            return {"id": location_id, "name": "Unknown", "state": ""}
         
         return {
             "id": location_id,
             "name": current_node.name or location_id,
-            "explicit_state": current_node.explicit_state or ""
+            "state": current_node.state or ""
         }
     
     def _get_objects_context(self, game_state: 'GameState', player_id: str) -> List[Dict[str, Any]]:
@@ -140,7 +140,7 @@ class StateContextBuilder:
                     "name": obj.name,
                     "status": obj.get_status() if hasattr(obj, 'get_status') else [],
                     "definition": getattr(obj, 'definition', ''),
-                    "explicit_state": getattr(obj, 'explicit_state', ''),
+                    "state": getattr(obj, 'state', ''),
                     "properties": getattr(obj, 'properties', {}),
                 })
         
@@ -169,7 +169,7 @@ class StateContextBuilder:
                     "id": char.id,
                     "name": char.name,
                     "definition": char.definition,
-                    "explicit_state": char_state.get("explicit_state", char.explicit_state),
+                    "state": char_state.get("state", char.state),
                     "properties": char_state.get("properties", {}),
                 })
         
@@ -191,8 +191,7 @@ class StateContextBuilder:
             "id": character.id,
             "name": character.name,
             "definition": character.definition,
-            "explicit_state": char_state.get("explicit_state", character.explicit_state),
-            "implicit_state": char_state.get("implicit_state", character.implicit_state),
+            "state": char_state.get("state", character.state),
             "inventory": inventory,
             "properties": properties,
             "memory": memory,
@@ -276,8 +275,8 @@ class StateContextBuilder:
             lines.append(f"\nTarget character: {target_character.get('name')}")
             if target_character.get("definition"):
                 lines.append(f"Definition: {target_character.get('definition')}")
-            if target_character.get("explicit_state"):
-                lines.append(f"Visible state: {target_character.get('explicit_state')}")
+            if target_character.get("state"):
+                lines.append(f"State: {target_character.get('state')}")
             if target_character.get("inventory"):
                 lines.append(f"Inventory: {', '.join(target_character.get('inventory', []))}")
         

@@ -65,8 +65,8 @@ class GameState:
         # ═══════════════════════════════════════════════════════════════════════════
         
         # Runtime DIP changes for nodes. Only populated when a node is modified
-        # at runtime (e.g., LLM-generated explicit_state). Used for save/load persistence.
-        # At runtime, node.explicit_state/implicit_state/properties are mutated directly.
+        # at runtime. Used for save/load persistence.
+        # At runtime, node.state/properties are mutated directly.
         self.node_states: Dict[str, Dict[str, Any]] = {}
 
         # Add timed events list
@@ -77,7 +77,7 @@ class GameState:
         # Character State Tracking
         # ═══════════════════════════════════════════════════════════════════════════
         
-        # Runtime state for each character (explicit_state, implicit_state, memory, properties changes)
+        # Runtime state for each character (state, memory, properties changes)
         # Keys are character IDs, values are dicts with runtime state
         self.character_states: Dict[str, Dict[str, Any]] = {}
         
@@ -85,8 +85,7 @@ class GameState:
         if story.characters:
             for char in story.characters:
                 self.character_states[char.id] = {
-                    'explicit_state': char.explicit_state,
-                    'implicit_state': char.implicit_state,
+                    'state': char.state,
                     'memory': list(char.memory),  # Copy to avoid mutating story
                     # Properties runtime state (can override story definition)
                     'properties': dict(char.properties),  # Copy to avoid mutating story
@@ -100,7 +99,7 @@ class GameState:
         # Object State Tracking
         # ═══════════════════════════════════════════════════════════════════════════
         
-        # Runtime state for each object (explicit_state, implicit_state, properties changes)
+        # Runtime state for each object (state, properties changes)
         # Keys are object IDs, values are dicts with runtime state
         # Note: Objects don't have memory since they don't "remember" interactions
         self.object_states: Dict[str, Dict[str, Any]] = {}
@@ -460,8 +459,7 @@ class GameState:
     def _init_single_object_state(self, obj: StoryObject) -> None:
         """Initialize runtime state for a single object."""
         self.object_states[obj.id] = {
-            'explicit_state': obj.explicit_state,
-            'implicit_state': getattr(obj, 'implicit_state', ''),
+            'state': obj.state,
             # Properties runtime state
             'properties': dict(getattr(obj, 'properties', {})),
         }
@@ -470,54 +468,24 @@ class GameState:
     # Node State Helpers
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def update_node_explicit_state(self, node_id: str, explicit_state: str) -> None:
-        """Update a node's explicit_state directly and track the change for save/load.
-        
-        Args:
-            node_id: The node ID to update
-            explicit_state: The new explicit_state text
-        """
-        node = self.nodes.get(node_id)
-        if not node:
-            logger.warning(f"update_node_explicit_state: Node '{node_id}' not found")
-            return
-        node.explicit_state = explicit_state
-        # Track in node_states for save/load persistence
-        if node_id not in self.node_states:
-            self.node_states[node_id] = {}
-        self.node_states[node_id]['explicit_state'] = explicit_state
-        self._mark_world_changed()
-        logger.debug(f"update_node_explicit_state: Updated '{node_id}' explicit_state")
-
-    def update_node_state(self, node_id: str, explicit_state: str = None, 
-                          implicit_state: str = None, properties: Dict[str, Any] = None) -> None:
-        """Update a node's DIP state directly and track changes for save/load.
-        
-        Args:
-            node_id: The node ID to update
-            explicit_state: Optional new explicit_state text
-            implicit_state: Optional new implicit_state text
-            properties: Optional properties dict to merge
-        """
+    def update_node_state(self, node_id: str, state: str = None, properties: Dict[str, Any] = None) -> None:
+        """Update a node's runtime state directly and track changes for save/load."""
         node = self.nodes.get(node_id)
         if not node:
             logger.warning(f"update_node_state: Node '{node_id}' not found")
             return
         
-        if explicit_state is not None:
-            node.explicit_state = explicit_state
-        if implicit_state is not None:
-            node.implicit_state = implicit_state
+        if state is not None:
+            node.state = state
         if properties is not None:
             node.properties.update(properties)
         
         # Track in node_states for save/load persistence
         self.node_states[node_id] = {
-            'explicit_state': node.explicit_state,
-            'implicit_state': node.implicit_state,
+            'state': node.state,
             'properties': dict(node.properties),
         }
-        if explicit_state is not None or properties is not None:
+        if state is not None or properties is not None:
             self._mark_world_changed()
         logger.debug(f"update_node_state: Updated '{node_id}' state")
 
@@ -553,8 +521,7 @@ class GameState:
         # Initialize character state if not exists
         if character.id not in self.character_states:
             self.character_states[character.id] = {
-                'explicit_state': character.explicit_state,
-                'implicit_state': character.implicit_state,
+                'state': character.state,
                 'memory': list(character.memory),
                 'properties': dict(character.properties),
             }
@@ -613,7 +580,7 @@ class GameState:
         
         Examples:
             'player.properties.stats.health' -> character_states[controlled_id]['properties']['stats']['health']
-            'player.explicit_state' -> character_states[controlled_id]['explicit_state']
+            'player.state' -> character_states[controlled_id]['state']
             'player.properties.inventory' -> character_states[controlled_id]['properties']['inventory']
         
         Args:
@@ -1037,9 +1004,9 @@ class GameState:
             for p_id, p_data in serializable_vars['players'].items():
                 serializable_vars['players'][p_id] = self._serialize_player_state_for_save(p_data)
 
-        # Track object status and explicit_state changes
+        # Track object status and state changes
         object_status_changes = {}
-        object_explicit_state_changes = {}
+        object_state_changes = {}
         for node_id, current_node in self.nodes.items():
             original_node = self.story.nodes.get(node_id)
             if not original_node:
@@ -1056,11 +1023,11 @@ class GameState:
                     original_status = original_obj.get_status() if hasattr(original_obj, 'get_status') else []
                     if current_status != original_status:
                         object_status_changes[obj_id] = current_status
-                    # Check explicit_state changes
-                    current_explicit_state = getattr(current_obj, 'explicit_state', '')
-                    original_explicit_state = getattr(original_obj, 'explicit_state', '')
-                    if current_explicit_state != original_explicit_state:
-                        object_explicit_state_changes[obj_id] = current_explicit_state
+                    # Check state changes
+                    current_state = getattr(current_obj, 'state', '')
+                    original_state = getattr(original_obj, 'state', '')
+                    if current_state != original_state:
+                        object_state_changes[obj_id] = current_state
 
         # Collect all object definitions from the story
         all_object_definitions = {}
@@ -1102,7 +1069,7 @@ class GameState:
         diff = {
             "variables": serializable_vars,
             "object_status_changes": object_status_changes,
-            "object_explicit_state_changes": object_explicit_state_changes,
+            "object_state_changes": object_state_changes,
             "visited_nodes": list(self.visited_nodes),
             "timed_events": self.timed_events,
             "runtime_connections": self._serialize_json_safe(copy.deepcopy(self.runtime_connections)),
@@ -1268,8 +1235,7 @@ class GameState:
                     props['inventory'] = self._serialize_inventory_refs(props['inventory'])
                 entry: Dict[str, Any] = {
                     'name': char_def.name if char_def else char_id,
-                    'explicit_state': state.get('explicit_state', ''),
-                    'implicit_state': state.get('implicit_state', ''),
+                    'state': state.get('state', ''),
                     'memory': list(state.get('memory', [])),
                     'properties': props,
                 }
@@ -1307,8 +1273,7 @@ class GameState:
             obj_def = self.story.get_object(obj_id) if self.story else None
             entry = {
                 'name': obj_def.name if obj_def else obj_id,
-                'explicit_state': state.get('explicit_state', obj_def.explicit_state if obj_def else ''),
-                'implicit_state': state.get('implicit_state', getattr(obj_def, 'implicit_state', '') if obj_def else ''),
+                'state': state.get('state', obj_def.state if obj_def else ''),
                 'properties': state.get('properties', {}),
             }
             if obj_def and obj_def.definition:
@@ -1323,7 +1288,7 @@ class GameState:
                 if obj.id not in seen_obj_ids:
                     entry = {
                         'name': obj.name,
-                        'explicit_state': obj.explicit_state or '',
+                        'state': obj.state or '',
                     }
                     if obj.definition:
                         entry['definition'] = obj.definition
@@ -1400,8 +1365,7 @@ class GameState:
                     'id': node_id,
                     'name': node.name or node_id,
                     'definition': node.definition,
-                    'explicit_state': node.explicit_state or '',
-                    'implicit_state': node.implicit_state or '',
+                    'state': node.state or '',
                     'properties': dict(node.properties),
                     'actions': actions_list,
                     'objects': object_ids,
@@ -1474,7 +1438,7 @@ class GameState:
                     continue
                 if char_id not in self.character_states:
                     self.character_states[char_id] = {
-                        'explicit_state': '', 'implicit_state': '', 'memory': [], 'properties': {},
+                        'state': '', 'memory': [], 'properties': {},
                     }
                     # Register stub in story if needed
                     if self.story and not self.story.get_character(char_id):
@@ -1482,7 +1446,7 @@ class GameState:
                         location = (char_patch.get('properties') or {}).get('location', '')
                         stub = Character(
                             id=char_id, name=name, definition=char_patch.get('definition', ''),
-                            explicit_state=char_patch.get('explicit_state', ''),
+                            state=char_patch.get('state', ''),
                             properties={'location': location} if location else {},
                             is_playable=char_patch.get('is_playable', False),
                         )
@@ -1504,10 +1468,9 @@ class GameState:
                         story_char.properties = dict(story_char.properties or {})
                         if 'location' in char_patch['properties']:
                             story_char.properties['location'] = char_patch['properties']['location']
-                for field in ('explicit_state', 'implicit_state'):
-                    if field in char_patch:
-                        state[field] = char_patch[field]
-                        applied.append(f"character_states.{char_id}.{field}")
+                if 'state' in char_patch:
+                    state['state'] = char_patch['state']
+                    applied.append(f"character_states.{char_id}.state")
                 if 'memory' in char_patch:
                     state['memory'] = list(char_patch['memory'])
                     applied.append(f"character_states.{char_id}.memory")
@@ -1547,12 +1510,9 @@ class GameState:
                     node.name = node_patch['name']
                 if 'definition' in node_patch:
                     node.definition = node_patch['definition']
-                if 'explicit_state' in node_patch:
-                    self.update_node_explicit_state(node_id, node_patch['explicit_state'])
-                    applied.append(f"nodes.{node_id}.explicit_state")
-                if 'implicit_state' in node_patch:
-                    self.update_node_state(node_id, implicit_state=node_patch['implicit_state'])
-                    applied.append(f"nodes.{node_id}.implicit_state")
+                if 'state' in node_patch:
+                    self.update_node_state(node_id, state=node_patch['state'])
+                    applied.append(f"nodes.{node_id}.state")
                 if 'hints' in node_patch:
                     node.hints = node_patch['hints']
                     applied.append(f"nodes.{node_id}.hints")
@@ -1598,7 +1558,7 @@ class GameState:
                             stub = StoryObject(
                                 id=obj_id,
                                 name=obj_patch.get('name', obj_id),
-                                explicit_state=obj_patch.get('explicit_state', ''),
+                                state=obj_patch.get('state', ''),
                                 definition=obj_patch.get('definition', ''),
                             )
                             if self.story.objects is None:
@@ -1760,10 +1720,8 @@ class GameState:
             for node_id, state in self.node_states.items():
                 node = self.nodes.get(node_id)
                 if node:
-                    if 'explicit_state' in state:
-                        node.explicit_state = state['explicit_state']
-                    if 'implicit_state' in state:
-                        node.implicit_state = state['implicit_state']
+                    if 'state' in state:
+                        node.state = state['state']
                     if 'properties' in state:
                         node.properties.update(state['properties'])
         if "timed_events" in data:
@@ -1823,10 +1781,8 @@ class GameState:
             for node_id, state in saved_node_states.items():
                 node = game_state.nodes.get(node_id)
                 if node:
-                    if 'explicit_state' in state:
-                        node.explicit_state = state['explicit_state']
-                    if 'implicit_state' in state:
-                        node.implicit_state = state['implicit_state']
+                    if 'state' in state:
+                        node.state = state['state']
                     if 'properties' in state:
                         node.properties.update(state['properties'])
                     logger.debug(f"Restored node state for '{node_id}'")
@@ -1838,12 +1794,12 @@ class GameState:
             if obj and hasattr(obj, 'properties'):
                 obj.properties['status'] = new_status
         
-        # Apply object explicit_state changes
-        object_explicit_state_changes = diff.get("object_explicit_state_changes", {})
-        for obj_id, new_explicit_state in object_explicit_state_changes.items():
+        # Apply object state changes
+        object_state_changes = diff.get("object_state_changes", {})
+        for obj_id, new_state in object_state_changes.items():
             obj = game_state.find_object_in_world(obj_id)
             if obj:
-                obj.explicit_state = new_explicit_state
+                obj.state = new_state
 
         # Restore character states
         saved_character_states = diff.get("character_states", {})
@@ -2003,8 +1959,7 @@ class GameState:
         if self.story.characters:
             for char in self.story.characters:
                 self.character_states[char.id] = {
-                    'explicit_state': char.explicit_state,
-                    'implicit_state': char.implicit_state,
+                    'state': char.state,
                     'memory': list(char.memory),
                     'properties': dict(char.properties),
                 }
@@ -2067,13 +2022,13 @@ class GameState:
             return self.get_character_status(char_id)
         return []
 
-    def get_player_explicit_state(self, player_id: str) -> str:
-        """Get the current explicit_state for a player's controlled character."""
+    def get_player_state(self, player_id: str) -> str:
+        """Get the current state text for a player's controlled character."""
         char_id = self.get_controlled_character_id(player_id)
         if char_id:
             char_state = self.character_states.get(char_id, {})
             story_character = self.story.get_character(char_id) if self.story else None
-            return char_state.get("explicit_state", story_character.explicit_state if story_character else "")
+            return char_state.get("state", story_character.state if story_character else "")
         return ""
     
     def set_player_inventory(self, player_id: str, inventory: List[Any]) -> None:
@@ -2141,17 +2096,17 @@ class GameState:
     def get_object_state(self, object_id: str) -> Optional[Dict[str, Any]]:
         """Get the runtime state for an object.
         
-        Returns dict with: explicit_state, implicit_state, properties
+        Returns dict with: state, properties
         """
         return self.object_states.get(object_id)
     
-    def get_object_explicit_state(self, object_id: str) -> str:
-        """Get an object's current explicit_state."""
+    def get_object_state_text(self, object_id: str) -> str:
+        """Get an object's current state text."""
         state = self.object_states.get(object_id, {})
-        return state.get('explicit_state', '')
+        return state.get('state', '')
     
-    def set_object_explicit_state(self, object_id: str, explicit_state: str) -> bool:
-        """Set an object's explicit_state.
+    def set_object_state_text(self, object_id: str, state_text: str) -> bool:
+        """Set an object's state text.
         
         Updates both the runtime state and the actual object.
         Returns True if successful.
@@ -2159,47 +2114,19 @@ class GameState:
         # Initialize state if not exists
         if object_id not in self.object_states:
             self.object_states[object_id] = {
-                'explicit_state': '',
-                'implicit_state': '',
+                'state': '',
                 'properties': {'status': []}
             }
         
-        self.object_states[object_id]['explicit_state'] = explicit_state
+        self.object_states[object_id]['state'] = state_text
         
         # Also update the actual object for consistency
         obj = self.find_object_anywhere(object_id)
         if obj:
-            obj.explicit_state = explicit_state
+            obj.state = state_text
         
         self._mark_world_changed()
-        logger.debug(f"Set explicit_state for object '{object_id}': {explicit_state[:50]}...")
-        return True
-    
-    def get_object_implicit_state(self, object_id: str) -> str:
-        """Get an object's current implicit_state (hidden state)."""
-        state = self.object_states.get(object_id, {})
-        return state.get('implicit_state', '')
-    
-    def set_object_implicit_state(self, object_id: str, implicit_state: str) -> bool:
-        """Set an object's implicit_state (hidden state).
-        
-        Returns True if successful.
-        """
-        if object_id not in self.object_states:
-            self.object_states[object_id] = {
-                'explicit_state': '',
-                'implicit_state': '',
-                'properties': {'status': []}
-            }
-        
-        self.object_states[object_id]['implicit_state'] = implicit_state
-        
-        # Also update the actual object if it has implicit_state attribute
-        obj = self.find_object_anywhere(object_id)
-        if obj and hasattr(obj, 'implicit_state'):
-            obj.implicit_state = implicit_state
-        
-        logger.debug(f"Set implicit_state for object '{object_id}': {implicit_state[:50]}...")
+        logger.debug(f"Set state for object '{object_id}': {state_text[:50]}...")
         return True
     
     def get_object_property(self, object_id: str, key: str, default: Any = None) -> Any:
@@ -2231,8 +2158,7 @@ class GameState:
         """
         if object_id not in self.object_states:
             self.object_states[object_id] = {
-                'explicit_state': '',
-                'implicit_state': '',
+                'state': '',
                 'properties': {'status': []}
             }
         
@@ -2271,8 +2197,7 @@ class GameState:
         # Initialize state if not exists
         if object_id not in self.object_states:
             self.object_states[object_id] = {
-                'explicit_state': '',
-                'implicit_state': '',
+                'state': '',
                 'properties': {'status': []}
             }
         
@@ -2339,55 +2264,31 @@ class GameState:
     def get_character_state(self, character_id: str) -> Optional[Dict[str, Any]]:
         """Get the runtime state for a character.
         
-        Returns dict with: explicit_state, implicit_state, memory, properties
+        Returns dict with: state, memory, properties
         """
         return self.character_states.get(character_id)
     
-    def get_character_explicit_state(self, character_id: str) -> str:
-        """Get a character's current explicit_state."""
+    def get_character_state_text(self, character_id: str) -> str:
+        """Get a character's current state text."""
         state = self.character_states.get(character_id, {})
-        return state.get('explicit_state', '')
+        return state.get('state', '')
     
-    def set_character_explicit_state(self, character_id: str, explicit_state: str) -> bool:
-        """Set a character's explicit_state.
+    def set_character_state_text(self, character_id: str, state_text: str) -> bool:
+        """Set a character's state text.
         
         Returns True if successful, False if character not found.
         """
         if character_id not in self.character_states:
             # Initialize state for this character
             self.character_states[character_id] = {
-                'explicit_state': '',
-                'implicit_state': '',
+                'state': '',
                 'memory': [],
                 'properties': {}
             }
         
-        self.character_states[character_id]['explicit_state'] = explicit_state
+        self.character_states[character_id]['state'] = state_text
         self._mark_world_changed()
-        logger.debug(f"Set explicit_state for character '{character_id}': {explicit_state[:50]}...")
-        return True
-    
-    def get_character_implicit_state(self, character_id: str) -> str:
-        """Get a character's current implicit_state (hidden state)."""
-        state = self.character_states.get(character_id, {})
-        return state.get('implicit_state', '')
-    
-    def set_character_implicit_state(self, character_id: str, implicit_state: str) -> bool:
-        """Set a character's implicit_state (hidden state).
-        
-        Returns True if successful.
-        """
-        if character_id not in self.character_states:
-            self.character_states[character_id] = {
-                'explicit_state': '',
-                'implicit_state': '',
-                'memory': [],
-                'properties': {}
-            }
-        
-        self.character_states[character_id]['implicit_state'] = implicit_state
-        self._mark_world_changed()
-        logger.debug(f"Set implicit_state for character '{character_id}': {implicit_state[:50]}...")
+        logger.debug(f"Set state for character '{character_id}': {state_text[:50]}...")
         return True
     
     def get_character_memory(self, character_id: str) -> List[str]:
@@ -2402,8 +2303,7 @@ class GameState:
         """
         if character_id not in self.character_states:
             self.character_states[character_id] = {
-                'explicit_state': '',
-                'implicit_state': '',
+                'state': '',
                 'memory': [],
                 'properties': {}
             }
@@ -2442,8 +2342,7 @@ class GameState:
         """
         if character_id not in self.character_states:
             self.character_states[character_id] = {
-                'explicit_state': '',
-                'implicit_state': '',
+                'state': '',
                 'memory': [],
                 'properties': {}
             }
@@ -2525,8 +2424,7 @@ class GameState:
         """
         if character_id not in self.character_states:
             self.character_states[character_id] = {
-                'explicit_state': '',
-                'implicit_state': '',
+                'state': '',
                 'memory': [],
                 'properties': {'status': []}
             }
@@ -2595,8 +2493,7 @@ class GameState:
         """
         if character_id not in self.character_states:
             self.character_states[character_id] = {
-                'explicit_state': '',
-                'implicit_state': '',
+                'state': '',
                 'memory': [],
                 'properties': {}
             }

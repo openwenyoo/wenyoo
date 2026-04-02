@@ -69,7 +69,7 @@ EFFECT TYPES - Use variety for engaging gameplay:
 
 🎭 Objects & Scenes:
 - update_object_status: {"type": "update_object_status", "target": "door", "add_status": ["open"], "remove_status": ["locked"]} - Update object status tags
-- set_object_explicit_state: {"type": "set_object_explicit_state", "target": "door", "value": "The door stands open."} - Set object display text
+- set_object_state: {"type": "set_object_state", "target": "door", "value": "The door stands open."} - Set object state text
 - set_node_description: {"type": "set_node_description", "target": "room", "value": "New description"} - Update node text
 
 🎲 Dice & Chance:
@@ -132,7 +132,7 @@ EDITOR_TOOLS: List[Dict[str, Any]] = [
 CRITICAL FORMAT RULES:
 - id: Use snake_case (e.g., 'forest_clearing', 'dark_cave')
 - name: Human-readable title
-- explicit_state: Text shown when player enters this location
+- state: Dynamic state text for this location
 - definition: Static rules and background the Architect reads
 - actions: Array of available player actions
 
@@ -157,19 +157,15 @@ COMMON MISTAKES TO AVOID:
                     },
                     "description": {
                         "type": "string",
-                        "description": "Legacy alias for explicit_state. Main text shown when player enters."
+                        "description": "Legacy alias for state. Main state text for this location."
                     },
                     "definition": {
                         "type": "string",
                         "description": "Static rules, lore, and interaction guidance for the Architect."
                     },
-                    "explicit_state": {
+                    "state": {
                         "type": "string",
-                        "description": "Current player-visible scene description."
-                    },
-                    "implicit_state": {
-                        "type": "string",
-                        "description": "Hidden AI-only state and context."
+                        "description": "Current dynamic state text. Mark non-ordinary visibility in the text when needed."
                     },
                     "properties": {
                         "type": "object",
@@ -202,8 +198,7 @@ COMMON MISTAKES TO AVOID:
                                 "id": {"type": "string"},
                                 "name": {"type": "string"},
                                 "definition": {"type": "string", "description": "Static description and interaction rules"},
-                                "explicit_state": {"type": "string", "description": "Current visible state"},
-                                "implicit_state": {"type": "string", "description": "Hidden internal state"},
+                                "state": {"type": "string", "description": "Current dynamic state text. Mark non-ordinary visibility in the text when needed."},
                                 "properties": {"type": "object", "description": "Mechanical state: status, contains, custom data"}
                             }
                         }
@@ -262,19 +257,15 @@ This ensures you don't accidentally delete existing actions.""",
                     },
                     "description": {
                         "type": "string",
-                        "description": "Legacy alias for explicit_state (optional)"
+                        "description": "Legacy alias for state (optional)"
                     },
                     "definition": {
                         "type": "string",
                         "description": "Static rules and lore for the node"
                     },
-                    "explicit_state": {
+                    "state": {
                         "type": "string",
-                        "description": "Current player-visible description"
-                    },
-                    "implicit_state": {
-                        "type": "string",
-                        "description": "Hidden AI-only state"
+                        "description": "Current dynamic state text. Mark non-ordinary visibility in the text when needed."
                     },
                     "properties": {
                         "type": "object",
@@ -417,8 +408,7 @@ Object structure:
   "id": "old_chest",
   "name": "Old Chest",
   "definition": "[Description]\\nA dusty wooden chest.\\n\\n[Interaction Rules]\\n## Open the chest\\nWhen player opens:\\n- Display: The chest opens...\\n- Effect: {\\"type\\": \\"update_object_status\\", ...}",
-  "explicit_state": "A dusty wooden chest sits in the corner, its lock rusted but intact.",
-  "implicit_state": "",
+  "state": "A dusty wooden chest sits in the corner, its lock rusted but intact.",
   "properties": {"status": ["closed", "locked"]}
 }""",
             "parameters": {
@@ -435,8 +425,7 @@ Object structure:
                             "id": {"type": "string"},
                             "name": {"type": "string"},
                             "definition": {"type": "string", "description": "Static description and interaction rules"},
-                            "explicit_state": {"type": "string", "description": "Current visible state"},
-                            "implicit_state": {"type": "string", "description": "Hidden internal state"},
+                            "state": {"type": "string", "description": "Current dynamic state text. Mark non-ordinary visibility in the text when needed."},
                             "properties": {"type": "object", "description": "Mechanical state: status, contains, etc."}
                         },
                         "required": ["id", "name"]
@@ -465,8 +454,7 @@ Character structure:
   "id": "unique_snake_case_id",
   "name": "Display Name",
   "definition": "[Identity]\\nCharacter background and identity...\\n\\n[Behavior Rules]\\nDescribe how the character behaves and responds in this story.",
-  "explicit_state": "Current visible state of the character",
-  "implicit_state": "Hidden internal state (for AI context)",
+  "state": "Current character state. Mark non-ordinary visibility in the text when needed.",
   "is_playable": false,
   "properties": {
     "location": "location_id",
@@ -482,8 +470,7 @@ Character structure:
                     "id": {"type": "string", "description": "Unique snake_case identifier"},
                     "name": {"type": "string", "description": "Display name"},
                     "definition": {"type": "string", "description": "Static character information and behavior rules"},
-                    "explicit_state": {"type": "string", "description": "Dynamic, player-visible current state"},
-                    "implicit_state": {"type": "string", "description": "Dynamic, hidden internal state"},
+                    "state": {"type": "string", "description": "Dynamic current state text. Mark non-ordinary visibility in the text when needed."},
                     "is_playable": {"type": "boolean", "default": False},
                     "properties": {
                         "type": "object",
@@ -572,8 +559,7 @@ OBJECT_TOOLS: List[Dict[str, Any]] = [
 
 Entity fields:
 - definition: Static description of what the object IS (material, capabilities, interaction rules)
-- explicit_state: Dynamic, player-visible current appearance
-- implicit_state: Dynamic, hidden internal state
+- state: Dynamic current state description; mark non-ordinary visibility in the text when needed
 - properties: Mechanical state (status tags, contains, custom data)
 
 Object structure:
@@ -581,7 +567,7 @@ Object structure:
   "id": "unique_snake_case_id",
   "name": "Display Name",
   "definition": "Description of the object, its properties, and interaction rules",
-  "explicit_state": "Current visible state shown to player",
+  "state": "Current state shown to the active viewer",
   "properties": {"status": []}
 }""",
             "parameters": {
@@ -590,8 +576,7 @@ Object structure:
                     "id": {"type": "string", "description": "Unique snake_case identifier"},
                     "name": {"type": "string", "description": "Display name"},
                     "definition": {"type": "string", "description": "Static description of object and interaction rules"},
-                    "explicit_state": {"type": "string", "description": "Current visible state"},
-                    "implicit_state": {"type": "string", "description": "Hidden internal state"},
+                    "state": {"type": "string", "description": "Current dynamic state text. Mark non-ordinary visibility in the text when needed."},
                     "properties": {"type": "object", "description": "Mechanical state: status, contains, custom data"}
                 },
                 "required": ["id", "name"]
@@ -609,8 +594,7 @@ Object structure:
                     "id": {"type": "string", "description": "ID of object to update (required)"},
                     "name": {"type": "string"},
                     "definition": {"type": "string", "description": "Static description and interaction rules"},
-                    "explicit_state": {"type": "string", "description": "Current visible state"},
-                    "implicit_state": {"type": "string", "description": "Hidden internal state"},
+                    "state": {"type": "string", "description": "Current dynamic state text. Mark non-ordinary visibility in the text when needed."},
                     "properties": {"type": "object", "description": "Mechanical state: status, contains, custom data"}
                 },
                 "required": ["id"]

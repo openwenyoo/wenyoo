@@ -38,7 +38,7 @@ start_node_id: start
 nodes:
   start:
     name: "Outside the Cabin"
-    explicit_state: "A small cabin stands in the pines."
+    state: "A small cabin stands in the pines."
     actions:
       - id: enter_cabin
         text: "Enter the cabin"
@@ -48,11 +48,11 @@ nodes:
 
   inside:
     name: "Inside"
-    explicit_state: "Dust hangs in the still air."
+    state: "Dust hangs in the still air."
     is_ending: true
 ```
 
-新内容请优先使用规范字段名，例如 `explicit_state`、`type` 和 `target`。
+新内容请优先使用规范字段名，例如 `state`、`type` 和 `target`。
 
 ## 推荐工作流
 
@@ -72,7 +72,7 @@ nodes:
 
 - `name`
 - `definition`
-- `explicit_state`
+- `state`
 - `objects`
 - `actions`
 - `triggers`
@@ -98,8 +98,8 @@ nodes:
 角色与物品都遵循相似的分层模型：
 
 - `definition`：作者定义的身份与规则
-- `explicit_state`：玩家可见的基础描述
-- `implicit_state`：隐藏上下文或兼容字段
+- `state`：玩家可见的基础描述
+- `state`：隐藏上下文或兼容字段
 - `properties`：机械状态数据
 
 ## 校验

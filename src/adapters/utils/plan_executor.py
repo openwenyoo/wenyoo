@@ -471,20 +471,20 @@ Based on the context above, determine:
 Each step can use one of these actions:
 
 ## Node Operations
-- create_node: {{"id": "node_id", "name": "Name", "definition": "Static rules and info", "explicit_state": "Player-visible scene description", "implicit_state": "Hidden AI context", "properties": {{"status": []}}, "actions": [...], "objects": [...], "triggers": [...]}}
-- update_node: {{"id": "existing_id", "name": "New Name", "explicit_state": "New visible description"}}
+- create_node: {{"id": "node_id", "name": "Name", "definition": "Static rules and info", "state": "Player-visible scene description", "state": "Hidden AI context", "properties": {{"status": []}}, "actions": [...], "objects": [...], "triggers": [...]}}
+- update_node: {{"id": "existing_id", "name": "New Name", "state": "New visible description"}}
 - delete_node: {{"id": "node_id"}}
 - add_action_to_node: {{"node_id": "id", "action": {{"id": "action_id", "text": "Action text", "intent": "Optional natural-language behavior", "effects": [...]}}}}
-- add_object_to_node: {{"node_id": "id", "object": {{"id": "obj_id", "name": "Name", "definition": "Object rules", "explicit_state": "Visible state"}}}}
+- add_object_to_node: {{"node_id": "id", "object": {{"id": "obj_id", "name": "Name", "definition": "Object rules", "state": "Visible state"}}}}
 
 ## Character Operations
-- create_character: {{"id": "char_id", "name": "Name", "definition": "Character rules and behavior", "explicit_state": "Visible description", "properties": {{"location": "node_id"}}}}
+- create_character: {{"id": "char_id", "name": "Name", "definition": "Character rules and behavior", "state": "Visible description", "properties": {{"location": "node_id"}}}}
 - update_character: {{"id": "char_id", "name": "New Name"}}
 - delete_character: {{"id": "char_id"}}
 
 ## Object Operations
-- create_object: {{"id": "obj_id", "name": "Name", "definition": "Object rules", "explicit_state": "Visible state", "properties": {{"status": []}}}}
-- update_object: {{"id": "obj_id", "explicit_state": "New visible state"}}
+- create_object: {{"id": "obj_id", "name": "Name", "definition": "Object rules", "state": "Visible state", "properties": {{"status": []}}}}
+- update_object: {{"id": "obj_id", "state": "New visible state"}}
 - delete_object: {{"id": "obj_id"}}
 
 ## Parameter/Lore Operations
@@ -563,7 +563,7 @@ You are designing for a specific AI native text based game engine. Your story MU
 - **Conditions**: Show/hide actions or trigger events based on variables
 - **Inventory**: Add/remove items, check item possession
 - **Characters/NPCs**: Place characters in locations with dialogue and character-specific actions
-- **Objects**: Interactive objects in locations using DSPP fields (`definition`, `explicit_state`, `implicit_state`, `properties`)
+- **Objects**: Interactive objects in locations using DSPP fields (`definition`, `state`, `state`, `properties`)
 - **Triggers**: Automatic events on entering/leaving nodes or when conditions are met
 - **LLM Text Generation**: Generate dynamic text descriptions using prompts (stored in variables)
 - **Combat System**: Turn-based combat with stats (HP, attacks, enemies)

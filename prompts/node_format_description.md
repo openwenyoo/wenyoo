@@ -62,7 +62,7 @@ actions:
 
 ### Node depiction
 
-Prefer `explicit_state` in authored nodes. `description` is legacy compatibility, not the canonical field for new content.
+Prefer `state` in authored nodes. `description` is legacy compatibility, not the canonical field for new content.
 
 ---
 
@@ -84,8 +84,7 @@ nodes:
       ## Examine the gate
       When the player examines the gate:
       - Display: The wood is swollen from the rain, but not rotten.
-    explicit_state: "Rain beads on the lantern frames as the courtyard lies silent."
-    implicit_state: "A guard is watching from the upper balcony"
+    state: "Rain beads on the lantern frames as the courtyard lies silent.\n\n[Invisible to ordinary observers] A guard is watching from the upper balcony"
     hints: |
       Keep social interactions tense and formal here.
     properties:
@@ -109,8 +108,7 @@ nodes:
 |-------|---------|
 | `name` | human-readable node name |
 | `definition` | static lore, rules, and authored interaction guidance |
-| `explicit_state` | mutable visible baseline / compatibility field |
-| `implicit_state` | hidden runtime context / compatibility field |
+| `state` | mutable current state description; include invisibility markers in the text when needed |
 | `hints` | free-form Architect guidance that belongs with the node |
 | `properties` | mechanical state such as `status`, `visit_count`, and custom data |
 | `objects` | object refs or inline object definitions present in the node |
@@ -121,7 +119,7 @@ nodes:
 ### Notes on authored content
 
 - `definition` is the best place for scene rules, catalogs, pricing tables, and structured interaction guidance.
-- `explicit_state` can be blank or omitted, but new authored content should still treat it as the canonical node depiction field.
+- `state` can be blank or omitted, but new authored content should still treat it as the canonical node state field.
 - Prefer changing underlying state first; use depiction-mutation effects only when you specifically need them.
 
 ---
@@ -137,7 +135,7 @@ Narrative text can include clickable references:
 Example:
 
 ```yaml
-explicit_state: |
+state: |
   The tavern is loud and warm. You could {order_drink: order a drink},
   {speak_to_barkeep: speak with the barkeep}, or inspect
   {{old_poster: the torn poster}} by the hearth.
@@ -226,8 +224,7 @@ objects:
       - Display: You find a tarnished key in the bottom drawer.
       - Effect: {"type": "add_to_inventory", "target": "tarnished_key"}
       - Effect: {"type": "update_object_status", "target": "large_desk", "add_status": ["searched"]}
-    explicit_state: "A large oak desk sits beneath the shuttered window."
-    implicit_state: "Contains a tarnished key in the bottom drawer"
+    state: "A large oak desk sits beneath the shuttered window.\n\n[Invisible to ordinary observers] Contains a tarnished key in the bottom drawer"
     properties:
       status: []
 ```
@@ -237,8 +234,7 @@ Object fields match the story-level object model:
 - `id`
 - `name`
 - `definition`
-- `explicit_state`
-- `implicit_state`
+- `state`
 - `properties`
 
 ---
@@ -492,17 +488,17 @@ Movement path that preserves transition semantics and trigger execution.
   target: front_gate
   add_status: [open]
   remove_status: [closed, locked]
-  regenerate_explicit_state: true
+  regenerate_state: true
 ```
 
-#### `set_object_explicit_state`
+#### `set_object_state`
 
 Use when you explicitly want to overwrite an object's visible depiction:
 
 ```yaml
-- type: set_object_explicit_state
+- type: set_object_state
   target: front_gate
-  explicit_state: "The gate stands open, rainwater dripping from its iron bars."
+  value: "The gate stands open, rainwater dripping from its iron bars."
 ```
 
 #### `set_node_description`
@@ -515,14 +511,14 @@ Legacy/compatibility effect for directly updating a node's depiction:
   value: "The hall is now lit by a pale green flame."
 ```
 
-#### `set_node_explicit_state`
+#### `set_node_state`
 
 Canonical explicit-state mutation shape when supported by your authored flow:
 
 ```yaml
-- type: set_node_explicit_state
+- type: set_node_state
   target: temple_hall
-  explicit_state: "The hall is now lit by a pale green flame."
+  state: "The hall is now lit by a pale green flame."
 ```
 
 #### `update_node_status`
@@ -532,13 +528,13 @@ Canonical explicit-state mutation shape when supported by your authored flow:
   target: temple_hall
   add_status: [ritual_active]
   remove_status: [silent]
-  regenerate_explicit_state: true
+  regenerate_state: true
 ```
 
-#### `regenerate_node_explicit_state`
+#### `regenerate_node_state`
 
 ```yaml
-- type: regenerate_node_explicit_state
+- type: regenerate_node_state
   target: temple_hall
 ```
 
@@ -743,7 +739,7 @@ New authored content should not introduce those aliases.
 
 ## 10. Validation Checklist
 
-- [ ] Nodes use `explicit_state` instead of authored `description`
+- [ ] Nodes use `state` instead of authored `description`
 - [ ] Actions have `id` and `text`
 - [ ] Open-ended authored behavior uses `intent` where appropriate
 - [ ] Object references use `- id: object_id`

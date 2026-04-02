@@ -3090,7 +3090,7 @@ function updateDisplayPanel(gameState) {
     if (player && player.location) {
         const currentNode = worldData.nodes[player.location];
         if (currentNode) {
-            const description = currentNode.processed_description || currentNode.explicit_state || currentNode.description;
+            const description = currentNode.processed_description || currentNode.state || currentNode.description;
             if (description) {
                 const processedDescription = preprocessDescription(description);
                 const descriptionHtml = converter.makeHtml(processedDescription);
@@ -3122,7 +3122,7 @@ function updateDisplayPanel(gameState) {
                         Array.isArray(itemDetails.states)
                             ? (itemDetails.states.find(state => state.name === itemDetails.state)?.description)
                             : undefined
-                    ) || itemDetails.explicit_state || itemDetails.description || 'No description.';
+                    ) || itemDetails.state || itemDetails.description || 'No description.';
                     let itemNameHtml = itemDetails.name;
                     if (itemDetails.actions && itemDetails.actions.length > 0) {
                         itemNameHtml = `<a href="javascript:void(0)" onclick="onObjectClick('${itemId}'); return false;">${itemDetails.name}</a>`;

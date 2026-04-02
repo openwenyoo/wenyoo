@@ -113,7 +113,7 @@ You are designing for a specific AI native text based game engine. Your story MU
 - Conditions: Show/hide actions or trigger events based on variables
 - Inventory: Add/remove items, check item possession
 - Characters/NPCs: Place characters in locations with dialogue and character-specific actions
-- Objects: Interactive objects in locations using DSPP fields (`definition`, `explicit_state`, `implicit_state`, `properties`)
+- Objects: Interactive objects in locations using DSPP fields (`definition`, `state`, `properties`)
 - Triggers: Automatic events on entering/leaving nodes or when conditions are met
 - LLM Text Generation: Generate dynamic text descriptions using prompts (stored in variables)
 - Dice Rolls: Random skill checks with success/failure outcomes

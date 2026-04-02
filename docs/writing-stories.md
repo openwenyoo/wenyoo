@@ -38,7 +38,7 @@ start_node_id: start
 nodes:
   start:
     name: "Outside the Cabin"
-    explicit_state: "A small cabin stands in the pines."
+    state: "A small cabin stands in the pines."
     actions:
       - id: enter_cabin
         text: "Enter the cabin"
@@ -48,11 +48,11 @@ nodes:
 
   inside:
     name: "Inside"
-    explicit_state: "Dust hangs in the still air."
+    state: "Dust hangs in the still air."
     is_ending: true
 ```
 
-New content should use canonical field names such as `explicit_state`, `type`, and `target`.
+New content should use canonical field names such as `state`, `type`, and `target`.
 
 ## Recommended Workflow
 
@@ -72,7 +72,7 @@ Nodes represent places, scenes, or states in the story. They usually contain:
 
 - `name`
 - `definition`
-- `explicit_state`
+- `state`
 - `objects`
 - `actions`
 - `triggers`
@@ -98,8 +98,8 @@ Use `initial_variables` for story state, counters, flags, and lorebook-style con
 Characters and objects both use the same general layered model:
 
 - `definition`: authored identity and rules
-- `explicit_state`: visible baseline
-- `implicit_state`: hidden context or compatibility state
+- `state`: visible baseline
+- `state`: hidden context or compatibility state
 - `properties`: mechanical data
 
 ## Validation

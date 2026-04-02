@@ -135,8 +135,8 @@ Architect 建立在一条严格原则之上：
 Architect 所面对的是一个分层实体模型：
 
 - `definition`：实体是什么，以及定义它的规则
-- `explicit_state`：现在对玩家可见的真实状态
-- `implicit_state`：隐藏上下文
+- `state`：现在对玩家可见的真实状态
+- `state`：隐藏上下文
 - `memory`：角色累计的互动历史
 - `properties`：属性、背包、状态、位置等机制数据
 

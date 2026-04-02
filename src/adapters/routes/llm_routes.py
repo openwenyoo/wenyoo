@@ -585,14 +585,13 @@ Objects have these fields:
 - id: Unique snake_case identifier
 - name: Display name
 - definition: Static description and interaction rules
-- explicit_state: Current player-visible state
-- implicit_state: Hidden AI-only context
+- state: Current dynamic state description; include invisibility markers in the text when needed
 - properties: Mechanical state such as status tags and custom data
 - interactions belong in definition, not in a separate actions array
 
 # WORKFLOW
 1. Use create_object for new objects with full details
-2. Use update_object to change explicit_state or properties as the story evolves
+2. Use update_object to change state or properties as the story evolves
 3. Objects can be placed in nodes using the node editor
 """
     elif mode == "parameters":
@@ -649,7 +648,7 @@ Don't just use goto_node + display_text for everything. The engine supports rich
 
 🎭 **Interactive World:**
 - update_object_status: Objects change state (doors open, levers activate, items transform)
-- set_object_explicit_state: Update how objects appear to players
+- set_object_state: Update an object's current state description
 - add_to_inventory / remove_from_inventory: Items the player carries
 
 🤖 **Dynamic Content:**
@@ -680,7 +679,7 @@ Consider:
 # AVAILABLE TOOLS
 
 ## Story Structure (Nodes)
-- create_node: Create locations/scenes with DSPP fields (`definition`, `explicit_state`, `implicit_state`, `properties`), actions, objects, triggers
+- create_node: Create locations/scenes with DSPP fields (`definition`, `state`, `properties`), actions, objects, triggers
 - update_node: Modify existing nodes
 - add_action_to_node: Add player actions (preserves existing)
 - add_object_to_node: Add interactive objects to locations
@@ -691,7 +690,7 @@ Consider:
 - update_character, delete_character, get_character, list_characters
 
 ## Objects (Optional but adds interactivity)
-- create_object: DSPP-style items with definition, explicit_state, implicit_state, and properties
+- create_object: DSPP-style items with definition, state, and properties
 - update_object, delete_object, get_object, list_objects
 
 ## Parameters (For state tracking)

@@ -218,7 +218,7 @@ All effects use "target" for the thing being affected and "value" for the primar
 - {{"type": "set_variable", "target": "<variable_name>", "value": <value>}} - Set a game variable (string, number, or boolean)
 - {{"type": "display_text", "value": "<text>", "speaker": "<optional speaker>"}} - Show additional text
 - {{"type": "update_object_status", "target": "<object_id>", "add_status": ["<status_tag>"], "remove_status": ["<status_tag>"]}} - Update object status tags
-- {{"type": "set_object_explicit_state", "target": "<object_id>", "value": "<new explicit_state>"}} - Update object description
+- {{"type": "set_object_state", "target": "<object_id>", "value": "<new state text>"}} - Update object state description
 - {{"type": "goto_node", "target": "<node_id>"}} - Teleport player to another location
 - {{"type": "calculate", "target": "<variable_name>", "operation": "<add|subtract|multiply|divide>", "value": <number>}} - Math operation on a variable
 

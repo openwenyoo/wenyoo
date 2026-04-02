@@ -351,7 +351,7 @@ class ExpansionCoordinator:
         self.expansion_order.append(node_id)
         
         # Update narrative tracker with description
-        description = expanded_data.get("description", expanded_data.get("explicit_state", ""))
+        description = expanded_data.get("description", expanded_data.get("state", ""))
         if description:
             # Extract entities
             entities = set()

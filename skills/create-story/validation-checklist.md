@@ -29,7 +29,7 @@ Use this checklist after creating or editing a story. Work through each section 
 - [ ] `start_node_id` matches a key in `nodes:`
 - [ ] No orphaned nodes (every non-start node is reachable from at least one other node)
 - [ ] Nodes with `is_ending: true` have no outgoing navigation actions (or only optional ones)
-- [ ] Nodes use `explicit_state` (not `description`) for player-visible text -- except in legacy stories
+- [ ] Nodes use `state` (not `description`) for player-visible text -- except in legacy stories
 
 ## 4. Actions
 
@@ -123,7 +123,7 @@ Use this checklist after creating or editing a story. Work through each section 
 ## 13. Language & Content
 
 - [ ] All player-facing text is in a single consistent language
-- [ ] `definition` fields, `explicit_state` fields, action `text`, and `display_text` effects all use the same language
+- [ ] `definition` fields, `state` fields, action `text`, and `display_text` effects all use the same language
 - [ ] No mixed-language content (unless intentionally bilingual)
 
 ## 14. Status Display Config (if used)
@@ -137,7 +137,7 @@ Use this checklist after creating or editing a story. Work through each section 
 
 After validation, mentally walk through the story:
 
-1. Start at `start_node_id` -- does the first node have a explicit_state or definition for generation?
+1. Start at `start_node_id` -- does the first node have a state or definition for generation?
 2. Follow each action chain -- can the player reach every node?
 3. Check ending paths -- do all `is_ending: true` nodes feel like proper conclusions?
 4. Test puzzle gates -- are conditions satisfiable? Can the player obtain required items?

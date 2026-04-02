@@ -196,10 +196,8 @@ def build_semantic_prompt(story: Story, deterministic_connections: List[Dict[str
         chunk = [f"NODE {node_id}: {node.name or node_id}"]
         if node.definition:
             chunk.append(f"Definition: {node.definition[:800]}")
-        if node.explicit_state:
-            chunk.append(f"Explicit state: {node.explicit_state[:400]}")
-        if node.implicit_state:
-            chunk.append(f"Implicit state: {node.implicit_state[:400]}")
+        if node.state:
+            chunk.append(f"State: {node.state[:400]}")
         entity_chunks.append("\n".join(chunk))
 
     for char in story.characters or []:

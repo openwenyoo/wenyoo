@@ -17,13 +17,13 @@ objects:
   - id: rusty_key
     name: "Rusty Key"
     definition: "A corroded key found behind the painting."
-    explicit_state: "A rusty key."
+    state: "A rusty key."
     properties: { status: [] }
 
 nodes:
   cell:
     name: "Locked Cell"
-    explicit_state: "A cold cell. A {examine_painting: painting} hangs on the wall. The {door: door} is locked."
+    state: "A cold cell. A {examine_painting: painting} hangs on the wall. The {door: door} is locked."
     objects:
       - id: rusty_key
     actions:
@@ -46,7 +46,7 @@ nodes:
 
   hallway:
     name: "Hallway"
-    explicit_state: "A dim corridor stretches ahead..."
+    state: "A dim corridor stretches ahead..."
     actions:
       - id: go_forward
         text: "Continue down the hallway"
@@ -61,7 +61,7 @@ nodes:
 
   exit:
     name: "Freedom"
-    explicit_state: "Daylight floods in. You've escaped!"
+    state: "Daylight floods in. You've escaped!"
     is_ending: true
 ```
 
@@ -110,8 +110,8 @@ characters:
       ## Ask about rumors
       When player asks for rumors:
       - Share a hint about the dungeon to the north
-    explicit_state: "A stout woman polishes mugs behind the bar."
-    implicit_state: "Knows the dungeon entrance is through the old well"
+    state: "A stout woman polishes mugs behind the bar."
+    state: "Knows the dungeon entrance is through the old well"
     memory: []
     properties:
       location: tavern
@@ -122,7 +122,7 @@ characters:
 nodes:
   city_square:
     name: "City Square"
-    explicit_state: |
+    state: |
       The bustling heart of Karrakara. Streets branch in every direction.
       {go_tavern: The Golden Mug tavern} sits to the west.
       {go_market: The market} sprawls to the east.
@@ -149,7 +149,7 @@ nodes:
     definition: |
       A warm tavern with crackling fireplace. Serves food and drinks.
       The barkeep Greta knows everything happening in the city.
-    explicit_state: null  # auto-generated from definition on first visit
+    state: null  # auto-generated from definition on first visit
     actions:
       - id: go_square
         text: "Return to the city square"
@@ -160,7 +160,7 @@ nodes:
   # market, north_gate, etc. follow the same pattern...
 ```
 
-**Key traits**: Central hub node, multiple branch areas, NPCs with services, lorebook variables for world rules, `explicit_state: null` for AI-generated scene text.
+**Key traits**: Central hub node, multiple branch areas, NPCs with services, lorebook variables for world rules, `state: null` for AI-generated scene text.
 
 ---
 
@@ -174,7 +174,7 @@ Heavily uses object status, variables, and conditional triggers. Progress depend
 nodes:
   ritual_room:
     name: "Ritual Chamber"
-    explicit_state: "Three empty pedestals surround a sealed door."
+    state: "Three empty pedestals surround a sealed door."
     objects:
       - id: pedestal_left
       - id: pedestal_center
@@ -192,7 +192,7 @@ nodes:
           - type: update_node_status
             target: ritual_room
             add_status: ["door_open"]
-            regenerate_explicit_state: true
+            regenerate_state: true
     actions:
       - id: place_red_gem
         text: "Place the red gem on the left pedestal"
@@ -266,7 +266,7 @@ nodes:
       This is the player's home base -- they return here to rest and plan.
       
       Nearby: the worker canteen, the maintenance shaft, the car connector.
-    explicit_state: null  # LLM generates based on definition
+    state: null  # LLM generates based on definition
     actions:
       - id: go_canteen
         text: "Head to the canteen"
@@ -280,4 +280,4 @@ nodes:
             text: "You rest and recover your strength."
 ```
 
-**Key traits**: `lore_*` variables in `initial_variables` define world systems and constraints for LLM context. Nodes have rich `definition` but null `explicit_state` (AI generates). Very few predefined actions -- the Architect handles most player input creatively within the rules. See [stories/snow_train.yaml](stories/snow_train.yaml) for a full example.
+**Key traits**: `lore_*` variables in `initial_variables` define world systems and constraints for LLM context. Nodes have rich `definition` but null `state` (AI generates). Very few predefined actions -- the Architect handles most player input creatively within the rules. See [stories/snow_train.yaml](stories/snow_train.yaml) for a full example.

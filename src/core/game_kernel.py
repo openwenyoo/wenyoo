@@ -266,11 +266,6 @@ class GameKernel:
             if notify_observers:
                 self._notify_observers(self.current_game_state, session_id=session_id)
             
-            # Auto-generate node explicit_state before triggers run
-            start_node_id = self.story_manifest.start_node_id
-            if start_node_id:
-                await self.ensure_node_explicit_state(self.current_game_state, start_node_id, player_id)
-            
             # Execute pre_enter triggers for the starting node FIRST
             await self._check_and_execute_global_triggers(
                 self.current_game_state, player_id, self.story_manifest, "pre_enter", "pre_enter"
@@ -304,62 +299,23 @@ class GameKernel:
     # Description Generation
     # ========================================================================
 
-    def get_full_node_description(self, game_state: GameState, node_id: str, player_id: str) -> str:
-        """
-        Get the full description for a node including objects and NPCs.
-        
-        Reads node.explicit_state directly (explicit_state is mutated in memory).
-        """
-        node = game_state.nodes.get(node_id)
-        if not node:
-            return "You are in a place with no description."
-
-        # Read explicit_state directly from node (mutated in memory, persisted via node_states)
-        base_description = node.explicit_state or ""
-
-        full_description = self.text_processor.substitute_variables(base_description, game_state, player_id)
-
-        # Collect object explicit_states (using new status-based model)
-        object_descriptions = []
-        for obj in node.objects:
-            if game_state.is_object_visible(obj):
-                explicit_state = getattr(obj, 'explicit_state', '')
-                if explicit_state:
-                    object_descriptions.append(explicit_state)
-        
-        if object_descriptions:
-            full_description += "\n" + "\n".join(object_descriptions)
-
-        story = game_state.story
-
-        # Collect non-playable characters from the character location model.
-        npcs_in_node = []
-        for char_id in game_state.get_npcs_in_node(node_id):
-            char_def = story.get_character(char_id) if story else None
-            if char_def and not char_def.is_playable:
-                char_state = game_state.character_states.get(char_id, {})
-                # Use explicit_state (visible to player) for display
-                npcs_in_node.append(char_state.get('explicit_state', char_def.explicit_state) or char_def.definition)
-        
-        if npcs_in_node:
-            full_description += "\n\n" + "\n".join(npcs_in_node)
-            
-        return self.text_processor.process_text_for_hyperlinks(full_description, game_state, player_id)
-
     async def get_node_perception(self, game_state: GameState, node_id: str, player_id: str) -> str:
         """
         Render the current scene perception for a player without persisting it.
 
-        This is the DSPP-oriented read path used by reconnect, scene refresh,
-        serializer snapshots, and other places that need player-facing text from
-        current state rather than a cached node explicit_state.
+        This is the only supported scene-rendering path. Player-facing perception
+        must come from the Architect's `render_perception` task over current
+        runtime state rather than legacy state composition.
         """
         node = game_state.nodes.get(node_id)
         if not node:
             return "You are in a place with no description."
 
         if not self.llm_provider:
-            return self.get_full_node_description(game_state, node_id, player_id)
+            raise RuntimeError(
+                "get_node_perception requires an llm_provider; "
+                "non-LLM scene rendering has been removed"
+            )
 
         task = ArchitectTask(
             task_type="render_perception",
@@ -376,121 +332,9 @@ class GameKernel:
         if displayed:
             return displayed[-1].get("text", "")
 
-        logger.warning(
-            "Architect render_perception returned no text for node '%s'; falling back to legacy composition",
-            node_id,
+        raise RuntimeError(
+            f"Architect render_perception returned no text for node '{node_id}'"
         )
-        return self.get_full_node_description(game_state, node_id, player_id)
-
-    async def generate_node_explicit_state(self, node: 'StoryNode', game_state: 'GameState', 
-                                       player_id: str) -> str:
-        """
-        Generate explicit_state for a node from its definition using LLM.
-
-        Used as a fallback when the Architect's tool-calling loop does not
-        produce a explicit_state (e.g., during initial game setup).
-        
-        Args:
-            node: The node to generate explicit_state for
-            game_state: Current game state
-            player_id: Player ID for variable substitution
-            
-        Returns:
-            Generated explicit_state text, or empty string if generation fails
-        """
-        if not self.llm_provider or not node.definition:
-            return ""
-        
-        # Get node status for context
-        node_status = node.get_status()
-        current_status = ', '.join(node_status) if node_status else 'none'
-        
-        # Substitute variables in definition
-        definition_with_vars = self.text_processor.substitute_variables(
-            node.definition, game_state, player_id
-        )
-        
-        # Get previous explicit_state if any (for context)
-        previous_explicit_state = node.explicit_state or ""
-        
-        # Build actions list for the prompt
-        actions_info = ""
-        if node.actions:
-            action_entries = []
-            for action in node.actions:
-                action_text = action.text or action.description or action.id
-                action_entries.append(f"  - {{{action.id}: {action_text}}}")
-            actions_info = "\n".join(action_entries)
-
-        # Get node implicit_state (hidden context that affects scene generation)
-        node_implicit_state = node.implicit_state or ""
-        
-        prompt = f"""Generate a scene description for this location in this AI native text based game engine.
-
-Node name: {node.name or node.id}
-Definition: {definition_with_vars}
-Current status: {current_status}
-{f'Scene context: {node_implicit_state}' if node_implicit_state else ''}
-{f'Previous explicit_state: {previous_explicit_state}' if previous_explicit_state else ''}
-
-Available actions at this location:
-{actions_info if actions_info else "(none)"}
-
-Generate a scene description that:
-- Reflects the current status tags if any (e.g., "brawl_aftermath" means a fight just happened)
-- Incorporates the scene context if provided (this is hidden context about recent events)
-- Is written in second person perspective ("You stand...", "You arrive at...")
-- Matches the language of the definition (Chinese if definition is in Chinese, English if in English, etc.)
-- Uses markdown formatting: **bold** for NPC roles, paragraph breaks between sections
-- Uses hyperlink syntax {{action_id: display_text}} for available actions, woven naturally into prose
-  Example: "You could {{order_drink: order a drink}} at the bar."
-- Uses hyperlink syntax {{object_id: display_text}} for important interactive objects
-  Example: "An ancient {{stone_well: stone well}} stands in the clearing."
-- Does NOT mention hidden/secret paths or items not yet discovered
-- Only describes what is immediately visible to the player
-- Is concise and well-structured (use paragraph breaks, not walls of text)
-
-If the definition contains specific formatting instructions (e.g., word limits, 
-structure guidelines, NPC presentation rules), follow those instructions as they 
-reflect the author's intent and override the defaults above.
-
-Output ONLY the description text. Do NOT wrap in JSON or any other format."""
-
-        try:
-            # Use generate_text_response for plain text output (not JSON mode)
-            explicit_state = await self.llm_provider.generate_text_response(prompt)
-            return explicit_state.strip()
-        except Exception as e:
-            logger.error(f"Failed to generate node explicit_state for {node.id}: {e}")
-            return ""
-
-    async def ensure_node_explicit_state(self, game_state: 'GameState', node_id: str,
-                                     player_id: str, force_regenerate: bool = False) -> bool:
-        """Ensure a node has a legacy explicit_state baseline for compatibility.
-
-        DSPP rendering should use `get_node_perception()` instead. This helper
-        remains for older code paths that still inspect `node.explicit_state`.
-        """
-        node = game_state.nodes.get(node_id)
-        if not node:
-            return False
-
-        has_explicit_state = node.explicit_state and node.explicit_state.strip()
-
-        if has_explicit_state and not force_regenerate:
-            return False
-
-        if not node.definition:
-            return False
-
-        explicit_state = await self.generate_node_explicit_state(node, game_state, player_id)
-        if explicit_state:
-            node.explicit_state = explicit_state
-            game_state.update_node_explicit_state(node_id, explicit_state)
-            logger.debug(f"Generated legacy explicit_state baseline for node '{node_id}'")
-            return True
-
-        return False
 
     async def _push_characters_update(self, game_state: 'GameState', player_id: str, 
                                        materialized_node_id: str) -> None:
@@ -618,7 +462,7 @@ Output ONLY the description text. Do NOT wrap in JSON or any other format."""
         state and returning only clean display text (no conditions/spoilers).
         """
         definition = getattr(obj, 'definition', '') or ''
-        explicit_state = getattr(obj, 'explicit_state', '') or ''
+        state_text = getattr(obj, 'state', '') or ''
         name = getattr(obj, 'name', obj.id)
         obj_status = obj.get_status() if hasattr(obj, 'get_status') else []
 
@@ -643,7 +487,7 @@ Output ONLY the description text. Do NOT wrap in JSON or any other format."""
 Name: {name}
 Location: {location_context}
 Status: {status_str}
-Current explicit_state: {explicit_state or '(none)'}
+Current state: {state_text or '(none)'}
 Definition:
 {definition}
 
@@ -789,8 +633,8 @@ JSON array:"""
                 char_state = game_state.character_states.get(player_character_id, {})
                 props = char_state.get('properties', {})
                 
-                if char_state.get('explicit_state'):
-                    char_copy.explicit_state = char_state.get('explicit_state')
+                if char_state.get('state'):
+                    char_copy.state = char_state.get('state')
                 if props.get('status'):
                     char_copy.properties['status'] = list(props.get('status', []))
 

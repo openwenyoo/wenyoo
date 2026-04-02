@@ -52,7 +52,7 @@ class Architect:
     Unified LLM agent that manages all LLM-generated content in the story world.
     
     Operates via a tool-calling loop:
-    1. Receives a task (player input, explicit_state request, event)
+    1. Receives a task (player input, perception render, event)
     2. Builds system prompt + world index + task message
     3. Enters tool-calling loop with the LLM
     4. LLM calls Read tools to gather context, then Write tools to act
@@ -88,9 +88,9 @@ class Architect:
                     "Use view='local' for a smaller snapshot focused on the current "
                     "scene and player, or view='full' for broader world context. "
                     "Contains: variables (including players), character_states "
-                    "(per character with name/definition/explicit_state/properties), "
-                    "object_states (per object with name/definition/explicit_state/properties), "
-                    "nodes (with actions, objects, triggers, hints, groups, explicit_state), "
+                    "(per character with name/definition/state/properties), "
+                    "object_states (per object with name/definition/state/properties), "
+                    "nodes (with actions, objects, triggers, hints, groups, state), "
                     "visited_nodes, version, message_history."
                 ),
                 "parameters": {
@@ -232,7 +232,7 @@ class Architect:
                 "name": "read_node",
                 "description": (
                     "Read full details for a specific node by ID. Returns definition, "
-                    "explicit_state, actions, triggers, hints, objects, and characters "
+                    "state, actions, triggers, hints, objects, and characters "
                     "at that location. Use this when you need to transition to a node "
                     "whose full details are not in the pre-loaded state (i.e. nodes "
                     "that only show {id, name} in read_game_state)."
@@ -840,17 +840,14 @@ class Architect:
             interactions = re.findall(r'##\s*(.+)', definition) if definition else []
             interaction_str = ", ".join(interactions) if interactions else ""
 
-            explicit = obj_state.get('explicit_state', obj.explicit_state) or ""
-            implicit = obj_state.get('implicit_state', getattr(obj, 'implicit_state', '')) or ""
+            state_text = obj_state.get('state', obj.state) or ""
 
             header = f"  - {obj.id} ({obj.name})"
             if interaction_str:
                 header += f"  [interactions: {interaction_str}]"
             lines.append(header)
-            if explicit:
-                lines.append(f"    visible: {explicit.strip()}")
-            if implicit:
-                lines.append(f"    hidden: {implicit.strip()}")
+            if state_text:
+                lines.append(f"    state: {state_text.strip()}")
         return lines
 
     def _build_available_action_lines(
@@ -933,11 +930,11 @@ class Architect:
                 char_state = game_state.character_states.get(controlled_char_id, {})
                 if controlled_char and controlled_char.name:
                     parts.append(f"Character name: {controlled_char.name}")
-                char_explicit_state = char_state.get('explicit_state') or (
-                    controlled_char.explicit_state if controlled_char else ""
+                char_state_text = char_state.get('state') or (
+                    controlled_char.state if controlled_char else ""
                 )
-                if char_explicit_state:
-                    parts.append(f"Character Explicit State: {char_explicit_state}")
+                if char_state_text:
+                    parts.append(f"Character State: {char_state_text}")
                 char_status = char_state.get('properties', {}).get('status', [])
                 if char_status:
                     parts.append(f"Status: {char_status}")
@@ -956,12 +953,12 @@ class Architect:
                     if not char_def:
                         continue
                     char_state = game_state.character_states.get(char_id, {})
-                    dep = char_state.get('explicit_state', char_def.explicit_state) or ""
+                    dep = char_state.get('state', char_def.state) or ""
                     mem = char_state.get('memory', list(char_def.memory)) if char_state else list(char_def.memory)
                     status = char_state.get('properties', dict(char_def.properties)).get('status', [])
                     char_here_lines.append(f"  - {char_id} ({char_def.name})")
                     if dep:
-                        char_here_lines.append(f"    visible: {dep}")
+                        char_here_lines.append(f"    state: {dep}")
                     if status:
                         char_here_lines.append(f"    status: {status}")
                     if mem:
@@ -1076,11 +1073,11 @@ class Architect:
                     if controlled_char and controlled_char.name:
                         parts.append(f"Name: {controlled_char.name}")
                     char_state = game_state.character_states.get(controlled_char_id, {})
-                    char_explicit_state = char_state.get("explicit_state") or (
-                        controlled_char.explicit_state if controlled_char else ""
+                    char_state_text = char_state.get("state") or (
+                        controlled_char.state if controlled_char else ""
                     )
-                    if char_explicit_state:
-                        parts.append(f"Explicit State: {char_explicit_state}")
+                    if char_state_text:
+                        parts.append(f"State: {char_state_text}")
                     char_status = char_state.get("properties", {}).get("status", [])
                     if char_status:
                         parts.append(f"Status: {char_status}")
@@ -1098,7 +1095,7 @@ class Architect:
                     if not char_def or char_def.is_playable:
                         continue
                     char_state = game_state.character_states.get(char_id, {})
-                    dep = char_state.get("explicit_state", char_def.explicit_state) or char_def.definition
+                    dep = char_state.get("state", char_def.state) or char_def.definition
                     char_lines.append(f"- {char_id} ({char_def.name}): {dep}")
                 if char_lines:
                     parts.append("## CHARACTERS HERE")
@@ -1157,7 +1154,7 @@ class Architect:
                 "Rules:\n"
                 "- Prefer enriching existing stubs over creating replacement entities.\n"
                 "- When enriching a stub, upgrade static definition metadata (such as name/definition and other identity fields) "
-                "as well as runtime state (explicit_state, implicit_state, memory, properties).\n"
+                "as well as runtime state (state, memory, properties).\n"
                 "- Keep changes small, coherent, and stable.\n"
                 "- Do not duplicate ambient entities already present.\n"
                 "- Offscreen changes may update state but must not be auto-revealed to players.\n"
@@ -1173,8 +1170,8 @@ class Architect:
                 parts.append(f"Name: {node.name or source_node_id}")
                 if node.definition:
                     parts.append(f"Definition:\n{node.definition}")
-                if node.explicit_state:
-                    parts.append(f"Explicit State:\n{node.explicit_state}")
+                if node.state:
+                    parts.append(f"State:\n{node.state}")
                 parts.append("")
 
                 visible_objs = []
@@ -1183,7 +1180,7 @@ class Architect:
                         obj_state = game_state.object_states.get(obj.id, {})
                         visible_objs.append(
                             f"- {obj.id} ({obj.name}): "
-                            f"{obj_state.get('explicit_state', obj.explicit_state) or ''}"
+                            f"{obj_state.get('state', obj.state) or ''}"
                         )
                 if visible_objs:
                     parts.append("## OBJECTS HERE")
@@ -1196,7 +1193,7 @@ class Architect:
                     if not char_def or char_def.is_playable:
                         continue
                     char_state = game_state.character_states.get(char_id, {})
-                    dep = char_state.get("explicit_state", char_def.explicit_state) or char_def.definition
+                    dep = char_state.get("state", char_def.state) or char_def.definition
                     char_lines.append(f"- {char_id} ({char_def.name}): {dep}")
                 if char_lines:
                     parts.append("## CHARACTERS HERE")
@@ -1228,11 +1225,11 @@ class Architect:
                 parts.append("## CURRENT NODE")
                 parts.append(f"ID: {player_location}")
                 parts.append(f"Name: {node.name or player_location}")
-                if node.explicit_state:
+                if node.state:
                     resolved = self.game_kernel.text_processor.substitute_variables(
-                        node.explicit_state, game_state, player_id
+                        node.state, game_state, player_id
                     )
-                    parts.append(f"Explicit State:\n{resolved}")
+                    parts.append(f"State:\n{resolved}")
                 parts.append("")
             if controlled_char_id:
                 parts.append("## CURRENT EMBODIMENT")
@@ -1386,8 +1383,7 @@ class Architect:
             'id': node_id,
             'name': node.name or node_id,
             'definition': node.definition,
-            'explicit_state': node.explicit_state or '',
-            'implicit_state': node.implicit_state or '',
+            'state': node.state or '',
             'properties': dict(node.properties),
             'actions': actions_list,
             'objects': object_ids,
@@ -1411,7 +1407,7 @@ class Architect:
                 chars_here[char_id] = {
                     'name': char_def.name,
                     'definition': char_def.definition,
-                    'explicit_state': char_state.get('explicit_state', char_def.explicit_state) or '',
+                    'state': char_state.get('state', char_def.state) or '',
                     'memory': list(char_state.get('memory', list(char_def.memory))),
                     'properties': char_state.get('properties', dict(char_def.properties)),
                 }
@@ -1767,10 +1763,8 @@ class Architect:
                 node_patch["name"] = updates["name"]
             if "definition" in updates:
                 node_patch["definition"] = updates["definition"]
-            if "explicit_state" in updates:
-                node_patch["explicit_state"] = updates["explicit_state"]
-            if "implicit_state" in updates:
-                node_patch["implicit_state"] = updates["implicit_state"]
+            if "state" in updates:
+                node_patch["state"] = updates["state"]
             if updates.get("properties_set"):
                 node_patch["properties"] = dict(updates["properties_set"])
             patch = {"nodes": {entity_id: node_patch}}
@@ -1787,10 +1781,8 @@ class Architect:
                 char_patch["definition"] = updates["definition"]
             if "is_playable" in updates:
                 char_patch["is_playable"] = updates["is_playable"]
-            if "explicit_state" in updates:
-                char_patch["explicit_state"] = updates["explicit_state"]
-            if "implicit_state" in updates:
-                char_patch["implicit_state"] = updates["implicit_state"]
+            if "state" in updates:
+                char_patch["state"] = updates["state"]
             if "memory_append" in updates:
                 existing_memory = list(game_state.character_states.get(target_id, {}).get("memory", []))
                 existing_memory.append(updates["memory_append"])
@@ -1806,10 +1798,8 @@ class Architect:
                 obj_patch["name"] = updates["name"]
             if "definition" in updates:
                 obj_patch["definition"] = updates["definition"]
-            if "explicit_state" in updates:
-                obj_patch["explicit_state"] = updates["explicit_state"]
-            if "implicit_state" in updates:
-                obj_patch["implicit_state"] = updates["implicit_state"]
+            if "state" in updates:
+                obj_patch["state"] = updates["state"]
             if updates.get("properties_set"):
                 obj_patch["properties"] = dict(updates["properties_set"])
             patch = {"object_states": {entity_id: obj_patch}}
@@ -1863,8 +1853,7 @@ class Architect:
                         entity_id: {
                             "name": data.get("name", entity_id),
                             "definition": data.get("definition", ""),
-                            "explicit_state": data.get("brief", ""),
-                            "implicit_state": "",
+                            "state": data.get("brief", ""),
                             "properties": {},
                         }
                     }
@@ -1895,8 +1884,7 @@ class Architect:
                         entity_id: {
                             "name": data.get("name", entity_id),
                             "definition": data.get("definition", ""),
-                            "explicit_state": data.get("brief", ""),
-                            "implicit_state": "",
+                            "state": data.get("brief", ""),
                             "memory": [],
                             "properties": {
                                 "status": [],
@@ -2026,7 +2014,7 @@ class Architect:
             char_def = game_state.story.get_character(controlled_character_id) if game_state.story else None
             if char_def:
                 summary["character_name"] = char_def.name
-                summary["character_explicit_state"] = char_state.get("explicit_state", char_def.explicit_state) or ""
+                summary["character_state"] = char_state.get("state", char_def.state) or ""
 
         return summary
 

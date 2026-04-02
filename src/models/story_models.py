@@ -467,8 +467,7 @@ class StoryObject(BaseModel):
     
     Entity model:
     - definition: Static - what the object IS (material, capabilities, behavior)
-    - explicit_state: Dynamic, visible - current appearance shown to player
-    - implicit_state: Dynamic, hidden - internal state not shown to player
+    - state: Dynamic - current object state description
     
     Properties (Mechanical State):
     - properties: Flexible dict for story-specific mechanics
@@ -504,11 +503,10 @@ class StoryObject(BaseModel):
     # Static: what the object IS (material, capabilities, behavior)
     definition: str = ""
     
-    # Dynamic, visible: current appearance shown to player
-    explicit_state: str = ""
-    
-    # Dynamic, hidden: internal state not shown to player (e.g., "this chest is trapped")
-    implicit_state: str = ""
+    # Dynamic: current object state description. If some details should not be
+    # visible to ordinary perception, encode that in the text itself and let the
+    # Architect decide what a given observer can perceive.
+    state: str = ""
     
     # ═══════════════════════════════════════════════════════════════════════════
     # Properties - Mechanical State (story-specific)
@@ -828,7 +826,7 @@ class Effect(BaseModel):
     - {"type": "remove_from_inventory", "target": "item_id"}
     - {"type": "set_variable", "target": "var_name", "value": any_value}
     - {"type": "update_object_status", "target": "object_id", "add_status": [...], "remove_status": [...]}
-    - {"type": "set_object_explicit_state", "target": "object_id", "value": "new explicit_state text"}
+    - {"type": "set_object_state", "target": "object_id", "value": "new state text"}
     - {"type": "goto_node", "target": "node_id"}
     - {"type": "calculate", "target": "var_name", "operation": "add/subtract/multiply/divide", "value": number}
     - {"type": "display_text", "value": "text to display"}
@@ -924,10 +922,7 @@ class Effect(BaseModel):
     # For update_object_status
     add_status: Optional[List[str]] = None  # Status tags to add to object
     remove_status: Optional[List[str]] = None  # Status tags to remove from object
-    regenerate_explicit_state: bool = False  # Whether to regenerate object explicit_state via LLM
-    
-    # For set_object_explicit_state
-    explicit_state: Optional[str] = None  # Direct explicit_state text to set
+    regenerate_state: bool = False  # Whether to regenerate object state via LLM
     
     # For present_form
     form_id: Optional[str] = None  # ID of the form to present
@@ -976,13 +971,13 @@ class Effect(BaseModel):
             
             return []
 
-        # Handle dynamic node description changes
+        # Handle dynamic node state changes
         if self.type == "set_node_description":
             if 'node_states' not in new_state:
                 new_state['node_states'] = {}
             if self.target not in new_state['node_states']:
                 new_state['node_states'][self.target] = {}
-            new_state['node_states'][self.target]['explicit_state'] = self.value
+            new_state['node_states'][self.target]['state'] = self.value
             return new_state
         
         elif self.type == "start_timed_event":
@@ -1078,8 +1073,7 @@ class StoryNode(BaseModel):
     
     Entity model:
     - definition: Static - what the node IS (setting, atmosphere, rules)
-    - explicit_state: Dynamic, visible - current scene description shown to player
-    - implicit_state: Dynamic, hidden - internal state not shown to player
+    - state: Dynamic - current scene state description
     
     Properties (Mechanical State):
     - properties: Flexible dict for story-specific mechanics
@@ -1104,9 +1098,6 @@ class StoryNode(BaseModel):
     - Display: The glyphs speak of an ancient ritual...
     - Effect: {"type": "set_variable", "target": "glyphs_read", "value": true}
     ```
-    
-    If explicit_state is None/empty and definition exists, explicit_state will be
-    generated on-the-fly using LLM based on definition and current state.
     """
     id: str
     name: Optional[str] = None
@@ -1118,12 +1109,10 @@ class StoryNode(BaseModel):
     # Static: what the node IS (setting, atmosphere, interaction rules)
     definition: str = ""
     
-    # Dynamic, visible: current scene description shown to player
-    # If None/empty and definition exists, will be generated via LLM
-    explicit_state: Optional[str] = None
-    
-    # Dynamic, hidden: internal state not shown to player (plot secrets, AI hints)
-    implicit_state: str = ""
+    # Dynamic: current scene state description. If some details are not usually
+    # perceivable, encode that in the state text itself and let the Architect
+    # decide what the active viewer can perceive.
+    state: str = ""
     
     # ═══════════════════════════════════════════════════════════════════════════
     # Properties - Mechanical State (story-specific)
@@ -1191,8 +1180,7 @@ class StoryNode(BaseModel):
             id=self.id,
             name=self.name,
             definition=overrides.get('definition', self.definition),
-            explicit_state=overrides.get('explicit_state', self.explicit_state),
-            implicit_state=overrides.get('implicit_state', self.implicit_state),
+            state=overrides.get('state', self.state),
             properties=overrides.get('properties', self.properties.copy()),
             content=self.content.copy(),
             metadata=self.metadata.copy(),
@@ -1326,7 +1314,7 @@ class Character(BaseModel):
     
     Entity model:
     - definition: Static, immutable - WHO the character is, including persona and behavior rules
-    - explicit_state: Dynamic, visible - what the player SEES about the character
+    - state: Dynamic - current character state description
     
     Properties (Mechanical State):
     - properties: Flexible dict for story-specific game mechanics
@@ -1366,11 +1354,10 @@ class Character(BaseModel):
     # Static: WHO the character is - includes description, persona, action_rules
     definition: str = ""
     
-    # Dynamic, visible: what the player SEES about the character currently
-    explicit_state: str = ""
-    
-    # Dynamic, hidden: internal state not shown to player (for AI/game logic)
-    implicit_state: str = ""
+    # Dynamic: current character state description. If some details are not
+    # generally visible, encode that in the state text itself and let the
+    # Architect decide what the active viewer can perceive.
+    state: str = ""
     
     # Dynamic, accumulated: list of past experiences/interactions
     memory: List[str] = Field(default_factory=list)

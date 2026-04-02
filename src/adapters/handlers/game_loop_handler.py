@@ -523,7 +523,7 @@ class GameLoopHandler:
             story = game_state.story
             
             # Keep WebSocket alive during long form processing (character
-            # selection triggers Architect + explicit_state generation).
+            # selection can trigger Architect-driven perception/rendering work).
             ping_task = asyncio.create_task(self._keepalive_ping_loop(websocket))
             try:
                 result = await self.game_kernel.process_form_submission(

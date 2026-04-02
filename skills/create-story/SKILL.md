@@ -76,7 +76,7 @@ Every entity (node, object, character) has these key fields:
 | Field | Purpose | Mutability |
 |-------|---------|------------|
 | `definition` | What it IS -- static rules for the LLM | Immutable |
-| `explicit_state` | What the player SEES -- current state description | Dynamic |
+| `state` | What the player SEES -- current state description | Dynamic |
 | `properties` | Mechanical state (status, inventory, stats) | Dynamic |
 
 The `definition` field is where interaction rules live. Use `##` headers for different interactions. Effects inside definitions use JSON format: `{"type": "set_variable", "target": "var", "value": true}`.
@@ -98,8 +98,8 @@ nodes:
       When player examines the altar:
       - Display: Ancient runes glow faintly...
       - Effect: {"type": "set_variable", "target": "altar_examined", "value": true}
-    explicit_state: "Player-visible scene text. Use {action_id: link text} for clickable actions."
-    implicit_state: "Hidden plot info the AI knows but player doesn't see"
+    state: "Player-visible scene text. Use {action_id: link text} for clickable actions."
+    state: "Hidden plot info the AI knows but player doesn't see"
     properties:
       status: []
     triggers: []    # lifecycle (pre_enter, post_enter, etc.) or condition-based
@@ -114,9 +114,9 @@ nodes:
     is_ending: false  # true if this node concludes the game
 ```
 
-If `explicit_state` is null and `definition` exists, the engine auto-generates an explicit_state via LLM on first visit.
+If `state` is null and `definition` exists, the engine auto-generates an state via LLM on first visit.
 
-**Hyperlink syntax** in explicit_state text:
+**Hyperlink syntax** in state text:
 - Action links: `{action_id: display text}`
 - Object links: `{{object_id: display text}}`
 - Character mentions: `{@character_id: display text}`
@@ -162,8 +162,8 @@ characters:
       ## Ask about [topic]
       When player asks about topic:
       - Provide information in character voice
-    explicit_state: "Current visible appearance"
-    implicit_state: "Hidden knowledge"
+    state: "Current visible appearance"
+    state: "Hidden knowledge"
     memory: []
     properties:
       location: location_id
@@ -201,11 +201,11 @@ Special cases:
 | `for_each` | `array_variable`, `item_variable`, optional `index_variable`, `effects` |
 | `dice_roll` | `dice` ("2d6"), `output_variable`, optional `target_number`, `bonus`, `success_effects`/`failure_effects` |
 | `llm_generate` | `prompt`, `output_variable`, use `output_format: text` for narrative |
-| `update_object_status` | `target`, `add_status`, `remove_status`, optional `regenerate_explicit_state: true` |
-| `set_object_explicit_state` | `target`, `explicit_state` (or `value`) |
-| `update_node_status` | `target`, `add_status`, `remove_status`, optional `regenerate_explicit_state: true` |
-| `set_node_explicit_state` | `target`, `explicit_state` |
-| `regenerate_node_explicit_state` | `target` |
+| `update_object_status` | `target`, `add_status`, `remove_status`, optional `regenerate_state: true` |
+| `set_object_state` | `target`, `state` (or `value`) |
+| `update_node_status` | `target`, `add_status`, `remove_status`, optional `regenerate_state: true` |
+| `set_node_state` | `target`, `state` |
+| `regenerate_node_state` | `target` |
 | `present_form` | `form_id`, optional `prefill`, `on_submit_override` |
 | `random_branch` | `branches` (array of `{weight, effects}`) |
 | `generate_character` | `id`, `brief`, optional `hints`, `location` |

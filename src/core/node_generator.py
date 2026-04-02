@@ -85,7 +85,7 @@ class NodeGenerator:
 === HINTS ===
 {hints}
 
-Output valid YAML with: id, name, explicit_state, objects, actions."""
+Output valid YAML with: id, name, state, objects, actions."""
 
     def _parse_node_from_yaml(self, yaml_str: str) -> Optional[StoryNode]:
         """
@@ -124,9 +124,9 @@ Output valid YAML with: id, name, explicit_state, objects, actions."""
                 logger.debug(f"Invalid node data: {node_data}")
                 return None
 
-            has_content = any(k in node_data for k in ('description', 'definition', 'explicit_state'))
+            has_content = any(k in node_data for k in ('description', 'definition', 'state'))
             if not has_content:
-                logger.error("Generated node YAML has no content field (description/definition/explicit_state).")
+                logger.error("Generated node YAML has no content field (description/definition/state).")
                 logger.debug(f"Invalid node data: {node_data}")
                 return None
 

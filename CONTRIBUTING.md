@@ -170,7 +170,7 @@ def calc(a, d):
 - Include comments for complex logic
 - Run `python scripts/validate_story_yaml.py ...` before submitting larger story changes
 - Rebuild `connections` with `python tools/compile_connections.py ... --write` when relevant
-- Prefer canonical fields like `explicit_state`, `type`, and `target` in new content
+- Prefer canonical fields like `state`, `type`, and `target` in new content
 
 ### Documentation
 

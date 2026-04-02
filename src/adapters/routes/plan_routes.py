@@ -901,12 +901,12 @@ def register_plan_routes(app: FastAPI, game_kernel: Any, story_manager: Any):
         issues = []
         
         # Check description
-        description = node_data.get("description", node_data.get("explicit_state", ""))
+        description = node_data.get("description", node_data.get("state", ""))
         if not description or not description.strip():
             issues.append({
                 "severity": "warning",
                 "message": "Node has no description",
-                "suggestion": "Add a explicit_state for this location"
+                "suggestion": "Add a state for this location"
             })
         elif len(description.split()) < 15:
             issues.append({
@@ -1356,7 +1356,7 @@ def _build_plan_from_detailed_outline(
                     f"[Identity]\n{description}\n\n"
                     f"[Behavior Rules]\nStay aligned with the story role: {char.get('role', 'npc')}."
                 ),
-                "explicit_state": description,
+                "state": description,
                 "properties": {"location": location} if location else {}
             },
             description=f"Create character: {char.get('name', char_id)}"
@@ -1377,7 +1377,7 @@ def _build_plan_from_detailed_outline(
                 "id": item_id,
                 "name": item.get("name", item_id),
                 "definition": f"Item: {item.get('name', item_id)}. {item_purpose}",
-                "explicit_state": f"A {item.get('name', item_id)}.",
+                "state": f"A {item.get('name', item_id)}.",
                 "properties": {"status": []},
             },
             description=f"Create item: {item.get('name', item_id)}"
@@ -1395,8 +1395,7 @@ def _build_plan_from_detailed_outline(
             "id": "start",
             "name": detailed_outline.get("title", "Start"),
             "definition": f"Starting location of the story. Setting: {start_setting}",
-            "explicit_state": f"[To be expanded] {start_setting} {act_1}",
-            "implicit_state": "This is where the player's journey begins.",
+            "state": f"[To be expanded] {start_setting} {act_1}\\n\\n[Invisible to ordinary observers] This is where the player's journey begins.",
             "properties": {"status": []},
             "actions": [],
             "is_start_node": True
@@ -1428,8 +1427,7 @@ def _build_plan_from_detailed_outline(
                 "id": loc_id,
                 "name": loc_name,
                 "definition": f"Location: {loc_name}. Story beat: {act_hint[:100] if act_hint else 'Continue exploring.'}",
-                "explicit_state": f"[To be expanded] You are in {loc_name}.",
-                "implicit_state": "",
+                "state": f"[To be expanded] You are in {loc_name}.",
                 "properties": {"status": []},
                 "actions": []
             },
@@ -1477,8 +1475,7 @@ def _build_plan_from_detailed_outline(
                 "id": ending_id,
                 "name": ending_title,
                 "definition": f"[{ending_label}] {ending_title}. Trigger: {ending_trigger}",
-                "explicit_state": f"[To be expanded] The story reaches its conclusion: {ending_title}.",
-                "implicit_state": f"This is a {ending_type} ending. {ending_trigger}",
+                "state": f"[To be expanded] The story reaches its conclusion: {ending_title}.\\n\\n[Invisible to ordinary observers] This is a {ending_type} ending. {ending_trigger}",
                 "properties": {"status": [], "ending_type": ending_type},
                 "actions": [],
                 "is_ending": True

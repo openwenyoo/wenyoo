@@ -398,7 +398,7 @@ class NarrativeTracker:
         nodes = story.get("nodes", {})
         if isinstance(nodes, dict):
             for node_id, node_data in nodes.items():
-                description = node_data.get("description", node_data.get("explicit_state", ""))
+                description = node_data.get("description", node_data.get("state", ""))
                 if description:
                     # Extract entities mentioned
                     entities = self._extract_entities_from_text(description, story)

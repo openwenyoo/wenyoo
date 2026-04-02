@@ -510,8 +510,7 @@ class StoryConductor:
                 "id": ctx.node_id,
                 "name": ctx.node_name,
                 "definition": f"Location: {ctx.node_name}",
-                "explicit_state": f"You are in {ctx.node_name}. {ctx.story_beat or 'The story continues here.'}",
-                "implicit_state": "",
+                "state": f"You are in {ctx.node_name}. {ctx.story_beat or 'The story continues here.'}",
                 "properties": {"status": []},
                 "actions": [],
                 "objects": [],
@@ -578,12 +577,11 @@ class StoryConductor:
 # YOUR TASK
 Generate a complete node definition:
 - **definition**: Static rules and interaction guidelines for the LLM (immutable)
-- **explicit_state**: Current player-visible scene description in second person (100-200 words)
-- **implicit_state**: Hidden context/secrets for AI reference (optional)
+- **state**: Current dynamic state description in second person; include any invisible-only facts as clearly marked text when needed
 - **properties**: Flexible dict with status tags, visit_count, etc.
 
 Include:
-1. A vivid, atmospheric explicit_state in second person
+1. A vivid, atmospheric state description in second person
 2. 2-4 node-level actions the player can take, mainly navigation or major scene-level choices
 3. Any objects present in this location using the DSPP model; object interactions belong in each object's definition
 4. Optional triggers
@@ -591,8 +589,7 @@ Include:
 # OUTPUT FORMAT (JSON)
 {{
   "definition": "Static rules: what this location IS, key atmosphere, state conditions, and any scene-level interaction guidance.",
-  "explicit_state": "Your vivid scene description here in second person, present tense (100-200 words)...",
-  "implicit_state": "Hidden plot secrets or AI context not shown to player",
+  "state": "Your dynamic state description here in second person, present tense (100-200 words). If something is normally not visible, include an explicit marker such as [Invisible to ordinary observers] ...",
   "properties": {{"status": [], "visit_count": 0}},
   "actions": [
     {{
@@ -610,8 +607,7 @@ Include:
       "id": "object_id",
       "name": "Object Name",
       "definition": "What this object IS and its interaction rules. Put interaction rules here using clear sections such as [Description] and [Interaction Rules] with ## headings.",
-      "explicit_state": "Current visible state of the object",
-      "implicit_state": "Hidden context or function of the object",
+      "state": "Current dynamic state of the object. If some aspects are not normally visible, mark them explicitly in the text.",
       "properties": {{"status": []}}
     }}
   ],
@@ -635,7 +631,7 @@ Include:
 - calculate: {{"type": "calculate", "target": "var_name", "operation": "add", "value": 5}}
 
 # IMPORTANT
-- Use entity model: definition (rules), explicit_state (visible), properties (state)
+- Use entity model: definition (rules), state (dynamic description), properties (mechanics)
 - Use "text" for action display text
 - Prefer object interaction rules in object definitions instead of stuffing object behavior into node actions
 - Actions and triggers may use `intent` when natural-language behavior is clearer than raw effects
@@ -741,12 +737,11 @@ Core gameplay: {story_context.get('game_mechanics', {}).get('core_loop', 'Explor
 # YOUR TASK
 Generate a complete node definition:
 - **definition**: Static rules and interaction guidelines for the LLM (immutable)
-- **explicit_state**: Current player-visible scene description in second person (100-200 words)
-- **implicit_state**: Hidden context/secrets for AI reference (optional)
+- **state**: Current dynamic state description in second person; include any invisible-only facts as clearly marked text when needed
 - **properties**: Flexible dict with status tags, visit_count, etc.
 
 Include:
-1. A vivid, atmospheric explicit_state in second person
+1. A vivid, atmospheric state description in second person
 2. 2-4 node-level actions the player can take, mainly navigation or major scene-level choices
 3. Any objects present in this location using the DSPP model; object interactions belong in each object's definition
 4. Optional triggers
@@ -754,8 +749,7 @@ Include:
 # OUTPUT FORMAT (JSON)
 {{
   "definition": "Static rules: what this location IS, key atmosphere, state conditions, and any scene-level interaction guidance.",
-  "explicit_state": "Your vivid scene description here in second person, present tense (100-200 words)...",
-  "implicit_state": "Hidden plot secrets or AI context not shown to player",
+  "state": "Your dynamic state description here in second person, present tense (100-200 words). If something is normally not visible, include an explicit marker such as [Invisible to ordinary observers] ...",
   "properties": {{"status": [], "visit_count": 0}},
   "actions": [
     {{
@@ -773,8 +767,7 @@ Include:
       "id": "object_id",
       "name": "Object Name",
       "definition": "What this object IS and its interaction rules. Put interaction rules here using clear sections such as [Description] and [Interaction Rules] with ## headings.",
-      "explicit_state": "Current visible state of the object",
-      "implicit_state": "Hidden context or function of the object",
+      "state": "Current dynamic state of the object. If some aspects are not normally visible, mark them explicitly in the text.",
       "properties": {{"status": []}}
     }}
   ],
@@ -798,7 +791,7 @@ Include:
 - calculate: {{"type": "calculate", "target": "var_name", "operation": "add", "value": 5}}
 
 # IMPORTANT
-- Use entity model: definition (rules), explicit_state (visible), properties (state)
+- Use entity model: definition (rules), state (dynamic description), properties (mechanics)
 - Use "text" for action display text
 - Prefer object interaction rules in object definitions instead of stuffing object behavior into node actions
 - Actions and triggers may use `intent` when natural-language behavior is clearer than raw effects
@@ -833,10 +826,9 @@ Output ONLY valid JSON, no markdown code blocks or extra text."""
             
             data = json.loads(json_str)
             
-            # Accept both 'definition'/'explicit_state' and 'description' field names
+            # Accept both `definition`/`state` and `description` field names
             definition = data.get("definition", "")
-            explicit_state = data.get("explicit_state", data.get("description", ctx.placeholder_description))
-            implicit_state = data.get("implicit_state", "")
+            state = data.get("state", data.get("description", ctx.placeholder_description))
             properties = data.get("properties", {"status": []})
             
             # Normalize object format
@@ -846,8 +838,7 @@ Output ONLY valid JSON, no markdown code blocks or extra text."""
                     "id": obj.get("id", ""),
                     "name": obj.get("name", obj.get("id", "")),
                     "definition": obj.get("definition", obj.get("description", "")),
-                    "explicit_state": obj.get("explicit_state", obj.get("description", "")),
-                    "implicit_state": obj.get("implicit_state", ""),
+                    "state": obj.get("state", obj.get("description", "")),
                     "properties": obj.get("properties", {"status": []})
                 }
                 objects.append(normalized_obj)
@@ -862,8 +853,7 @@ Output ONLY valid JSON, no markdown code blocks or extra text."""
                 "id": ctx.node_id,
                 "name": ctx.node_name,
                 "definition": definition,
-                "explicit_state": explicit_state,
-                "implicit_state": implicit_state,
+                "state": state,
                 "properties": properties,
                 "actions": actions,
                 "objects": objects,
@@ -878,8 +868,7 @@ Output ONLY valid JSON, no markdown code blocks or extra text."""
                 "id": ctx.node_id,
                 "name": ctx.node_name,
                 "definition": "",
-                "explicit_state": response[:500] if len(response) > 50 else ctx.placeholder_description,
-                "implicit_state": "",
+                "state": response[:500] if len(response) > 50 else ctx.placeholder_description,
                 "properties": {"status": []},
                 "actions": [],
                 "objects": [],
