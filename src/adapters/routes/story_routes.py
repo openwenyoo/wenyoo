@@ -95,11 +95,15 @@ def _merge_roundtrip_yaml(existing: Any, new_value: Any) -> Any:
             not isinstance(item, (dict, list)) for item in new_value
         ):
             for index, item in enumerate(new_value):
-                if existing[index] != item:
+                if isinstance(item, str) and "\n" in item:
+                    existing[index] = _to_roundtrip_yaml(item)
+                elif existing[index] != item:
                     existing[index] = _to_roundtrip_yaml(item)
             del existing[len(new_value):]
             return existing
         return CommentedSeq(_to_roundtrip_yaml(item) for item in new_value)
+    if isinstance(new_value, str) and "\n" in new_value:
+        return _to_roundtrip_yaml(new_value)
     if existing == new_value:
         return existing
     return _to_roundtrip_yaml(new_value)

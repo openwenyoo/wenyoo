@@ -99,21 +99,15 @@ forms:
       - field: '*'
         to: players.{player_id}.quest_report
       llm_process:
-        prompt: 'The player completed a scouting mission and submitted the following report:
-
+        prompt: |
+          The player completed a scouting mission and submitted the following report:
 
           Findings: {$form.findings}
-
           Threat level: {$form.danger_level}
-
           Needs backup: {$form.need_backup}
 
-
           As the village elder, give a short response (1-2 sentences) based on this report and decide on the next step.
-
-          The response should acknowledge the player''s effort and react appropriately to the reported threat level.
-
-          '
+          The response should acknowledge the player's effort and react appropriately to the reported threat level.
         parse_as: text
         store_to: village_elder_response
       effects:
@@ -156,21 +150,15 @@ forms:
       - field: notes_category
         to: players.{player_id}.notes_category
       llm_process:
-        prompt: 'The player imported a set of notes:
-
+        prompt: |
+          The player imported a set of notes:
 
           Category: {$form.notes_category}
-
           Content:
-
           {$form.notes_file}
 
-
           Briefly summarize the main ideas in these notes (2-3 sentences), and extract any important names, places, or events.
-
           Return JSON in this format: {"summary": "...", "key_points": ["...", "..."]}
-
-          '
         parse_as: json
         store_to: players.{player_id}.notes_analysis
         extract:
@@ -190,16 +178,14 @@ nodes:
       effects:
       - type: present_form
         form_id: character_creation
-    state: 'Welcome to the form feature demo!
-
+    state: |-
+      Welcome to the form feature demo!
 
       In this short demonstration, you will experience how forms can be used to create a character, submit a quest report, and import external notes.
 
-
       Ready to begin? Click below to start creating your character.
 
-
-      {Start Creating: Open the character creation form}'
+      {Start Creating: Open the character creation form}
   village_entrance:
     name: Village Entrance
     actions:
@@ -223,13 +209,12 @@ nodes:
       effects:
       - type: goto_node
         target: village_center
-    state: 'You stand at the entrance of a peaceful village.
-
+    state: |-
+      You stand at the entrance of a peaceful village.
 
       Sunlight filters through the leaves overhead, and in the distance you can see several houses with thatched roofs. An elderly man stands beneath a large tree near the entrance.
 
-
-      "Ah, {$players.{player_id}.character.name}!" the old man says with a warm smile. "I am the elder of this village. Something has felt wrong in the forest lately. Would you be willing to investigate?"'
+      "Ah, {$players.{player_id}.character.name}!" the old man says with a warm smile. "I am the elder of this village. Something has felt wrong in the forest lately. Would you be willing to investigate?"
   forest_investigation:
     name: Forest Investigation
     actions:
@@ -250,20 +235,16 @@ nodes:
         value: true
       - type: present_form
         form_id: quest_feedback
-    state: 'You venture deeper into the forest.
-
+    state: |-
+      You venture deeper into the forest.
 
       The trees grow denser with every step, and sunlight barely pierces the thick canopy. Soon, you discover several unsettling signs:
 
-
       - Huge claw marks pressed into the ground
-
       - Deep scratches carved into several trees
-
       - A faint scent of burning in the air
 
-
-      You have gathered enough evidence. It is time to return to the elder and report what you found.'
+      You have gathered enough evidence. It is time to return to the elder and report what you found.
   village_center:
     name: Village Center
     actions:
@@ -287,32 +268,26 @@ nodes:
       effects:
       - type: goto_node
         target: ending
-    state: 'You arrive at the village square.
-
+    state: |-
+      You arrive at the village square.
 
       A small marketplace is bustling with activity. In the middle of the square stands an ancient well, and beside it rests a weathered stone tablet engraved with old writing.
 
-
       A young scholar is taking notes beside the tablet. When she notices you approaching, she looks up and smiles.
 
-
-      "Oh, you must be the new adventurer. If you have any notes or records about this world, I can help organize and analyze them for you."'
+      "Oh, you must be the new adventurer. If you have any notes or records about this world, I can help organize and analyze them for you."
   ending:
     name: Demo Complete
     is_ending: true
-    state: 'Congratulations! You have completed the form feature demo.
-
+    state: |-
+      Congratulations! You have completed the form feature demo.
 
       In this demonstration, you experienced:
-
-      1. **Character Creation Form** - Collecting a player''s basic information and choices
-
-      2. **Quest Report Form** - Gathering the player''s findings and generating an LLM response
-
+      1. **Character Creation Form** - Collecting a player's basic information and choices
+      2. **Quest Report Form** - Gathering the player's findings and generating an LLM response
       3. **File Import Form** - Uploading an external file for extraction and analysis
 
-
-      These form features can help story authors create richer interactive experiences!'
+      These form features can help story authors create richer interactive experiences!
 connections:
 - id: welcome_navigates_to_village_entrance
   source: welcome
