@@ -611,7 +611,10 @@ function setupEventListeners() {
         }
     });
     // Add listener to restore stashed choices
-    gameMessages.addEventListener('click', () => {
+    gameMessages.addEventListener('click', (event) => {
+        if (event.target.closest('.game-object-link, .game-action-link, .game-character-link')) {
+            return;
+        }
         if (stashedStoryChoices) {
             pendingObjectActionRequest = null;
             displayChoices(stashedStoryChoices, true); // isRestoring = true
@@ -1640,6 +1643,7 @@ function clearActiveRoomUi(options = {}) {
 
     resetStickyDescription();
     document.querySelector('.container').classList.remove('in-game');
+    updatePlayerNameDisplay();
 }
 
 function handleReturn() {
@@ -1723,6 +1727,7 @@ function handleLogout() {
 
 function displayStories(stories) {
     availableStories = Array.isArray(stories) ? stories : [];
+    updatePlayerNameDisplay();
     const predefinedList = document.getElementById('story-list-predefined');
     predefinedList.innerHTML = '';
 
@@ -1824,6 +1829,7 @@ function setOverlayRect(r, withTransition) {
 
 function showSessionSelection() {
     if (!selectedStory) return;
+    updatePlayerNameDisplay();
     const selectedStoryRecord = getStoryById(selectedStory);
     if (selectedStoryRecord) {
         selectedStoryTitle = selectedStoryRecord.title || selectedStoryRecord.name || selectedStoryTitle || selectedStory;
@@ -2201,8 +2207,11 @@ function onActionClick(displayText, actionHint) {
 
 function displayObjectActions(objectId, actions) {
     const choicesContainer = document.getElementById('choices-container');
+    const isAwaitingActions =
+        pendingObjectActionRequest === objectId ||
+        (!pendingObjectActionRequest && choicesContainer.classList.contains('object-actions-loading'));
 
-    if (objectId !== pendingObjectActionRequest) {
+    if (!isAwaitingActions) {
         return;
     }
 

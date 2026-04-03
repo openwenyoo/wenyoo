@@ -100,7 +100,12 @@ def register_game_routes(
                 return {"success": False, "error": "Room not found"}
 
             participant_ids = set(room_record.get("participant_ids") or [])
-            if player_id not in participant_ids:
+            manifest_ids = {
+                entry.get("player_id")
+                for entry in (room_record.get("participant_manifest") or [])
+                if isinstance(entry, dict) and entry.get("player_id")
+            }
+            if player_id not in participant_ids and player_id not in manifest_ids:
                 return {"success": False, "error": "You are not allowed to delete this room"}
 
             deleted = await frontend_adapter.session_handler.delete_room(room_id)

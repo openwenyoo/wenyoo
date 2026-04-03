@@ -367,6 +367,22 @@ class WebFrontendAdapter(FrontendAdapter):
             last_entry = transcript[-1]
             preview = str(last_entry.get("content") or "")
 
+        manifest = copy.deepcopy(metadata.get("participant_manifest", []))
+        manifest_ids = [
+            pid for entry in manifest
+            if (pid := entry.get("player_id"))
+        ]
+        existing_record = self.game_kernel.state_manager.load_persistent_room(room_id) if self.game_kernel else None
+        persisted_active_ids = set((existing_record or {}).get("participant_ids") or [])
+        mapped_active_ids = {
+            pid for pid in manifest_ids
+            if self.persistent_player_to_session.get(pid) == room_id
+        }
+        participant_ids = [
+            pid for pid in manifest_ids
+            if pid in (persisted_active_ids | mapped_active_ids)
+        ]
+
         return {
             "room_id": room_id,
             "story_id": game_state.story_id,
@@ -375,13 +391,9 @@ class WebFrontendAdapter(FrontendAdapter):
             "status": status,
             "created_at": game_state.created_at,
             "updated_at": game_state.updated_at,
-            "participant_manifest": copy.deepcopy(metadata.get("participant_manifest", [])),
+            "participant_manifest": manifest,
             "participant_names": list(metadata.get("participant_names", [])),
-            "participant_ids": [
-                pid for entry in metadata.get("participant_manifest", [])
-                if (pid := entry.get("player_id"))
-                and self.persistent_player_to_session.get(pid) == room_id
-            ],
+            "participant_ids": participant_ids,
             "current_node": game_state.current_node_id,
             "preview": preview,
             "snapshot": game_state.to_dict(),
@@ -736,7 +748,7 @@ class WebFrontendAdapter(FrontendAdapter):
         finally:
             logger.info(f"Closing WebSocket connection for player {player_id}.")
             if player_id:
-                self.websocket_manager.disconnect(player_id)
+                self.websocket_manager.disconnect(player_id, websocket)
 
     # ---- Client-specific formatting ----
 

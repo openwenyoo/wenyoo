@@ -32,15 +32,27 @@ class WebSocketManager:
         self.player_connections[player_id] = websocket
         logger.info(f"New WebSocket connection for player {player_id}. Total connections: {len(self.player_connections)}")
 
-    def disconnect(self, player_id: str):
+    def disconnect(self, player_id: str, websocket: Optional[WebSocket] = None):
         """Disconnect a WebSocket.
         
         Args:
             player_id (str): The ID of the player to disconnect.
+            websocket (Optional[WebSocket]): When provided, only remove the
+                connection if it is still the currently registered socket for
+                this player. This prevents a stale socket from unregistering a
+                newer live connection during reconnect races.
         """
-        if player_id in self.player_connections:
-            del self.player_connections[player_id]
-            logger.info(f"WebSocket for player {player_id} disconnected. Remaining connections: {len(self.player_connections)}")
+        current = self.player_connections.get(player_id)
+        if not current:
+            return
+        if websocket is not None and current is not websocket:
+            logger.debug(
+                "Skipping disconnect for stale websocket of player %s; a newer connection is active.",
+                player_id,
+            )
+            return
+        del self.player_connections[player_id]
+        logger.info(f"WebSocket for player {player_id} disconnected. Remaining connections: {len(self.player_connections)}")
 
     async def broadcast_to_session(
         self, 
