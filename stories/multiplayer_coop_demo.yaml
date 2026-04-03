@@ -171,22 +171,6 @@ nodes:
           and direct item handoff as authored multiplayer rules.
         - If the player prefers shorthand such as `list_players`, `say: ...`, or
           `give: name: item`, treat that as one possible way of expressing the same intent.
-      actions:
-      - id: read_terminal
-        text: Read the briefing terminal
-        effects:
-        - type: display_text
-          text: |
-            The terminal scrolls through a crisp checklist:
-
-            1. Confirm your partner is nearby.
-            2. Speak aloud and agree who explores which side room.
-            3. Route power in the archive.
-            4. Retrieve the relay lens from the gallery.
-            5. Use your phone if you need to coordinate across distance.
-            6. Bring the tuning fork and relay lens together by handing one part to the other operator.
-            7. Assemble the resonator at the paired lock.
-            8. Two **different** players must activate opposite consoles to open the vault.
       state: A slim terminal displays the title **Twin Operator Calibration Vault**.
     - id: briefing_plaque
       name: Calibration Plaque
@@ -199,12 +183,6 @@ nodes:
         - Emphasize that this trial requires two distinct operators.
         - Reinforce that coordination, item handoff, and complementary console inputs
           are mandatory parts of the fiction.
-      actions:
-      - id: inspect_plaque
-        text: Inspect the calibration plaque
-        effects:
-        - type: display_text
-          text: 'The plaque continues in smaller text: **Item transfer, synchronized activation, and shared-state awareness are mandatory for certification.**'
       state: 'Below the northern iris door, a bronze plaque reads: **No single operator may complete this trial.**'
     state: |-
       A circular training chamber hums with soft white light. Two corridors branch away:
@@ -249,6 +227,7 @@ nodes:
         If `power_routed` is false:
         - Route startup power to the relay gallery.
         - Set `power_routed` to true.
+        - Update the lever's own current state so it is clearly engaged and routing power.
         - Use `deliveries` to notify across rooms:
           1. audience `self` → describe pulling the lever, hearing power engage, and
              indicator strips shifting to green.
@@ -256,29 +235,14 @@ nodes:
              a low vibration rolling through the floor, the indicator panel beside the
              relay cradle flickering to life and glowing green, and the magnetic seal on
              the cradle releasing. Make clear that power has arrived from the archive.
+        - In the SAME authoritative `commit_world_event`, also schedule one delayed `timed_events` entry for 15 seconds later.
+        - That delayed event must return the lever to standby, set `power_routed` back to false, and describe power dropping again for any operators who can perceive it.
+        - Do not treat the 15-second reset as optional flavor text; schedule it as real delayed world state.
         If `power_routed` is already true:
         - Explain that the relay feed is already active.
       properties:
         status: []
         switch_state: false
-      actions:
-      - id: route_power
-        text: Pull the phase lever to route power
-        conditions:
-        - type: variable
-          variable: power_routed
-          operator: eq
-          value: false
-          response: The relay feed is already active. The gallery should be powered now.
-        intent: |
-          Pull the phase lever and treat it as a shared-world power-routing event.
-          If `power_routed` is false, commit one authoritative world event that:
-          - sets `power_routed` to true
-          - updates `object_states.phase_lever.properties.switch_state` to `on`
-          - updates `object_states.phase_lever.state` to show the lever locked in the engaged position
-          - sends a self delivery describing the lever thunking into place and the archive indicators turning green
-          - sends a `location_players` delivery to `relay_gallery` describing a low vibration through the floor, the indicator panel beside the relay cradle flickering green, and the cradle unlocking because power has arrived from the archive
-          Then continue following the object's definition for any further consequences of leaving the lever engaged.
       state: The phase lever is currently set to **standby**.
     - id: tuning_fork
       name: Tuning Fork
@@ -293,24 +257,6 @@ nodes:
         - Explain that it must later be paired with another component.
         Otherwise:
         - Explain that the tuning fork has already been claimed.
-      actions:
-      - id: take_tuning_fork
-        text: Take the tuning fork
-        conditions:
-        - type: variable
-          variable: tuning_fork_taken
-          operator: eq
-          value: false
-          response: The tuning fork has already been taken.
-        effects:
-        - type: add_to_inventory
-          target: tuning_fork
-          item_id: tuning_fork
-        - type: set_variable
-          target: tuning_fork_taken
-          value: true
-        - type: display_text
-          text: You take the tuning fork. Its label suggests it must be paired with another component before the vault can be opened.
       state: A silver tuning fork rests on a felt tray, tagged **paired-lock harmonic key**.
     - id: waveform_tablet
       name: Waveform Tablet
@@ -323,20 +269,6 @@ nodes:
         - Explain that, after assembly, two distinct operators must take opposite consoles.
         - Encourage the operator to pass this clue to their partner through whatever
           nearby speech or shorthand the story recognizes.
-      actions:
-      - id: read_waveform_tablet
-        text: Read the waveform tablet
-        effects:
-        - type: display_text
-          text: |
-            The tablet displays a simple instruction:
-
-            **After the resonator is assembled, two distinct operators must take opposite consoles.**
-
-            The left pedestal is marked **sun**.
-            The right pedestal is marked **moon**.
-
-            If you found this first, pass the clue to your partner before either of you commits to a console.
       state: 'A wall tablet shows two symbols: a sunburst on the left, a crescent on the right.'
     state: |-
       Frosted panels line the walls, each full of waveform diagrams and old maintenance
@@ -378,34 +310,6 @@ nodes:
         - Describe the successful retrieval.
         Otherwise:
         - Explain that the relay lens has already been removed.
-      actions:
-      - id: inspect_relay_lens
-        text: Inspect the relay lens
-        effects:
-        - type: display_text
-          text: 'The lens is shaped to slot into a larger housing. A stamped note reads: **pair with harmonic key before console activation**.'
-      - id: take_relay_lens
-        text: Take the relay lens
-        conditions:
-        - type: variable
-          variable: power_routed
-          operator: eq
-          value: true
-          response: The cradle remains magnetically locked. Someone must route power from the archive first.
-        - type: variable
-          variable: relay_lens_taken
-          operator: eq
-          value: false
-          response: The relay lens has already been removed from the cradle.
-        effects:
-        - type: add_to_inventory
-          target: relay_lens
-          item_id: relay_lens
-        - type: set_variable
-          target: relay_lens_taken
-          value: true
-        - type: display_text
-          text: The cradle unlocks with a clean click, proving the power reroute worked. You lift out the relay lens.
       state: The relay lens gleams inside its cradle, waiting for startup power.
     - id: gallery_indicator
       name: Indicator Panel
@@ -417,17 +321,6 @@ nodes:
         When an operator checks the panel:
         - If `power_routed` is true, report that the relay feed is active.
         - Otherwise, report that the gallery is still waiting for power from the archive.
-      actions:
-      - id: check_indicator
-        text: Check the indicator panel
-        effects:
-        - type: execute_script
-          script: |
-            if game:get_variable("power_routed", false) then
-              game:display_text("The indicator glows green: **relay feed active**.")
-            else
-              game:display_text("The indicator is dark. The gallery is still waiting for power from the archive.")
-            end
       state: A square indicator panel waits beside the cradle.
     state: |-
       The gallery is full of polished rails and silent coils. At the far end, a crystal
@@ -475,43 +368,6 @@ nodes:
         - Explain which component is still needed in the acting operator's inventory.
         If the resonator is already assembled:
         - Explain that the dock is already humming with a completed resonator.
-      actions:
-      - id: assemble_resonator
-        text: Assemble the relay resonator
-        conditions:
-        - type: inventory
-          operator: has
-          value: relay_lens
-          response: You need the relay lens in your inventory before the resonator can be assembled.
-        - type: inventory
-          operator: has
-          value: tuning_fork
-          response: You need the tuning fork in your inventory before the resonator can be assembled.
-        - type: variable
-          variable: resonator_assembled
-          operator: eq
-          value: false
-          response: The relay resonator is already assembled and humming in the dock.
-        effects:
-        - type: remove_from_inventory
-          target: relay_lens
-        - type: remove_from_inventory
-          target: tuning_fork
-        - type: set_variable
-          target: resonator_assembled
-          value: true
-        - type: set_variable
-          target: handoff_complete
-          value: true
-        - type: display_text
-          text: You slot the relay lens and tuning fork into the dock. The completed resonator hums to life, bathing both consoles in pale gold light.
-      - id: reset_paired_lock
-        text: Reset the paired lock consoles
-        intent: |
-          Reset the paired lock to standby. Clear any `paired_role_sun` and
-          `paired_role_moon` markers stored under session player data, set
-          `paired_gate_open` to false, and narrate that the chamber is ready for the
-          two operators to coordinate a fresh attempt.
       state: The assembly dock has two empty recesses shaped for a lens and a tuning fork.
     - id: sun_console
       name: Sun Console
@@ -528,15 +384,6 @@ nodes:
         - If another nearby operator has already claimed the moon role, set
           `paired_gate_open` to true and narrate the unlock as a shared world event.
         - Otherwise, describe the sun console entering a waiting state for the complementary operator.
-      actions:
-      - id: activate_sun_console
-        text: Take the sun console
-        intent: |
-          Take the sun console using the multiplayer rules authored in this object's
-          definition. Check that exactly two active operators are present in the paired
-          lock, require the resonator to be assembled, reject any attempt by one player
-          to take both roles, and unlock the vault only when another nearby operator has
-          already taken the moon console.
       state: The left pedestal bears a bright sunburst emblem.
     - id: moon_console
       name: Moon Console
@@ -553,15 +400,6 @@ nodes:
         - If another nearby operator has already claimed the sun role, set
           `paired_gate_open` to true and narrate the unlock as a shared world event.
         - Otherwise, describe the moon console entering a waiting state for the complementary operator.
-      actions:
-      - id: activate_moon_console
-        text: Take the moon console
-        intent: |
-          Take the moon console using the multiplayer rules authored in this object's
-          definition. Check that exactly two active operators are present in the paired
-          lock, require the resonator to be assembled, reject any attempt by one player
-          to take both roles, and unlock the vault only when another nearby operator has
-          already taken the sun console.
       state: The right pedestal bears a thin crescent emblem.
     - id: vault_door
       name: Vault Door
@@ -574,33 +412,6 @@ nodes:
         - Explain that the locking bolts have retracted.
         Otherwise:
         - Explain that the chamber is still waiting for complementary operators.
-      actions:
-      - id: inspect_vault_door
-        text: Inspect the vault door
-        effects:
-        - type: execute_script
-          script: |
-            if game:get_variable("paired_gate_open", false) then
-              game:display_text("The locking bolts have retracted. The way north is open.")
-            else
-              game:display_text("The door remains sealed. A recessed display reads: `awaiting complementary operators`.")
-            end
-      - id: enter_verification_vault
-        text: Enter the verification vault
-        intent: |
-          If `paired_gate_open` is true, move the acting operator from `paired_lock`
-          to `verification_vault` and narrate the successful entry. Otherwise explain
-          that the vault door is still sealed.
-        conditions:
-        - type: variable
-          variable: paired_gate_open
-          operator: eq
-          value: true
-          response: The vault door is still sealed. Assemble the resonator and use both consoles with two different players.
-        effects:
-        - type: goto_node
-          target: verification_vault
-          target_node: verification_vault
       state: A circular vault door covers the northern wall.
     state: |-
       A broad circular chamber opens beneath a dormant ring of light. At its center,
@@ -621,21 +432,6 @@ nodes:
       definition: |
         [Identity]
         A final report terminal summarizing what the pair achieved.
-      actions:
-      - id: read_verification_report
-        text: Read the verification report
-        effects:
-        - type: display_text
-          text: |
-            The console prints a neat co-op report:
-
-            - Nearby operator awareness: **passed**
-            - Story-defined local coordination: **passed**
-            - Shared power reroute across rooms: **passed**
-            - Story-defined item handoff requirement: **passed**
-            - Two distinct operators on complementary consoles: **passed**
-
-            **Certification complete.** This demo story has validated the core multiplayer loop.
       state: The verification console flashes the word **PASS**.
     state: |-
       The vault beyond is surprisingly warm. Two lights shine from opposite walls and meet

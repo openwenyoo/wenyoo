@@ -1394,10 +1394,12 @@ class Architect:
         }
         if triggers_list:
             result['triggers'] = triggers_list
-        if node.groups:
-            result['groups'] = list(node.groups)
-        if node.hints:
-            result['hints'] = node.hints
+        node_groups = getattr(node, "groups", None)
+        if node_groups:
+            result['groups'] = list(node_groups)
+        node_hints = getattr(node, "hints", None)
+        if node_hints:
+            result['hints'] = node_hints
 
         # Include characters at this node
         npc_ids = self._get_nonplayable_characters_at_node(game_state, node_id)
@@ -1476,17 +1478,65 @@ class Architect:
         State changes (if any) are applied first, then the narrative is
         streamed to the resolved audience.
         """
+        def _coerce_json_value(value: Any) -> Any:
+            if not isinstance(value, str):
+                return value
+            stripped = value.strip()
+            if not stripped:
+                return value
+            if stripped[0] not in "[{":
+                return value
+            try:
+                return json.loads(stripped)
+            except Exception:
+                return value
+
+        def _coerce_string_list(value: Any) -> List[str]:
+            coerced = _coerce_json_value(value)
+            if isinstance(coerced, list):
+                return [item for item in coerced if isinstance(item, str)]
+            if isinstance(coerced, str) and coerced:
+                return [coerced]
+            return []
+
         narrative = args.get("narrative", "")
-        deliveries_arg = args.get("deliveries") or []
+        deliveries_arg = _coerce_json_value(args.get("deliveries") or [])
         state_changes = args.get("state_changes")
         audience = args.get("audience", "players_here")
-        target_player_ids = args.get("target_player_ids") or []
+        target_player_ids = _coerce_string_list(args.get("target_player_ids") or [])
         location_id = args.get("location_id")
-        exclude_player_ids = args.get("exclude_player_ids") or []
+        exclude_player_ids = _coerce_string_list(args.get("exclude_player_ids") or [])
 
         player_id = ctx["player_id"]
         game_state: 'GameState' = ctx["game_state"]
         applied: List[str] = []
+
+        capture_only = bool(ctx.get("capture_only"))
+        if capture_only and isinstance(state_changes, dict):
+            node_changes = state_changes.get("nodes")
+            if isinstance(node_changes, dict):
+                sanitized_nodes: Dict[str, Any] = {}
+                stripped_node_ids: List[str] = []
+                for node_id, node_patch in node_changes.items():
+                    if not isinstance(node_patch, dict):
+                        sanitized_nodes[node_id] = node_patch
+                        continue
+                    sanitized_patch = dict(node_patch)
+                    if "state" in sanitized_patch:
+                        sanitized_patch.pop("state", None)
+                        stripped_node_ids.append(node_id)
+                    if sanitized_patch:
+                        sanitized_nodes[node_id] = sanitized_patch
+                if stripped_node_ids:
+                    logger.warning(
+                        "Ignoring node.state writes during capture_only commit_world_event for nodes: %s",
+                        ", ".join(stripped_node_ids),
+                    )
+                    state_changes = dict(state_changes)
+                    if sanitized_nodes:
+                        state_changes["nodes"] = sanitized_nodes
+                    else:
+                        state_changes.pop("nodes", None)
 
         # ── Phase 1: Apply state changes (if any) ──
         if state_changes and isinstance(state_changes, dict):
@@ -1512,9 +1562,9 @@ class Architect:
             deliveries.append({
                 "narrative": narrative,
                 "audience": audience,
-                "target_player_ids": list(target_player_ids),
+                "target_player_ids": target_player_ids,
                 "location_id": location_id,
-                "exclude_player_ids": list(exclude_player_ids),
+                "exclude_player_ids": exclude_player_ids,
             })
         for entry in deliveries_arg:
             if not isinstance(entry, dict):
@@ -1525,9 +1575,9 @@ class Architect:
             deliveries.append({
                 "narrative": entry_narrative,
                 "audience": entry.get("audience", "players_here"),
-                "target_player_ids": list(entry.get("target_player_ids") or []),
+                "target_player_ids": _coerce_string_list(entry.get("target_player_ids") or []),
                 "location_id": entry.get("location_id"),
-                "exclude_player_ids": list(entry.get("exclude_player_ids") or []),
+                "exclude_player_ids": _coerce_string_list(entry.get("exclude_player_ids") or []),
             })
 
         if not deliveries:
@@ -1551,7 +1601,6 @@ class Architect:
         else:
             logger.info("Architect commit_world_event with %d deliveries", len(deliveries))
 
-        capture_only = bool(ctx.get("capture_only"))
         already_streamed = bool(ctx.get("_narrative_already_streamed"))
         delivery_results: List[Dict[str, Any]] = []
         flattened_targets: List[str] = []

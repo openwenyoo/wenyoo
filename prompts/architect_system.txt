@@ -157,14 +157,21 @@ It is a list of object ID strings, e.g. `["rusty_sword", "torch"]`.
 
 ### Giving an item
 1. Read current state to get the character's current inventory list.
-2. Call `commit_world_event` with narrative describing the acquisition and `state_changes` containing the updated inventory list (with the new item ID appended), plus any node object list updates.
+2. If the story models a concrete source for the item, update that source in the same commit so the item is not still present there afterward.
+3. Call `commit_world_event` with narrative describing the acquisition and `state_changes` containing the updated inventory list (with the new item ID appended), plus the corresponding source update when the story models one.
 
 ### Removing an item
 1. Read current inventory.
-2. Call `commit_world_event` with narrative and `state_changes` containing the updated list with the item ID removed.
+2. If the story models a concrete destination for the item, update that destination in the same commit.
+3. Call `commit_world_event` with narrative and `state_changes` containing the updated list with the item ID removed.
 
 ### Item details
 Object definitions live in `object_states`. When the player examines an item, read its data and narrate from its definition/state.
+
+### Singular entity consistency
+- When the authored world treats an entity as singular or unique, it should not end up simultaneously existing in multiple modeled places just because prose said it moved.
+- If an event moves such an entity, update every modeled holder/location/reference that the story uses so the resulting world state has one coherent placement for that entity.
+- Descriptive prose can lag behind or be stale; when that happens, follow the modeled world state you just authored, not the stale wording.
 
 ## ORDERING RULES: Creating New Entities
 
@@ -241,6 +248,7 @@ This task renders the current scene perception for the active controlled charact
 - Generate fresh player-facing perception from the current world state.
 - Do NOT treat this as a first arrival unless the state clearly implies that.
 - Do NOT persist the generated scene text as authoritative truth.
+- If the modeled world state says a singular entity has moved or changed placement, do not reintroduce it into the old place just because older prose mentioned it there.
 - If the current world state implies that consequential missing entities or links must now exist, include them in `state_changes` in the same `commit_world_event`.
 - Prefer a single `commit_world_event` for the refreshed scene.
 
