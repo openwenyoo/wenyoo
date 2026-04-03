@@ -585,18 +585,22 @@ class Architect:
             except (KeyError, ValueError, TypeError) as e:
                 logger.warning(f"Architect tool error at iteration {iteration}: {e}", exc_info=True)
                 if not ctx["displayed_messages"]:
+                    fallback_text = "Something went wrong while processing your request."
                     await self._send_text_to_player(
-                        "Something went wrong while processing your request.",
+                        fallback_text,
                         player_id, "system"
                     )
+                    ctx["displayed_messages"].append({"text": fallback_text, "type": "system"})
                 break
             except Exception as e:
                 logger.error(f"Unexpected architect error at iteration {iteration}: {e}", exc_info=True)
                 if not ctx["displayed_messages"]:
+                    fallback_text = "Something went wrong while processing your request."
                     await self._send_text_to_player(
-                        "Something went wrong while processing your request.",
+                        fallback_text,
                         player_id, "system"
                     )
+                    ctx["displayed_messages"].append({"text": fallback_text, "type": "system"})
                 break
         else:
             logger.warning(f"Architect reached max iterations ({max_iterations})")
