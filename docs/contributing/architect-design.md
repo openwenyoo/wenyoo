@@ -38,15 +38,14 @@ The author's YAML remains the source of truth for the world model. The Architect
 
 Wenyoo should be understood as having one shared Architect core plus frontend-specific upper layers.
 
-- The core Architect owns world reading, rule resolution, tool use, and authoritative event/state decisions.
-- The default web layer owns text-first transcript/perception presentation for the built-in chat-style client.
-- The custom frontend layer owns purpose-driven UI tasks, structured results, and explicit perception requests for story apps.
+- The core Architect owns world reading, rule resolution, tool use, and authoritative state mutations. It produces typed **artifacts** (narrative text, structured data, etc.) alongside state changes via the `commit` tool. The core is agnostic about how artifacts are delivered.
+- Upper layers (default web, custom frontend, headless/background) consume artifacts by kind and apply their own coherence and delivery policies. For example, the web layer enforces "narrative must accompany state changes," while a headless background layer may accept mutations with no artifacts at all.
 
 This means the shared core should not assume that every meaningful task is a default-web narration turn.
 
 ## Task Profiles
 
-Architect behavior is driven by task profile rather than by which caller invoked it.
+Architect behavior is driven by task profile, which describes the **reasoning mode** — not the output shape or delivery mechanism.
 
 - `worldAction`: player/world interaction that may change authoritative state.
 - `perceptionRender`: viewer-scoped scene rendering, captured and delivered by an upper layer.
@@ -54,7 +53,7 @@ Architect behavior is driven by task profile rather than by which caller invoked
 - `uiDecision`: strictly non-player-facing structured reasoning for custom UI.
 - `backgroundSimulation`: deferred or offscreen world evolution.
 
-These profiles let Wenyoo keep one Architect implementation while making delivery policy explicit.
+These profiles let Wenyoo keep one Architect implementation while allowing each upper layer to enforce its own coherence rules.
 
 ## Mental Model
 
@@ -81,9 +80,9 @@ Before it describes anything to the player, it should determine:
 
 Only then should it narrate the event.
 
-That is why the architecture revolves around `commit_world_event`: authoritative world decisions and player-facing expression stay coherent instead of letting prose drift away from the underlying world model.
+That is why the architecture revolves around `commit`: authoritative world mutations and typed artifacts (narrative, structured data) are submitted together, keeping world decisions and their expression coherent instead of letting prose drift away from the underlying world model.
 
-The important layering detail is that `commit_world_event` belongs to the core world-event boundary, while transcript/perception delivery belongs to an upper presentation layer.
+The important layering detail is that `commit` belongs to the core world-event boundary (mutations + artifacts), while delivery, coherence enforcement, and transcript/perception presentation belong to upper layers.
 
 ## Why A General World Agent
 
@@ -119,11 +118,10 @@ The current design centers on a small set of runtime tools such as:
 
 - `read_game_state`
 - `read_node`
-- `commit_world_event`
+- `commit` (with typed artifacts: narrative, structured)
 - `roll_dice`
 - `queue_materialization`
 - `present_form`
-- `return_structured_result`
 
 This matters because tools provide boundaries:
 

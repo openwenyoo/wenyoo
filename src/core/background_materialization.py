@@ -149,8 +149,6 @@ class BackgroundMaterializationScheduler:
 
         from src.core.architect import (
             ArchitectTask,
-            infer_delivery_policy,
-            infer_expected_output,
             infer_task_profile,
         )
 
@@ -177,16 +175,6 @@ class BackgroundMaterializationScheduler:
             task_type="background_materialization",
             node_id=job.source_node_id,
             task_profile=infer_task_profile("background_materialization"),
-            expected_output=infer_expected_output(
-                "background_materialization",
-                infer_task_profile("background_materialization"),
-            ),
-            delivery_policy=infer_delivery_policy(
-                "background_materialization",
-                infer_task_profile("background_materialization"),
-                capture_only=False,
-                allow_player_facing_narrative=job.allow_player_facing_narrative,
-            ),
             extra_context=extra_context,
         )
 

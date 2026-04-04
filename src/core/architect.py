@@ -33,15 +33,10 @@ TASK_PROFILE_UI_DECISION = "uiDecision"
 TASK_PROFILE_WORKFLOW = "workflowTask"
 TASK_PROFILE_BACKGROUND_SIMULATION = "backgroundSimulation"
 
-DELIVERY_POLICY_IMMEDIATE = "immediate"
-DELIVERY_POLICY_CAPTURE_ONLY = "capture_only"
-DELIVERY_POLICY_STRUCTURED_ONLY = "structured_only"
-DELIVERY_POLICY_SUPPRESS_PLAYER_DELIVERY = "suppress_player_delivery"
 
-EXPECTED_OUTPUT_WORLD_EVENT = "world_event"
-EXPECTED_OUTPUT_PLAYER_FACING_TEXT = "player_facing_text"
-EXPECTED_OUTPUT_STRUCTURED_RESULT = "structured_result"
-EXPECTED_OUTPUT_WORLD_EVENT_OR_NOOP = "world_event_or_noop"
+# Artifact kinds (extensible)
+ARTIFACT_KIND_NARRATIVE = "narrative"
+ARTIFACT_KIND_STRUCTURED = "structured"
 
 DEFAULT_TASK_PROFILE_BY_TYPE = {
     "player_input": TASK_PROFILE_WORLD_ACTION,
@@ -65,46 +60,6 @@ def infer_task_profile(task_type: str, explicit_profile: Optional[str] = None) -
     return DEFAULT_TASK_PROFILE_BY_TYPE.get(task_type, TASK_PROFILE_WORLD_ACTION)
 
 
-def infer_expected_output(
-    task_type: str,
-    task_profile: str,
-    explicit_output: Optional[str] = None,
-) -> str:
-    """Resolve the main output contract for a task."""
-    if explicit_output:
-        return explicit_output
-    if task_profile == TASK_PROFILE_PERCEPTION_RENDER:
-        return EXPECTED_OUTPUT_PLAYER_FACING_TEXT
-    if task_profile == TASK_PROFILE_UI_DECISION:
-        return EXPECTED_OUTPUT_STRUCTURED_RESULT
-    if task_profile == TASK_PROFILE_BACKGROUND_SIMULATION:
-        return EXPECTED_OUTPUT_WORLD_EVENT_OR_NOOP
-    if task_type == "process_form_result":
-        return EXPECTED_OUTPUT_PLAYER_FACING_TEXT
-    return EXPECTED_OUTPUT_WORLD_EVENT
-
-
-def infer_delivery_policy(
-    task_type: str,
-    task_profile: str,
-    explicit_policy: Optional[str] = None,
-    *,
-    capture_only: bool = False,
-    allow_player_facing_narrative: bool = True,
-) -> str:
-    """Resolve how task results should be delivered to clients."""
-    if explicit_policy:
-        return explicit_policy
-    if capture_only or task_profile == TASK_PROFILE_PERCEPTION_RENDER:
-        return DELIVERY_POLICY_CAPTURE_ONLY
-    if task_profile == TASK_PROFILE_UI_DECISION:
-        return DELIVERY_POLICY_STRUCTURED_ONLY
-    if (
-        task_type == "background_materialization"
-        and not allow_player_facing_narrative
-    ):
-        return DELIVERY_POLICY_SUPPRESS_PLAYER_DELIVERY
-    return DELIVERY_POLICY_IMMEDIATE
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -122,8 +77,6 @@ class ArchitectTask:
     task_profile: Optional[str] = None
     purpose: Optional[str] = None
     structured_input: Optional[Dict[str, Any]] = None
-    expected_output: Optional[str] = None
-    delivery_policy: Optional[str] = None
     extra_context: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -154,20 +107,6 @@ class Architect:
     def _normalize_task_contract(self, task: ArchitectTask) -> ArchitectTask:
         """Fill task contract defaults so callers do not need frontend-shaped assumptions."""
         task.task_profile = infer_task_profile(task.task_type, task.task_profile)
-        task.expected_output = infer_expected_output(
-            task.task_type,
-            task.task_profile,
-            task.expected_output,
-        )
-        task.delivery_policy = infer_delivery_policy(
-            task.task_type,
-            task.task_profile,
-            task.delivery_policy,
-            capture_only=bool(task.extra_context.get("capture_only")),
-            allow_player_facing_narrative=bool(
-                task.extra_context.get("background_allow_player_facing_narrative", True)
-            ),
-        )
         return task
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -214,101 +153,10 @@ class Architect:
             }
         })
 
-        self._register("commit_world_event", self._tool_commit_world_event, {
-            "type": "function",
-            "function": {
-                "name": "commit_world_event",
-                "description": (
-                    "Declare a world event: narrate it to the player AND record "
-                    "its mechanical effects in one atomic call. Use this for "
-                    "every player-facing response. Provide either a single top-level "
-                    "'narrative' or a 'deliveries' array for per-audience variants. "
-                    "'state_changes' is "
-                    "a JSON merge-patch applied to game state; omit it when no "
-                    "state changes are needed (pure observation, failed attempts, "
-                    "transient atmosphere). In background materialization tasks, "
-                    "state_changes may be submitted without player-facing narrative "
-                    "when no player should receive text immediately."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "narrative": {
-                            "type": "string",
-                            "description": "Player-facing narrative text. Markdown supported. Must be player-facing content only. Use this for a single shared delivery."
-                        },
-                        "deliveries": {
-                            "type": "array",
-                            "description": (
-                                "Optional per-audience message variants for one atomic event. "
-                                "Use when different players should receive different narrative text "
-                                "from the same world event, such as sender/recipient phone messages."
-                            ),
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "narrative": {
-                                        "type": "string",
-                                        "description": "Player-facing narrative text for this delivery."
-                                    },
-                                    "audience": {
-                                        "type": "string",
-                                        "enum": ["self", "players_here", "location_players", "session", "specific_players"],
-                                        "description": "Who receives this delivery. Defaults to 'players_here'.",
-                                        "default": "players_here"
-                                    },
-                                    "target_player_ids": {
-                                        "type": "array",
-                                        "items": {"type": "string"},
-                                        "description": "Concrete player IDs to target when audience is 'specific_players'."
-                                    },
-                                    "location_id": {
-                                        "type": "string",
-                                        "description": "Optional node/location ID used when audience is location-scoped."
-                                    },
-                                    "exclude_player_ids": {
-                                        "type": "array",
-                                        "items": {"type": "string"},
-                                        "description": "Optional player IDs to exclude from the resolved audience."
-                                    }
-                                },
-                                "required": ["narrative"]
-                            }
-                        },
-                        "state_changes": {
-                            "type": "object",
-                            "description": (
-                                "JSON merge-patch applied to game state. Only include "
-                                "fields you want to change. Arrays are replaced not "
-                                "appended — always write the full array. Omit this "
-                                "field entirely when there are no mechanical state changes."
-                            )
-                        },
-                        "audience": {
-                            "type": "string",
-                            "enum": ["self", "players_here", "location_players", "session", "specific_players"],
-                            "description": "Who receives this narrative. Defaults to 'players_here'.",
-                            "default": "players_here"
-                        },
-                        "target_player_ids": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Concrete player IDs to target when audience is 'specific_players'."
-                        },
-                        "location_id": {
-                            "type": "string",
-                            "description": "Optional node/location ID used when audience is location-scoped."
-                        },
-                        "exclude_player_ids": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Optional player IDs to exclude from the resolved audience."
-                        }
-                    },
-                    "required": []
-                }
-            }
-        })
+        # Legacy aliases: handler-only, not exposed to LLM via tool definitions.
+        # If the LLM somehow calls these names, the dispatch still works.
+        self._tool_registry["commit_world_event"] = self._tool_commit_world_event
+        self._tool_registry["return_structured_result"] = self._tool_return_structured_result
 
         self._register("roll_dice", self._tool_roll_dice, {
             "type": "function",
@@ -424,28 +272,97 @@ class Architect:
             }
         })
 
-        self._register("return_structured_result", self._tool_return_structured_result, {
+        self._register("commit", self._tool_commit, {
             "type": "function",
             "function": {
-                "name": "return_structured_result",
+                "name": "commit",
                 "description": (
-                    "Return a strictly non-player-facing structured result for UI- or "
-                    "workflow-oriented tasks. Use this when the task profile explicitly "
-                    "asks for structured output instead of immediate player narration."
+                    "Record a world event: apply authoritative state changes and "
+                    "emit typed artifacts in one atomic call. Each artifact has a "
+                    "'kind' and a 'payload'. Use kind 'narrative' for player-facing "
+                    "text (with optional audience targeting) and kind 'structured' "
+                    "for non-player-facing data returned to the caller/UI."
                 ),
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "result": {
-                            "type": "object",
-                            "description": "Structured payload for the caller/UI."
+                        "artifacts": {
+                            "type": "array",
+                            "description": "Typed output artifacts produced by this commit.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "kind": {
+                                        "type": "string",
+                                        "enum": ["narrative", "structured"],
+                                        "description": "Artifact kind."
+                                    },
+                                    "payload": {
+                                        "description": (
+                                            "Kind-dependent payload. For 'narrative': "
+                                            "a player-facing text string (markdown supported). "
+                                            "For 'structured': a JSON object for the caller/UI."
+                                        )
+                                    },
+                                    "audience": {
+                                        "type": "string",
+                                        "enum": [
+                                            "self", "players_here",
+                                            "location_players", "session",
+                                            "specific_players",
+                                        ],
+                                        "description": (
+                                            "Who receives this artifact. Only meaningful for "
+                                            "'narrative' kind. Defaults to 'players_here'."
+                                        ),
+                                        "default": "players_here"
+                                    },
+                                    "target_player_ids": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": (
+                                            "Concrete player IDs when audience is "
+                                            "'specific_players'."
+                                        )
+                                    },
+                                    "location_id": {
+                                        "type": "string",
+                                        "description": (
+                                            "Optional node/location ID for location-scoped "
+                                            "delivery."
+                                        )
+                                    },
+                                    "exclude_player_ids": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": (
+                                            "Optional player IDs to exclude from the "
+                                            "resolved audience."
+                                        )
+                                    },
+                                    "summary": {
+                                        "type": "string",
+                                        "description": (
+                                            "Optional short internal summary. Useful for "
+                                            "'structured' artifacts."
+                                        )
+                                    }
+                                },
+                                "required": ["kind", "payload"]
+                            }
                         },
-                        "summary": {
-                            "type": "string",
-                            "description": "Optional short internal summary of what the result means."
-                        }
+                        "state_changes": {
+                            "type": "object",
+                            "description": (
+                                "JSON merge-patch applied to game state. Only include "
+                                "fields you want to change. Arrays are replaced not "
+                                "appended — always write the full array. Omit this "
+                                "field entirely when there are no mechanical state "
+                                "changes."
+                            )
+                        },
                     },
-                    "required": ["result"]
+                    "required": []
                 }
             }
         })
@@ -497,10 +414,9 @@ class Architect:
             "displayed_messages": [],
             "world_events": [],
             "structured_results": [],
+            "artifacts": [],
             "task_type": task.task_type,
             "task_profile": task.task_profile,
-            "expected_output": task.expected_output,
-            "delivery_policy": task.delivery_policy,
         }
         ctx.update(task.extra_context)
 
@@ -645,41 +561,22 @@ class Architect:
                     # models are reliable enough to follow tool-calling instructions.
                     if response_msg.content and not ctx["displayed_messages"]:
                         bare = response_msg.content
-                        if ctx.get("delivery_policy") == DELIVERY_POLICY_STRUCTURED_ONLY:
-                            logger.warning(
-                                "Architect [%d] returned bare text during structured-only task; "
-                                "dropping non-tool output: %s...",
-                                iteration + 1,
-                                bare[:200],
-                            )
-                        elif ctx.get("delivery_policy") == DELIVERY_POLICY_SUPPRESS_PLAYER_DELIVERY:
-                            logger.warning(
-                                "Architect [%d] returned bare text during suppressed-delivery task; "
-                                "dropping non-tool output: %s...",
-                                iteration + 1,
-                                bare[:200],
-                            )
-                        elif task_type == "background_materialization":
-                            logger.warning(
-                                "Architect [%d] returned bare text during background_materialization; "
-                                "dropping non-tool output: %s...",
-                                iteration + 1,
-                                bare[:200],
-                            )
-                        else:
-                            logger.warning(f"Architect [{iteration+1}] returned bare text without "
-                                           f"commit_world_event -- sending as fallback: {bare[:200]}...")
-                            processed = await self._stream_text_to_players(
-                                bare, [player_id], game_state, "game", stream_to_actor=True
-                            )
-                            ctx["displayed_messages"].append({"text": processed, "type": "game"})
-                            game_state.add_message_to_history(
-                                role="companion",
-                                content=processed,
-                                player_ids=[player_id],
-                                location=game_state.get_player_location(player_id),
-                                metadata={"event_type": "architect_bare_text_fallback", "message_type": "game"},
-                            )
+                        logger.warning(
+                            "Architect [%d] returned bare text without commit -- "
+                            "creating synthetic narrative artifact: %s...",
+                            iteration + 1,
+                            bare[:200],
+                        )
+                        synthetic_artifact = {
+                            "kind": ARTIFACT_KIND_NARRATIVE,
+                            "payload": bare,
+                            "audience": "self",
+                            "target_player_ids": [],
+                            "location_id": None,
+                            "exclude_player_ids": [],
+                        }
+                        ctx["artifacts"].append(synthetic_artifact)
+                        await self._deliver_artifacts(ctx, [synthetic_artifact], [])
                     elif response_msg.content:
                         logger.debug(f"Architect [{iteration+1}] finished with text (not sent): "
                                      f"{response_msg.content[:200]}...")
@@ -713,16 +610,26 @@ class Architect:
                         "content": result_str
                     })
 
-                # T1B: Early exit – if commit_world_event was the only tool
-                # call, the LLM's next turn would almost always just say "done".
-                # Skip that round-trip for player_input / render / form tasks.
+                # T1B: Early exit – if commit was the only tool call and it
+                # succeeded, the LLM's next turn would almost always just say
+                # "done".  Skip that round-trip for common task profiles.
+                # Check the last tool result for each call to detect errors.
+                tool_results_ok = all(
+                    not isinstance(r, dict) or "error" not in r
+                    for r in [
+                        json.loads(m["content"]) if isinstance(m.get("content"), str) else {}
+                        for m in messages[-len(response_msg.tool_calls):]
+                        if m.get("role") == "tool"
+                    ]
+                )
                 tool_names = [tc.function.name for tc in response_msg.tool_calls]
-                had_commit = "commit_world_event" in tool_names
-                had_present_form = "present_form" in tool_names
-                had_structured_result = "return_structured_result" in tool_names
+                had_commit = ("commit_world_event" in tool_names or "commit" in tool_names) and tool_results_ok
+                had_present_form = "present_form" in tool_names and tool_results_ok
+                had_structured_result = "return_structured_result" in tool_names and tool_results_ok
                 only_terminal_tools = all(
                     n in (
                         "commit_world_event",
+                        "commit",
                         "present_form",
                         "return_structured_result",
                         "roll_dice",
@@ -751,7 +658,7 @@ class Architect:
                         iteration + 1,
                     )
                     break
-                if had_structured_result and only_terminal_tools and task_profile == TASK_PROFILE_UI_DECISION:
+                if (had_structured_result or had_commit) and only_terminal_tools and task_profile == TASK_PROFILE_UI_DECISION:
                     logger.info(
                         "Architect completed after %d iterations (early exit after structured result)",
                         iteration + 1,
@@ -760,39 +667,41 @@ class Architect:
 
             except (KeyError, ValueError, TypeError) as e:
                 logger.warning(f"Architect tool error at iteration {iteration}: {e}", exc_info=True)
-                if not ctx["displayed_messages"] and ctx.get("delivery_policy") == DELIVERY_POLICY_STRUCTURED_ONLY:
-                    ctx["structured_result"] = {
-                        "result": {"error": "Something went wrong while processing your request."},
+                if not ctx["displayed_messages"]:
+                    error_artifact = {
+                        "kind": ARTIFACT_KIND_STRUCTURED if task_profile == TASK_PROFILE_UI_DECISION else ARTIFACT_KIND_NARRATIVE,
+                        "payload": (
+                            {"error": "Something went wrong while processing your request."}
+                            if task_profile == TASK_PROFILE_UI_DECISION
+                            else "Something went wrong while processing your request."
+                        ),
                         "summary": "architect_tool_error",
-                        "task_type": ctx.get("task_type"),
-                        "task_profile": ctx.get("task_profile"),
+                        "audience": "self",
+                        "target_player_ids": [],
+                        "location_id": None,
+                        "exclude_player_ids": [],
                     }
-                    ctx["structured_results"].append(ctx["structured_result"])
-                elif not ctx["displayed_messages"]:
-                    fallback_text = "Something went wrong while processing your request."
-                    await self._send_text_to_player(
-                        fallback_text,
-                        player_id, "system"
-                    )
-                    ctx["displayed_messages"].append({"text": fallback_text, "type": "system"})
+                    ctx["artifacts"].append(error_artifact)
+                    await self._deliver_artifacts(ctx, [error_artifact], [])
                 break
             except Exception as e:
                 logger.error(f"Unexpected architect error at iteration {iteration}: {e}", exc_info=True)
-                if not ctx["displayed_messages"] and ctx.get("delivery_policy") == DELIVERY_POLICY_STRUCTURED_ONLY:
-                    ctx["structured_result"] = {
-                        "result": {"error": "Something went wrong while processing your request."},
+                if not ctx["displayed_messages"]:
+                    error_artifact = {
+                        "kind": ARTIFACT_KIND_STRUCTURED if task_profile == TASK_PROFILE_UI_DECISION else ARTIFACT_KIND_NARRATIVE,
+                        "payload": (
+                            {"error": "Something went wrong while processing your request."}
+                            if task_profile == TASK_PROFILE_UI_DECISION
+                            else "Something went wrong while processing your request."
+                        ),
                         "summary": "architect_unexpected_error",
-                        "task_type": ctx.get("task_type"),
-                        "task_profile": ctx.get("task_profile"),
+                        "audience": "self",
+                        "target_player_ids": [],
+                        "location_id": None,
+                        "exclude_player_ids": [],
                     }
-                    ctx["structured_results"].append(ctx["structured_result"])
-                elif not ctx["displayed_messages"]:
-                    fallback_text = "Something went wrong while processing your request."
-                    await self._send_text_to_player(
-                        fallback_text,
-                        player_id, "system"
-                    )
-                    ctx["displayed_messages"].append({"text": fallback_text, "type": "system"})
+                    ctx["artifacts"].append(error_artifact)
+                    await self._deliver_artifacts(ctx, [error_artifact], [])
                 break
         else:
             logger.warning(f"Architect reached max iterations ({max_iterations})")
@@ -1090,12 +999,6 @@ class Architect:
         parts.append(f"Task profile: {task.task_profile or infer_task_profile(task.task_type)}")
         if task.purpose:
             parts.append(f"Purpose: {task.purpose}")
-        parts.append(
-            f"Expected output: {task.expected_output or infer_expected_output(task.task_type, task.task_profile or infer_task_profile(task.task_type))}"
-        )
-        parts.append(
-            f"Delivery policy: {task.delivery_policy or infer_delivery_policy(task.task_type, task.task_profile or infer_task_profile(task.task_type))}"
-        )
         parts.append("")
 
         if task.task_type in (
@@ -1242,8 +1145,6 @@ class Architect:
                 if task.structured_input:
                     parts.append("Structured input:")
                     parts.append(json.dumps(task.structured_input, ensure_ascii=False, indent=2))
-                if task.expected_output:
-                    parts.append(f"Expected output: {task.expected_output}")
                 if action_hint:
                     parts.append(f"Author/UI hint: {action_hint}")
 
@@ -1724,31 +1625,19 @@ class Architect:
         return result
 
     async def _tool_return_structured_result(self, args: Dict, ctx: Dict) -> Dict:
-        """Record a non-player-facing structured result for the caller."""
-        if ctx.get("delivery_policy") != DELIVERY_POLICY_STRUCTURED_ONLY:
-            return {
-                "error": (
-                    "return_structured_result is only allowed for structured-only tasks. "
-                    f"Current delivery_policy={ctx.get('delivery_policy')!r}."
-                )
-            }
-
+        """Legacy shim: convert return_structured_result args to commit() format."""
         result = args.get("result")
         if not isinstance(result, dict):
             return {"error": "return_structured_result requires result to be an object"}
 
-        recorded = {
-            "result": self._make_serializable(result),
-            "summary": (args.get("summary") or "").strip(),
-            "task_type": ctx.get("task_type"),
-            "task_profile": ctx.get("task_profile"),
+        commit_args: Dict[str, Any] = {
+            "artifacts": [{
+                "kind": ARTIFACT_KIND_STRUCTURED,
+                "payload": result,
+                "summary": (args.get("summary") or "").strip(),
+            }]
         }
-        ctx["structured_results"].append(recorded)
-        ctx["structured_result"] = recorded
-        return {
-            "status": "recorded",
-            "structured_result": recorded,
-        }
+        return await self._tool_commit(commit_args, ctx)
 
     def _make_serializable(self, obj: Any) -> Any:
         """Recursively convert non-JSON-serializable objects to plain dicts/strings."""
@@ -1803,7 +1692,6 @@ class Architect:
         event_record = {
             "task_type": ctx.get("task_type"),
             "task_profile": ctx.get("task_profile"),
-            "delivery_policy": ctx.get("delivery_policy"),
             "deliveries": self._make_serializable(deliveries),
             "state_applied": list(state_applied),
             "target_player_ids": list(target_player_ids),
@@ -1816,13 +1704,293 @@ class Architect:
     # World Event Tool
     # ═══════════════════════════════════════════════════════════════════════════
 
-    async def _tool_commit_world_event(self, args: Dict, ctx: Dict) -> Dict:
-        """Atomic world event: apply state changes then stream narrative to players.
+    async def _tool_commit(self, args: Dict, ctx: Dict) -> Dict:
+        """Unified commit: apply state changes and record typed artifacts.
 
-        Combines narration and state mutation into a single tool call.
-        State changes (if any) are applied first, then the narrative is
-        streamed to the resolved audience.
+        This is the core commit primitive. It applies authoritative state
+        mutations and records typed artifacts (narrative, structured, etc.)
+        without making delivery decisions. Upper layers consume the artifacts
+        list from ctx and handle delivery according to their own policies.
         """
+        state_changes = args.get("state_changes")
+        artifacts_raw = args.get("artifacts") or []
+        # LLMs sometimes emit artifacts as a stringified JSON array; coerce it.
+        if isinstance(artifacts_raw, str):
+            stripped = artifacts_raw.strip()
+            if stripped.startswith("["):
+                try:
+                    artifacts_raw = json.loads(stripped)
+                except Exception:
+                    pass
+        artifacts_arg = artifacts_raw if isinstance(artifacts_raw, list) else []
+
+        player_id = ctx["player_id"]
+        game_state: 'GameState' = ctx["game_state"]
+        applied: List[str] = []
+
+        # ── Phase 1: Apply state changes (if any) ──
+        if state_changes and isinstance(state_changes, dict):
+            # Respect capture_only: strip node.state writes during perception
+            if bool(ctx.get("capture_only")):
+                node_changes = state_changes.get("nodes")
+                if isinstance(node_changes, dict):
+                    sanitized_nodes: Dict[str, Any] = {}
+                    stripped_node_ids: List[str] = []
+                    for node_id, node_patch in node_changes.items():
+                        if not isinstance(node_patch, dict):
+                            sanitized_nodes[node_id] = node_patch
+                            continue
+                        sanitized_patch = dict(node_patch)
+                        if "state" in sanitized_patch:
+                            sanitized_patch.pop("state", None)
+                            stripped_node_ids.append(node_id)
+                        if sanitized_patch:
+                            sanitized_nodes[node_id] = sanitized_patch
+                    if stripped_node_ids:
+                        logger.warning(
+                            "Ignoring node.state writes during capture_only commit for nodes: %s",
+                            ", ".join(stripped_node_ids),
+                        )
+                        state_changes = dict(state_changes)
+                        if sanitized_nodes:
+                            state_changes["nodes"] = sanitized_nodes
+                        else:
+                            state_changes.pop("nodes", None)
+
+            try:
+                applied = await self._apply_world_event_state_changes(state_changes, ctx)
+            except Exception as e:
+                logger.error(f"commit state_changes failed: {e}", exc_info=True)
+                return {"error": f"Failed to apply state_changes: {str(e)}"}
+
+        # ── Phase 2: Validate and record artifacts ──
+        recorded_artifacts: List[Dict[str, Any]] = []
+        for entry in artifacts_arg:
+            if not isinstance(entry, dict):
+                continue
+            kind = entry.get("kind")
+            payload = entry.get("payload")
+            if not kind or payload is None:
+                continue
+
+            artifact: Dict[str, Any] = {
+                "kind": kind,
+                "payload": self._make_serializable(payload) if isinstance(payload, dict) else payload,
+            }
+            if kind == ARTIFACT_KIND_NARRATIVE:
+                artifact["audience"] = entry.get("audience", "players_here")
+                artifact["target_player_ids"] = list(entry.get("target_player_ids") or [])
+                artifact["location_id"] = entry.get("location_id")
+                artifact["exclude_player_ids"] = list(entry.get("exclude_player_ids") or [])
+            elif kind == ARTIFACT_KIND_STRUCTURED:
+                artifact["summary"] = (entry.get("summary") or "").strip()
+
+            recorded_artifacts.append(artifact)
+            ctx["artifacts"].append(artifact)
+
+        if not recorded_artifacts and not applied:
+            return {"error": "commit requires at least artifacts or state_changes"}
+
+        # ── Phase 3: Record the commit event ──
+        narrative_artifacts = [a for a in recorded_artifacts if a["kind"] == ARTIFACT_KIND_NARRATIVE]
+        all_target_ids: List[str] = []
+        for art in narrative_artifacts:
+            for tid in art.get("target_player_ids", []):
+                if tid not in all_target_ids:
+                    all_target_ids.append(tid)
+        if not all_target_ids:
+            all_target_ids = [player_id]
+
+        event_record = self._record_world_event(
+            ctx,
+            deliveries=[
+                {
+                    "narrative_length": len(a["payload"]) if isinstance(a["payload"], str) else 0,
+                    "audience": a.get("audience", "players_here"),
+                    "target_player_ids": a.get("target_player_ids", []),
+                }
+                for a in narrative_artifacts
+            ],
+            state_applied=applied,
+            target_player_ids=all_target_ids,
+            version=game_state.version,
+        )
+
+        await self._maybe_schedule_background_materialization(ctx, game_state, player_id, applied)
+
+        # ── Phase 4: Deliver artifacts to clients ──
+        await self._deliver_artifacts(ctx, recorded_artifacts, applied)
+
+        result: Dict[str, Any] = {
+            "status": "committed",
+            "artifacts_recorded": len(recorded_artifacts),
+            "state_paths_applied": len(applied),
+            **event_record,
+        }
+
+        if len(narrative_artifacts) == 1:
+            result["narrative_length"] = len(narrative_artifacts[0]["payload"]) if isinstance(narrative_artifacts[0]["payload"], str) else 0
+        structured_artifacts = [a for a in recorded_artifacts if a["kind"] == ARTIFACT_KIND_STRUCTURED]
+        if structured_artifacts:
+            result["structured_count"] = len(structured_artifacts)
+
+        return result
+
+    async def _deliver_artifacts(
+        self,
+        ctx: Dict[str, Any],
+        artifacts: List[Dict[str, Any]],
+        state_applied: List[str],
+    ) -> None:
+        """Deliver recorded artifacts to players according to upper-layer policy.
+
+        This method is the single point where artifact-to-client delivery
+        decisions are made.  It replaces the delivery_policy checks that
+        previously lived inside _tool_commit_world_event.
+        """
+        if not artifacts:
+            return
+
+        player_id = ctx["player_id"]
+        game_state: 'GameState' = ctx["game_state"]
+        task_profile = ctx.get("task_profile", TASK_PROFILE_WORLD_ACTION)
+        capture_only = bool(ctx.get("capture_only"))
+        is_background = task_profile == TASK_PROFILE_BACKGROUND_SIMULATION
+        allow_narrative = bool(ctx.get("background_allow_player_facing_narrative", True))
+        already_streamed = bool(ctx.get("_narrative_already_streamed"))
+
+        narrative_artifacts = [a for a in artifacts if a["kind"] == ARTIFACT_KIND_NARRATIVE]
+        structured_artifacts = [a for a in artifacts if a["kind"] == ARTIFACT_KIND_STRUCTURED]
+
+        # ── Deliver structured artifacts ──
+        for art in structured_artifacts:
+            recorded = {
+                "result": art["payload"],
+                "summary": art.get("summary", ""),
+                "task_type": ctx.get("task_type"),
+                "task_profile": task_profile,
+            }
+            ctx["structured_results"].append(recorded)
+            ctx["structured_result"] = recorded
+
+        # ── Deliver narrative artifacts ──
+        suppress_narrative = (
+            (is_background and not allow_narrative)
+            or task_profile == TASK_PROFILE_UI_DECISION
+        )
+
+        for index, art in enumerate(narrative_artifacts):
+            narrative_text = art["payload"]
+            if not isinstance(narrative_text, str) or not narrative_text:
+                continue
+
+            art_audience = art.get("audience", "players_here")
+            art_target_ids = art.get("target_player_ids", [])
+            art_location_id = art.get("location_id")
+            art_exclude_ids = art.get("exclude_player_ids", [])
+
+            delivery_targets = self._resolve_message_targets(
+                game_state, player_id,
+                audience_scope=art_audience,
+                target_player_ids=art_target_ids,
+                location_id=art_location_id,
+                exclude_player_ids=art_exclude_ids,
+            )
+            if not delivery_targets:
+                delivery_targets = [player_id]
+
+            if capture_only:
+                primary_target = delivery_targets[0]
+                processed = self.game_kernel.text_processor.process_text_for_hyperlinks(
+                    narrative_text, game_state, primary_target
+                )
+                ctx["displayed_messages"].append({
+                    "text": processed,
+                    "type": "game",
+                    "audience": art_audience,
+                    "target_player_ids": list(delivery_targets),
+                    "state_applied": state_applied,
+                })
+            elif suppress_narrative:
+                logger.info(
+                    "Suppressing narrative delivery for %s task (profile=%s): %s...",
+                    ctx.get("task_type"), task_profile, narrative_text[:200],
+                )
+            else:
+                is_solo_actor = len(delivery_targets) == 1 and delivery_targets[0] == player_id
+                actor_already_streamed = already_streamed and index == 0
+
+                if actor_already_streamed and player_id in delivery_targets:
+                    processed = self.game_kernel.text_processor.process_text_for_hyperlinks(
+                        narrative_text, game_state, player_id
+                    )
+                    frontend = self.game_kernel.frontend_adapter
+                    if frontend:
+                        client_type = frontend.player_sessions.get(
+                            player_id, {}
+                        ).get('client_type', 'web')
+                        final_html = frontend.format_for_client(processed, client_type)
+                        await frontend.send_stream_end(player_id, final_html=final_html)
+                    other_targets = [t for t in delivery_targets if t != player_id]
+                    if other_targets:
+                        await self._stream_text_to_players(
+                            narrative_text, other_targets, game_state, "game",
+                            stream_to_actor=False,
+                        )
+                elif actor_already_streamed:
+                    frontend = self.game_kernel.frontend_adapter
+                    if frontend:
+                        await frontend.send_stream_end(player_id)
+                    processed = await self._stream_text_to_players(
+                        narrative_text, delivery_targets, game_state, "game",
+                        stream_to_actor=False,
+                    )
+                else:
+                    processed = await self._stream_text_to_players(
+                        narrative_text,
+                        delivery_targets,
+                        game_state,
+                        "game",
+                        stream_to_actor=(len(narrative_artifacts) == 1 and is_solo_actor),
+                    )
+
+                actor_location = game_state.get_player_location(player_id)
+                history_location = (
+                    art_location_id
+                    or self._infer_message_location(game_state, delivery_targets, actor_location)
+                )
+
+                ctx["displayed_messages"].append({
+                    "text": processed,
+                    "type": "game",
+                    "audience": art_audience,
+                    "target_player_ids": list(delivery_targets),
+                    "state_applied": state_applied,
+                })
+
+                game_state.add_message_to_history(
+                    role="companion",
+                    content=processed,
+                    player_ids=list(delivery_targets),
+                    location=history_location,
+                    metadata={
+                        "event_type": "architect_commit",
+                        "message_type": "game",
+                        "audience": art_audience,
+                        "targets": list(delivery_targets),
+                        "location_id": history_location,
+                        "delivery_index": index,
+                        "delivery_count": len(narrative_artifacts),
+                        "state_applied": state_applied[:5] if state_applied else [],
+                    },
+                )
+
+        if already_streamed:
+            ctx.pop("_narrative_already_streamed", None)
+
+    async def _tool_commit_world_event(self, args: Dict, ctx: Dict) -> Dict:
+        """Legacy shim: convert commit_world_event args to commit() format and delegate."""
+
         def _coerce_json_value(value: Any) -> Any:
             if not isinstance(value, str):
                 return value
@@ -1844,245 +2012,47 @@ class Architect:
                 return [coerced]
             return []
 
+        # ── Convert to artifacts ──
         narrative = args.get("narrative", "")
         deliveries_arg = _coerce_json_value(args.get("deliveries") or [])
-        state_changes = args.get("state_changes")
         audience = args.get("audience", "players_here")
         target_player_ids = _coerce_string_list(args.get("target_player_ids") or [])
         location_id = args.get("location_id")
         exclude_player_ids = _coerce_string_list(args.get("exclude_player_ids") or [])
 
-        player_id = ctx["player_id"]
-        game_state: 'GameState' = ctx["game_state"]
-        delivery_policy = ctx.get("delivery_policy", DELIVERY_POLICY_IMMEDIATE)
-        applied: List[str] = []
-
-        capture_only = bool(ctx.get("capture_only"))
-        if capture_only and isinstance(state_changes, dict):
-            node_changes = state_changes.get("nodes")
-            if isinstance(node_changes, dict):
-                sanitized_nodes: Dict[str, Any] = {}
-                stripped_node_ids: List[str] = []
-                for node_id, node_patch in node_changes.items():
-                    if not isinstance(node_patch, dict):
-                        sanitized_nodes[node_id] = node_patch
-                        continue
-                    sanitized_patch = dict(node_patch)
-                    if "state" in sanitized_patch:
-                        sanitized_patch.pop("state", None)
-                        stripped_node_ids.append(node_id)
-                    if sanitized_patch:
-                        sanitized_nodes[node_id] = sanitized_patch
-                if stripped_node_ids:
-                    logger.warning(
-                        "Ignoring node.state writes during capture_only commit_world_event for nodes: %s",
-                        ", ".join(stripped_node_ids),
-                    )
-                    state_changes = dict(state_changes)
-                    if sanitized_nodes:
-                        state_changes["nodes"] = sanitized_nodes
-                    else:
-                        state_changes.pop("nodes", None)
-
-        # ── Phase 1: Apply state changes (if any) ──
-        if state_changes and isinstance(state_changes, dict):
-            try:
-                applied = await self._apply_world_event_state_changes(state_changes, ctx)
-            except Exception as e:
-                logger.error(f"commit_world_event state_changes failed: {e}", exc_info=True)
-                return {"error": f"Failed to apply state_changes: {str(e)}"}
-
-        # ── Phase 2: Stream narrative to players or capture it ──
-        deliveries: List[Dict[str, Any]] = []
+        artifacts: List[Dict[str, Any]] = []
         if narrative:
-            deliveries.append({
-                "narrative": narrative,
+            artifacts.append({
+                "kind": ARTIFACT_KIND_NARRATIVE,
+                "payload": narrative,
                 "audience": audience,
                 "target_player_ids": target_player_ids,
                 "location_id": location_id,
                 "exclude_player_ids": exclude_player_ids,
             })
-        for entry in deliveries_arg:
+        for entry in (deliveries_arg if isinstance(deliveries_arg, list) else []):
             if not isinstance(entry, dict):
                 continue
             entry_narrative = entry.get("narrative", "")
             if not entry_narrative:
                 continue
-            deliveries.append({
-                "narrative": entry_narrative,
+            artifacts.append({
+                "kind": ARTIFACT_KIND_NARRATIVE,
+                "payload": entry_narrative,
                 "audience": entry.get("audience", "players_here"),
                 "target_player_ids": _coerce_string_list(entry.get("target_player_ids") or []),
                 "location_id": entry.get("location_id"),
                 "exclude_player_ids": _coerce_string_list(entry.get("exclude_player_ids") or []),
             })
 
-        if delivery_policy == DELIVERY_POLICY_STRUCTURED_ONLY and deliveries:
-            return {
-                "error": (
-                    "commit_world_event cannot deliver player-facing narrative during structured-only tasks. "
-                    "Use return_structured_result(...) unless the task is explicitly world-facing."
-                )
-            }
-        if delivery_policy == DELIVERY_POLICY_SUPPRESS_PLAYER_DELIVERY and deliveries:
-            return {
-                "error": (
-                    "commit_world_event narrative is not allowed for this task's delivery policy. "
-                    "Only authoritative state changes may be committed here."
-                )
-            }
+        commit_args: Dict[str, Any] = {}
+        if artifacts:
+            commit_args["artifacts"] = artifacts
+        state_changes = args.get("state_changes")
+        if state_changes:
+            commit_args["state_changes"] = state_changes
 
-        if not deliveries:
-            if applied:
-                event_record = self._record_world_event(
-                    ctx,
-                    deliveries=[],
-                    state_applied=applied,
-                    target_player_ids=[player_id],
-                    version=game_state.version,
-                )
-                result: Dict[str, Any] = {
-                    "status": "captured" if bool(ctx.get("capture_only")) else "committed",
-                    **event_record,
-                }
-                await self._maybe_schedule_background_materialization(ctx, game_state, player_id, applied)
-                return result
-            return {"error": "commit_world_event requires narrative, deliveries, or state_changes"}
-
-        if len(deliveries) == 1:
-            logger.info(
-                "Architect commit_world_event (narrative): %s",
-                f"{deliveries[0]['narrative'][:300]}{'...' if len(deliveries[0]['narrative']) > 300 else ''}",
-            )
-        else:
-            logger.info("Architect commit_world_event with %d deliveries", len(deliveries))
-
-        already_streamed = bool(ctx.get("_narrative_already_streamed"))
-        delivery_results: List[Dict[str, Any]] = []
-        flattened_targets: List[str] = []
-
-        for index, delivery in enumerate(deliveries):
-            delivery_narrative = delivery["narrative"]
-            delivery_audience = delivery["audience"]
-            delivery_targets = self._resolve_message_targets(
-                game_state, player_id,
-                audience_scope=delivery_audience,
-                target_player_ids=delivery["target_player_ids"],
-                location_id=delivery["location_id"],
-                exclude_player_ids=delivery["exclude_player_ids"],
-            )
-            if not delivery_targets:
-                delivery_targets = [player_id]
-
-            for resolved_target in delivery_targets:
-                if resolved_target not in flattened_targets:
-                    flattened_targets.append(resolved_target)
-
-            if capture_only:
-                primary_target = delivery_targets[0]
-                processed = self.game_kernel.text_processor.process_text_for_hyperlinks(
-                    delivery_narrative, game_state, primary_target
-                )
-                ctx["displayed_messages"].append({
-                    "text": processed,
-                    "type": "game",
-                    "audience": delivery_audience,
-                    "target_player_ids": list(delivery_targets),
-                    "state_applied": applied,
-                })
-            else:
-                is_solo_actor = len(delivery_targets) == 1 and delivery_targets[0] == player_id
-                actor_already_streamed = already_streamed and index == 0
-
-                if actor_already_streamed and player_id in delivery_targets:
-                    processed = self.game_kernel.text_processor.process_text_for_hyperlinks(
-                        delivery_narrative, game_state, player_id
-                    )
-                    frontend = self.game_kernel.frontend_adapter
-                    if frontend:
-                        client_type = frontend.player_sessions.get(
-                            player_id, {}
-                        ).get('client_type', 'web')
-                        final_html = frontend.format_for_client(processed, client_type)
-                        await frontend.send_stream_end(player_id, final_html=final_html)
-                    other_targets = [t for t in delivery_targets if t != player_id]
-                    if other_targets:
-                        await self._stream_text_to_players(
-                            delivery_narrative, other_targets, game_state, "game",
-                            stream_to_actor=False,
-                        )
-                elif actor_already_streamed:
-                    frontend = self.game_kernel.frontend_adapter
-                    if frontend:
-                        await frontend.send_stream_end(player_id)
-                    processed = await self._stream_text_to_players(
-                        delivery_narrative, delivery_targets, game_state, "game",
-                        stream_to_actor=False,
-                    )
-                else:
-                    processed = await self._stream_text_to_players(
-                        delivery_narrative,
-                        delivery_targets,
-                        game_state,
-                        "game",
-                        stream_to_actor=(len(deliveries) == 1 and is_solo_actor),
-                    )
-
-                actor_location = game_state.get_player_location(player_id)
-                history_location = (
-                    delivery["location_id"]
-                    or self._infer_message_location(game_state, delivery_targets, actor_location)
-                )
-
-                ctx["displayed_messages"].append({
-                    "text": processed,
-                    "type": "game",
-                    "audience": delivery_audience,
-                    "target_player_ids": list(delivery_targets),
-                    "state_applied": applied,
-                })
-
-                game_state.add_message_to_history(
-                    role="companion",
-                    content=processed,
-                    player_ids=list(delivery_targets),
-                    location=history_location,
-                    metadata={
-                        "event_type": "architect_commit_world_event",
-                        "message_type": "game",
-                        "audience": delivery_audience,
-                        "targets": list(delivery_targets),
-                        "location_id": history_location,
-                        "delivery_index": index,
-                        "delivery_count": len(deliveries),
-                        "state_applied": applied[:5] if applied else [],
-                    },
-                )
-
-            delivery_results.append({
-                "narrative_length": len(delivery_narrative),
-                "audience": delivery_audience,
-                "target_player_ids": list(delivery_targets),
-            })
-
-        if already_streamed:
-            ctx.pop("_narrative_already_streamed", None)
-
-        event_record = self._record_world_event(
-            ctx,
-            deliveries=delivery_results,
-            state_applied=applied,
-            target_player_ids=flattened_targets or [player_id],
-            version=game_state.version,
-        )
-        result: Dict[str, Any] = {
-            "status": "captured" if capture_only else "committed",
-            **event_record,
-        }
-        if len(delivery_results) == 1:
-            result["narrative_length"] = delivery_results[0]["narrative_length"]
-            result["audience"] = delivery_results[0]["audience"]
-        await self._maybe_schedule_background_materialization(ctx, game_state, player_id, applied)
-        return result
+        return await self._tool_commit(commit_args, ctx)
 
     async def _maybe_schedule_background_materialization(
         self,
@@ -2627,17 +2597,12 @@ class Architect:
                 "type": "game_state",
                 "content": game_state_dict,
             }, target_player_id)
-            if frontend.player_sessions.get(target_player_id, {}).get("client_type", "web") == "web":
-                perception_payload = await frontend._build_perception_payload(
-                    game_state,
-                    target_player_id,
-                    display_in_chat=False,
-                )
-                if perception_payload:
-                    await frontend.send_json_message({
-                        "type": "perception",
-                        **perception_payload,
-                    }, target_player_id)
+            # Do not re-render perception here.  This method is called after
+            # background materialization and timed events to push updated
+            # game_state (objects, characters, etc.).  The player already has
+            # the scene text from a prior narration or explicit perception
+            # request; triggering a full Architect render_perception call
+            # would be expensive and redundant.
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Narrative Streaming Parser
@@ -2794,6 +2759,199 @@ class Architect:
                         self._player_id, text
                     )
 
+    class _ArtifactStreamExtractor:
+        """Incremental JSON parser that extracts the narrative payload from
+        a ``commit`` tool-call argument stream and forwards each chunk to the
+        player via WebSocket as it arrives.
+
+        Scans for ``"kind":"narrative"`` followed by ``"payload":"..."``
+        within the ``artifacts`` array.  Reuses the same JSON-string-escape
+        handling as ``_NarrativeStreamExtractor``.
+        """
+
+        # Parser states
+        _SCANNING_KIND = 0       # looking for "kind" key
+        _AFTER_KIND_KEY = 1      # saw "kind", waiting for ':'
+        _AFTER_KIND_COLON = 2    # saw ':', waiting for opening '"'
+        _IN_KIND_VALUE = 3       # reading the kind string value
+        _SCANNING_PAYLOAD = 4    # kind was "narrative", looking for "payload" key
+        _AFTER_PAYLOAD_KEY = 5   # saw "payload", waiting for ':'
+        _AFTER_PAYLOAD_COLON = 6 # saw ':', waiting for opening '"'
+        _IN_PAYLOAD_VALUE = 7    # inside the payload string value → streaming
+        _DONE = 8
+
+        _ESCAPE_MAP = {
+            '"': '"', '\\': '\\', '/': '/', 'n': '\n',
+            'r': '\r', 't': '\t', 'b': '\b', 'f': '\f',
+        }
+
+        def __init__(self, frontend_adapter, player_id: str):
+            self._frontend = frontend_adapter
+            self._player_id = player_id
+            self._state = self._SCANNING_KIND
+            self._buf = ""
+            self._escape_pending = False
+            self._unicode_buf = ""
+            self._stream_started = False
+            self._streamed_chars = 0
+            self._kind_value = ""
+
+        @property
+        def did_stream(self) -> bool:
+            return self._stream_started
+
+        async def feed(self, chunk: str) -> None:
+            self._buf += chunk
+            await self._consume()
+
+        async def finish(self) -> None:
+            pass
+
+        async def _consume(self) -> None:
+            while self._buf and self._state != self._DONE:
+                if self._state == self._SCANNING_KIND:
+                    idx = self._buf.find('"kind"')
+                    if idx == -1:
+                        if len(self._buf) > 8:
+                            self._buf = self._buf[-8:]
+                        return
+                    self._buf = self._buf[idx + len('"kind"'):]
+                    self._state = self._AFTER_KIND_KEY
+
+                elif self._state == self._AFTER_KIND_KEY:
+                    idx = self._buf.find(':')
+                    if idx == -1:
+                        return
+                    self._buf = self._buf[idx + 1:]
+                    self._state = self._AFTER_KIND_COLON
+
+                elif self._state == self._AFTER_KIND_COLON:
+                    stripped = self._buf.lstrip()
+                    if not stripped:
+                        self._buf = ""
+                        return
+                    if stripped[0] == '"':
+                        self._buf = stripped[1:]
+                        self._kind_value = ""
+                        self._state = self._IN_KIND_VALUE
+                    else:
+                        self._state = self._SCANNING_KIND
+                        self._buf = stripped
+
+                elif self._state == self._IN_KIND_VALUE:
+                    end_idx = self._buf.find('"')
+                    if end_idx == -1:
+                        self._kind_value += self._buf
+                        self._buf = ""
+                        return
+                    self._kind_value += self._buf[:end_idx]
+                    self._buf = self._buf[end_idx + 1:]
+                    if self._kind_value == "narrative":
+                        self._state = self._SCANNING_PAYLOAD
+                    else:
+                        self._state = self._SCANNING_KIND
+
+                elif self._state == self._SCANNING_PAYLOAD:
+                    idx = self._buf.find('"payload"')
+                    if idx == -1:
+                        # Check if we've left the current artifact object
+                        brace_idx = self._buf.find('}')
+                        if brace_idx != -1:
+                            self._buf = self._buf[brace_idx + 1:]
+                            self._state = self._SCANNING_KIND
+                            continue
+                        if len(self._buf) > 12:
+                            self._buf = self._buf[-12:]
+                        return
+                    self._buf = self._buf[idx + len('"payload"'):]
+                    self._state = self._AFTER_PAYLOAD_KEY
+
+                elif self._state == self._AFTER_PAYLOAD_KEY:
+                    idx = self._buf.find(':')
+                    if idx == -1:
+                        return
+                    self._buf = self._buf[idx + 1:]
+                    self._state = self._AFTER_PAYLOAD_COLON
+
+                elif self._state == self._AFTER_PAYLOAD_COLON:
+                    stripped = self._buf.lstrip()
+                    if not stripped:
+                        self._buf = ""
+                        return
+                    if stripped[0] == '"':
+                        self._buf = stripped[1:]
+                        self._state = self._IN_PAYLOAD_VALUE
+                        if self._frontend and not self._stream_started:
+                            self._stream_started = True
+                            await self._frontend.send_stream_start(
+                                self._player_id, "game"
+                            )
+                    else:
+                        self._state = self._DONE
+                        return
+
+                elif self._state == self._IN_PAYLOAD_VALUE:
+                    await self._extract_string_content()
+                    return
+
+        async def _extract_string_content(self) -> None:
+            """Parse JSON string content, unescape, and forward to player."""
+            out_parts: list[str] = []
+            i = 0
+            while i < len(self._buf):
+                ch = self._buf[i]
+
+                if self._unicode_buf is not None and len(self._unicode_buf) > 0:
+                    self._unicode_buf += ch
+                    i += 1
+                    if len(self._unicode_buf) == 4:
+                        try:
+                            out_parts.append(chr(int(self._unicode_buf, 16)))
+                        except ValueError:
+                            out_parts.append('?')
+                        self._unicode_buf = ""
+                    continue
+
+                if self._escape_pending:
+                    self._escape_pending = False
+                    if ch == 'u':
+                        self._unicode_buf = ""
+                    elif ch in self._ESCAPE_MAP:
+                        out_parts.append(self._ESCAPE_MAP[ch])
+                    else:
+                        out_parts.append(ch)
+                    i += 1
+                    continue
+
+                if ch == '\\':
+                    self._escape_pending = True
+                    i += 1
+                    continue
+
+                if ch == '"':
+                    self._buf = self._buf[i + 1:]
+                    self._state = self._DONE
+                    if out_parts:
+                        text = "".join(out_parts)
+                        self._streamed_chars += len(text)
+                        if self._frontend:
+                            await self._frontend.send_stream_token(
+                                self._player_id, text
+                            )
+                    return
+
+                out_parts.append(ch)
+                i += 1
+
+            self._buf = ""
+            if out_parts:
+                text = "".join(out_parts)
+                self._streamed_chars += len(text)
+                if self._frontend:
+                    await self._frontend.send_stream_token(
+                        self._player_id, text
+                    )
+
     # ═══════════════════════════════════════════════════════════════════════════
 
     async def _streaming_llm_call(
@@ -2802,8 +2960,8 @@ class Architect:
     ):
         """Make a streaming LLM call, forwarding narrative tokens to the player.
 
-        When the LLM generates a ``commit_world_event`` tool call, the
-        ``narrative`` argument value is streamed to the player in real-time
+        When the LLM generates a ``commit`` or ``commit_world_event`` tool
+        call, the narrative content is streamed to the player in real-time
         via WebSocket, giving near-instant perceived responsiveness.
 
         Returns response_msg (SimpleNamespace with .content and .tool_calls).
@@ -2820,12 +2978,14 @@ class Architect:
         tool_calls_map = {}  # index -> {id, function_name, arguments}
         role = None
 
-        # Narrative streaming belongs to immediate player-delivery tasks only.
-        extractors: Dict[int, 'Architect._NarrativeStreamExtractor'] = {}
+        # Narrative streaming belongs to tasks that deliver to players.
+        extractors: Dict[int, Any] = {}
         frontend = self.game_kernel.frontend_adapter
+        task_profile = ctx.get("task_profile", TASK_PROFILE_WORLD_ACTION)
         enable_narrative_streaming = (
             frontend is not None
-            and ctx.get("delivery_policy") == DELIVERY_POLICY_IMMEDIATE
+            and not bool(ctx.get("capture_only"))
+            and task_profile not in (TASK_PROFILE_UI_DECISION, TASK_PROFILE_BACKGROUND_SIMULATION)
         )
 
         async for chunk in stream:
@@ -2854,14 +3014,19 @@ class Architect:
                         if tc_delta.function.arguments:
                             entry["arguments"] += tc_delta.function.arguments
 
-                            # Forward narrative tokens for commit_world_event
-                            if (enable_narrative_streaming
-                                    and entry["function_name"] == "commit_world_event"):
-                                if idx not in extractors:
+                            # Forward narrative tokens for commit or commit_world_event
+                            if enable_narrative_streaming:
+                                fn_name = entry["function_name"]
+                                if fn_name == "commit" and idx not in extractors:
+                                    extractors[idx] = self._ArtifactStreamExtractor(
+                                        frontend, player_id
+                                    )
+                                elif fn_name == "commit_world_event" and idx not in extractors:
                                     extractors[idx] = self._NarrativeStreamExtractor(
                                         frontend, player_id
                                     )
-                                await extractors[idx].feed(tc_delta.function.arguments)
+                                if idx in extractors:
+                                    await extractors[idx].feed(tc_delta.function.arguments)
 
             if delta.content:
                 content_parts.append(delta.content)

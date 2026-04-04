@@ -1005,12 +1005,11 @@ class WebFrontendAdapter(FrontendAdapter):
                     "type": "game_state",
                     "content": game_state_dict
                 })
-                perception_payload = await self._build_perception_payload(game_state, player_id)
-                if perception_payload:
-                    await self.websocket_manager.send_to_player(player_id, {
-                        "type": "perception",
-                        **perception_payload,
-                    })
+                # Do not re-render perception here.  The player already has
+                # the scene text from the most recent player_input or
+                # explicit perception request.  Triggering a full Architect
+                # render_perception call on every state-push (e.g. after
+                # background materialization) is expensive and redundant.
             
             return True
         logger.warning("update_display called with no session_id")

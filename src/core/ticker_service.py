@@ -125,8 +125,6 @@ class TickerService:
 
         from src.core.architect import (
             ArchitectTask,
-            infer_delivery_policy,
-            infer_expected_output,
             infer_task_profile,
         )
 
@@ -149,14 +147,6 @@ class TickerService:
                 task_type="process_event",
                 event_context=self._build_timed_event_context(event),
                 task_profile=infer_task_profile("process_event"),
-                expected_output=infer_expected_output(
-                    "process_event",
-                    infer_task_profile("process_event"),
-                ),
-                delivery_policy=infer_delivery_policy(
-                    "process_event",
-                    infer_task_profile("process_event"),
-                ),
                 extra_context=extra_context,
             )
 

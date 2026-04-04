@@ -512,8 +512,6 @@ class GameLoopHandler:
                 "player_input": message.get("display_text") or message.get("action_id") or "",
                 "purpose": message.get("purpose"),
                 "structured_input": message.get("payload") or {},
-                "expected_output": message.get("expected_output"),
-                "delivery_policy": message.get("delivery_policy"),
                 "action_hint": message.get("action_hint", ""),
                 "input_type": message.get("input_type", "story_app"),
             }
@@ -651,6 +649,11 @@ class GameLoopHandler:
                 "content": {
                     "game_state": game_state_dict,
                     "response": response,
+                    "artifacts": (
+                        response.get("artifacts")
+                        if isinstance(response, dict)
+                        else []
+                    ),
                     "structured_result": (
                         response.get("structured_result")
                         if isinstance(response, dict)

@@ -35,8 +35,6 @@ from src.core.node_generator import NodeGenerator
 from src.core.architect import (
     Architect,
     ArchitectTask,
-    infer_delivery_policy,
-    infer_expected_output,
     infer_task_profile,
 )
 from src.core.background_materialization import (
@@ -327,15 +325,6 @@ class GameKernel:
             task_type="render_perception",
             node_id=node_id,
             task_profile=infer_task_profile("render_perception"),
-            expected_output=infer_expected_output(
-                "render_perception",
-                infer_task_profile("render_perception"),
-            ),
-            delivery_policy=infer_delivery_policy(
-                "render_perception",
-                infer_task_profile("render_perception"),
-                capture_only=True,
-            ),
             extra_context={"capture_only": True},
         )
         ctx = await self.architect.handle(
@@ -344,9 +333,12 @@ class GameKernel:
             player_id,
             self.story_manifest or game_state.story,
         )
-        displayed = ctx.get("displayed_messages", []) if isinstance(ctx, dict) else []
-        if displayed:
-            return displayed[-1].get("text", "")
+        # Use displayed_messages (already processed through text_processor
+        # for hyperlink tokens) rather than raw artifact payloads.
+        if isinstance(ctx, dict):
+            displayed = ctx.get("displayed_messages", [])
+            if displayed:
+                return displayed[-1].get("text", "")
 
         raise RuntimeError(
             f"Architect render_perception returned no text for node '{node_id}'"
@@ -759,14 +751,6 @@ JSON array:"""
             task_type="player_input",
             player_input=user_input,
             task_profile=infer_task_profile("player_input"),
-            expected_output=infer_expected_output(
-                "player_input",
-                infer_task_profile("player_input"),
-            ),
-            delivery_policy=infer_delivery_policy(
-                "player_input",
-                infer_task_profile("player_input"),
-            ),
             extra_context=extra,
         )
         ctx = await self.architect.handle(task, game_state, player_id, story)
@@ -795,20 +779,6 @@ JSON array:"""
 
         task_type = payload.get("task_type", "execute_intent")
         task_profile = infer_task_profile(task_type, payload.get("task_profile"))
-        expected_output = infer_expected_output(
-            task_type,
-            task_profile,
-            payload.get("expected_output"),
-        )
-        delivery_policy = infer_delivery_policy(
-            task_type,
-            task_profile,
-            payload.get("delivery_policy"),
-            capture_only=bool(extra_context.get("capture_only")),
-            allow_player_facing_narrative=bool(
-                extra_context.get("background_allow_player_facing_narrative", True)
-            ),
-        )
 
         return ArchitectTask(
             task_type=task_type,
@@ -819,8 +789,6 @@ JSON array:"""
             task_profile=task_profile,
             purpose=payload.get("purpose"),
             structured_input=payload.get("structured_input"),
-            expected_output=expected_output,
-            delivery_policy=delivery_policy,
             extra_context=extra_context,
         )
 
@@ -843,8 +811,7 @@ JSON array:"""
             "script_paused": False,
             "task_type": task.task_type,
             "task_profile": task.task_profile,
-            "expected_output": task.expected_output,
-            "delivery_policy": task.delivery_policy,
+            "artifacts": ctx.get("artifacts", []) if isinstance(ctx, dict) else [],
             "structured_result": ctx.get("structured_result") if isinstance(ctx, dict) else None,
             "structured_results": ctx.get("structured_results", []) if isinstance(ctx, dict) else [],
             "world_events": ctx.get("world_events", []) if isinstance(ctx, dict) else [],
@@ -944,14 +911,6 @@ JSON array:"""
                         "submitted_data": processed_data,
                         "on_submit_summary": on_submit_summary,
                     },
-                    expected_output=infer_expected_output(
-                        "process_form_result",
-                        infer_task_profile("process_form_result"),
-                    ),
-                    delivery_policy=infer_delivery_policy(
-                        "process_form_result",
-                        infer_task_profile("process_form_result"),
-                    ),
                     extra_context={"session_id": self.frontend_adapter.player_sessions.get(player_id, {}).get("session_id")} if self.frontend_adapter else {},
                 )
                 await self.architect.handle(task, game_state, player_id, story)
