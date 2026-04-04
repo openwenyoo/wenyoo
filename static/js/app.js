@@ -6,6 +6,7 @@ let saveCode = ''; // 新增：保存的代码
 let selectedStory = ''; // 新增：当前选择的故事ID
 let selectedStoryTitle = '';
 let selectedStoryDescription = '';
+let selectedStoryFrontend = null;
 let isAwaitingGameStart = false;
 let currentNodeId = null;
 let messageQueue = [];
@@ -22,6 +23,9 @@ let pendingObjectActionRequest = null;
 let loadingBubbleEl = null;
 let isExportingMessages = false;
 let sessionSelectionHideTimer = null;
+let storyAppReady = false;
+let storyAppInitPayload = null;
+let pendingStoryAppMessages = [];
 
 // --- WebSocket Reconnection ---
 let reconnectAttempts = 0;
@@ -72,6 +76,9 @@ const userLogoutBtn = document.getElementById('user-logout-btn');
 const settingsPlayerName = document.getElementById('settings-player-name');
 const settingsLogoutBtn = document.getElementById('settings-logout-btn');
 const mainContent = document.querySelector('.main-content');
+const gameArea = document.querySelector('.game-area');
+const storyAppHost = document.getElementById('story-app-host');
+const storyAppFrame = document.getElementById('story-app-frame');
 const gameMessages = document.getElementById('game-messages');
 const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
@@ -90,6 +97,31 @@ const languageSelect = document.getElementById('language-select');
 const mentionOverlay = document.getElementById('mention-overlay');
 const commandPalette = document.getElementById('command-palette');
 const mentionSuggestions = document.getElementById('mention-suggestions');
+
+if (storyAppFrame) {
+    storyAppFrame.addEventListener('load', () => {
+        storyAppReady = true;
+        postStoryAppInit(storyAppInitPayload);
+        flushStoryAppMessages();
+    });
+}
+
+window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.source !== storyAppFrame?.contentWindow) return;
+    const message = event.data || {};
+    if (message.type === 'wenyoo:host') {
+        const action = message.payload?.action;
+        if (action === 'return_to_menu') {
+            handleReturn();
+        }
+        return;
+    }
+    if (message.type !== 'wenyoo:dispatch' || !socket || socket.readyState !== WebSocket.OPEN) {
+        return;
+    }
+    socket.send(JSON.stringify(message.payload));
+});
 
 // --- New Persistent ID Logic ---
 function generateUUID() {
@@ -140,6 +172,87 @@ function formatSessionCountLabel(count) {
 
 function getStoryById(storyId) {
     return availableStories.find(story => story.id === storyId) || null;
+}
+
+function isSandboxedStoryApp(frontend) {
+    return frontend?.app?.mode === 'sandboxed_app' && !!frontend?.app?.entry_url;
+}
+
+function getDesiredClientTypeForStory(frontend) {
+    return isSandboxedStoryApp(frontend) ? (frontend.app.client_type || 'story_app') : 'web';
+}
+
+function isCustomStoryFrontendActive() {
+    return isSandboxedStoryApp(selectedStoryFrontend);
+}
+
+function getSelectedStoryFrontend() {
+    return selectedStoryFrontend || getStoryById(selectedStory)?.frontend || null;
+}
+
+function flushStoryAppMessages() {
+    if (!storyAppReady || !storyAppFrame?.contentWindow) return;
+    while (pendingStoryAppMessages.length > 0) {
+        storyAppFrame.contentWindow.postMessage({
+            type: 'wenyoo:event',
+            payload: pendingStoryAppMessages.shift()
+        }, window.location.origin);
+    }
+}
+
+function postStoryAppInit(payload) {
+    if (!storyAppFrame?.contentWindow || !payload) return;
+    storyAppFrame.contentWindow.postMessage({
+        type: 'wenyoo:init',
+        payload
+    }, window.location.origin);
+}
+
+function forwardMessageToStoryApp(message) {
+    if (!isCustomStoryFrontendActive()) return;
+    if (!storyAppReady || !storyAppFrame?.contentWindow) {
+        pendingStoryAppMessages.push(message);
+        return;
+    }
+    storyAppFrame.contentWindow.postMessage({
+        type: 'wenyoo:event',
+        payload: message
+    }, window.location.origin);
+}
+
+function mountStoryApp(frontend, initPayload = null) {
+    if (!isSandboxedStoryApp(frontend) || !storyAppFrame || !storyAppHost) {
+        return;
+    }
+    selectedStoryFrontend = frontend;
+    storyAppReady = false;
+    storyAppInitPayload = initPayload;
+    pendingStoryAppMessages = [];
+    storyAppHost.classList.remove('hidden');
+    if (gameArea) {
+        gameArea.classList.add('hidden');
+    }
+    storyAppFrame.setAttribute('sandbox', (frontend.app.sandbox || ['allow-scripts', 'allow-same-origin']).join(' '));
+    if (storyAppFrame.dataset.src !== frontend.app.entry_url) {
+        storyAppFrame.dataset.src = frontend.app.entry_url;
+        storyAppFrame.src = frontend.app.entry_url;
+    } else {
+        storyAppReady = true;
+        postStoryAppInit(storyAppInitPayload);
+        flushStoryAppMessages();
+    }
+}
+
+function unmountStoryApp() {
+    storyAppReady = false;
+    storyAppInitPayload = null;
+    pendingStoryAppMessages = [];
+    if (storyAppHost) {
+        storyAppHost.classList.add('hidden');
+    }
+    if (gameArea) {
+        gameArea.classList.remove('hidden');
+    }
 }
 
 function setSelectedStoryCard(storyId) {
@@ -489,10 +602,23 @@ function preprocessDescription(text) {
     const renderCharacterLink = (characterId, displayText) =>
         `<a href="#" class="game-character-link" onclick="onCharacterClick('${escapeJsString(characterId)}'); return false;">${escapeHtml(displayText)}</a>`;
 
+    const tokenRegex = /\[\[(input|object|character):([^|\]]+)\|([^\]]*)\]\]/g;
     const colonRegex = /\{([^{}:]+):([^{}]+)\}/g;
     const bareRegex = /\{([^{}]+)\}/g;
 
-    let processed = text.replace(colonRegex, (match, left, right) => {
+    let processed = text.replace(tokenRegex, (match, linkType, left, right) => {
+        const trimmedLeft = left.trim();
+        const trimmedRight = right.trim();
+        if (linkType === 'input') {
+            return renderActionLink(trimmedLeft, trimmedRight);
+        }
+        if (linkType === 'object') {
+            return renderObjectLink(trimmedLeft, trimmedRight || trimmedLeft);
+        }
+        return renderCharacterLink(trimmedLeft, trimmedRight || trimmedLeft);
+    });
+
+    processed = processed.replace(colonRegex, (match, left, right) => {
         const trimmedLeft = left.trim();
         const trimmedRight = right.trim();
 
@@ -516,6 +642,74 @@ function preprocessDescription(text) {
     });
 
     return processed;
+}
+
+function renderInteractiveHtml(rawText, clientContent = null) {
+    if (clientContent?.html) {
+        return clientContent.html;
+    }
+    const processedText = preprocessDescription(rawText || '');
+    return converter.makeHtml(processedText);
+}
+
+function cacheNodePerception(nodeId, text) {
+    if (!nodeId) return;
+    const worldDataStr = sessionStorage.getItem('worldData');
+    if (!worldDataStr) return;
+    const worldData = JSON.parse(worldDataStr);
+    if (worldData.nodes && worldData.nodes[nodeId]) {
+        worldData.nodes[nodeId].perception = text;
+        sessionStorage.setItem('worldData', JSON.stringify(worldData));
+    }
+}
+
+function renderPerceptionHtml(rawText) {
+    return renderInteractiveHtml(rawText);
+}
+
+function applyPerception(perception) {
+    if (!perception || !perception.content) return;
+
+    const nodeId = perception.node_id || currentNodeId || 'unknown';
+    const descriptionHtml = renderInteractiveHtml(
+        perception.content,
+        perception.client_content || null,
+    );
+    nodeDescription.innerHTML = `<h3>Description</h3>${descriptionHtml}`;
+    cacheNodePerception(nodeId, perception.content);
+
+    if (perception.display_in_chat) {
+        if (stickyDescriptionState.trackedNodeId && stickyDescriptionState.trackedNodeId !== nodeId) {
+            resetStickyDescription();
+        }
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message game-message node-description-message';
+        messageDiv.setAttribute('data-node-id', nodeId);
+        const timestamp = new Date().toLocaleTimeString();
+        messageDiv.innerHTML = `
+            <div class="message-content">${descriptionHtml}</div>
+            <div class="message-timestamp">${timestamp}</div>
+        `;
+        gameMessages.appendChild(messageDiv);
+        gameMessages.scrollTop = gameMessages.scrollHeight;
+
+        stickyDescriptionState.trackedNodeId = nodeId;
+        syncStickyContent(messageDiv);
+        return;
+    }
+
+    if (stickyDescriptionState.trackedNodeId === nodeId) {
+        const originalMessage = gameMessages.querySelector(`.node-description-message[data-node-id="${nodeId}"]`);
+        const originalContentDiv = originalMessage?.querySelector('.message-content');
+        const stickyContent = document.getElementById('sticky-description-content');
+        if (originalContentDiv) {
+            originalContentDiv.innerHTML = descriptionHtml;
+        }
+        if (stickyContent) {
+            stickyContent.innerHTML = descriptionHtml;
+        }
+    }
 }
 
 // 初始化函数
@@ -864,7 +1058,8 @@ function connectWebSocket() {
         reconnectAttempts = 0;
         const payload = {
             type: 'register_or_rejoin',
-            player_id: playerId
+            player_id: playerId,
+            client_capabilities: ['ui_action', 'ui_query', 'ui_event', 'story_app_bridge']
         };
         const storedToken = localStorage.getItem('sessionToken');
         if (storedToken) {
@@ -1214,6 +1409,19 @@ function handleWebSocketMessage(message) {
         pendingMessages.push(message);
         return;
     }
+
+    const storyAppHandledTypes = new Set([
+        'command_result', 'game_state', 'game', 'system', 'multiplayer',
+        'chat', 'combat', 'dialogue', 'present_choice', 'display_sequence', 'form',
+        'form_success', 'form_error', 'characters_update', 'session_players', 'object_actions', 'stream_start',
+        'stream_token', 'stream_end', 'node_description', 'description_update', 'perception', 'error'
+    ]);
+    if (isCustomStoryFrontendActive() && storyAppHandledTypes.has(message.type)) {
+        forwardMessageToStoryApp(message);
+        if (message.type !== 'error') {
+            return;
+        }
+    }
     
     switch (message.type) {
         case 'ping':
@@ -1307,6 +1515,9 @@ function handleWebSocketMessage(message) {
                 if (message.story?.title) {
                     selectedStoryTitle = message.story.title;
                 }
+                if (message.story?.frontend) {
+                    selectedStoryFrontend = message.story.frontend;
+                }
                 console.log('Received story info for:', message.story.title);
             } else if (message.subtype === 'session_selection') {
                 if (sessionSelection.classList.contains('hidden')) {
@@ -1339,6 +1550,9 @@ function handleWebSocketMessage(message) {
             }
             updateUIWithGameState(message.content);
             updateDisplayPanel(message.content);
+            break;
+        case 'perception':
+            applyPerception(message);
             break;
         case 'characters_update':
             // Lightweight push after local NPC creation or enrichment
@@ -1385,8 +1599,10 @@ function handleWebSocketMessage(message) {
             if (!message.content || message.content.trim() === '') {
                 break;
             }
-            const processedText = preprocessDescription(message.content);
-            const descriptionHtml = converter.makeHtml(processedText);
+            const descriptionHtml = renderInteractiveHtml(
+                message.content,
+                message.client_content || null,
+            );
             nodeDescription.innerHTML = `<h3>Description</h3>${descriptionHtml}`;
 
             // Use node_id from message if available, fallback to currentNodeId
@@ -1414,23 +1630,17 @@ function handleWebSocketMessage(message) {
             // Sync sticky content immediately
             syncStickyContent(messageDiv);
 
-            // Update worldData with processed description so updateDisplayPanel doesn't overwrite
-            const worldDataStr = sessionStorage.getItem('worldData');
-            if (worldDataStr && nodeId) {
-                const worldData = JSON.parse(worldDataStr);
-                if (worldData.nodes && worldData.nodes[nodeId]) {
-                    worldData.nodes[nodeId].processed_description = message.content;
-                    sessionStorage.setItem('worldData', JSON.stringify(worldData));
-                }
-            }
+            cacheNodePerception(nodeId, message.content);
             break;
         }
         case 'description_update': {
             // Use node_id from message, fallback to currentNodeId
             const nodeId = message.node_id || currentNodeId;
 
-            const updatedText = preprocessDescription(message.content);
-            const updatedHtml = converter.makeHtml(updatedText);
+            const updatedHtml = renderInteractiveHtml(
+                message.content,
+                message.client_content || null,
+            );
 
             // Update description panel
             nodeDescription.innerHTML = `<h3>Description</h3>${updatedHtml}`;
@@ -1473,15 +1683,7 @@ function handleWebSocketMessage(message) {
                 originalMessage.classList.add('description-updated');
             }
 
-            // Also update the cached worldData so updateDisplayPanel doesn't overwrite
-            const worldDataStr = sessionStorage.getItem('worldData');
-            if (worldDataStr && nodeId) {
-                const worldData = JSON.parse(worldDataStr);
-                if (worldData.nodes && worldData.nodes[nodeId]) {
-                    worldData.nodes[nodeId].processed_description = message.content;
-                    sessionStorage.setItem('worldData', JSON.stringify(worldData));
-                }
-            }
+            cacheNodePerception(nodeId, message.content);
             break;
         }
         case 'item_drop':
@@ -1523,7 +1725,7 @@ let pendingMessages = [];
 function shouldQueueDuringSequence(messageType) {
     // Queue content messages that should wait for sequence to complete
     const queueableTypes = [
-        'game', 'system', 'chat', 'node_description', 'description_update',
+        'game', 'system', 'chat', 'node_description', 'description_update', 'perception',
         'command_result', 'dialogue', 'present_choice', 'combat'
     ];
     return queueableTypes.includes(messageType);
@@ -1625,6 +1827,7 @@ let isReturningToMenu = false; // Flag to track return to menu state
 function clearActiveRoomUi(options = {}) {
     const { keepSelectedStory = false } = options;
     mainContent.style.display = 'none';
+    unmountStoryApp();
     displayPanel.classList.add('hidden');
     gameMessages.innerHTML = '';
     messageQueue = [];
@@ -1638,6 +1841,7 @@ function clearActiveRoomUi(options = {}) {
     if (!keepSelectedStory) {
         selectedStory = '';
         selectedStoryTitle = '';
+        selectedStoryFrontend = null;
         localStorage.removeItem('selectedStory');
     }
 
@@ -1713,6 +1917,7 @@ function handleLogout() {
 
     hideSessionSelection();
     mainContent.style.display = 'none';
+    unmountStoryApp();
     storySelection.style.display = 'none';
     welcomeMessage.style.display = 'none';
     playerNameField.value = '';
@@ -1727,6 +1932,10 @@ function handleLogout() {
 
 function displayStories(stories) {
     availableStories = Array.isArray(stories) ? stories : [];
+    const currentStoryRecord = getStoryById(selectedStory);
+    if (currentStoryRecord) {
+        selectedStoryFrontend = currentStoryRecord.frontend || null;
+    }
     updatePlayerNameDisplay();
     const predefinedList = document.getElementById('story-list-predefined');
     predefinedList.innerHTML = '';
@@ -1773,6 +1982,8 @@ function displayStories(stories) {
 }
 
 function selectStory(storyId, title, description = '') {
+    const selectedStoryRecord = getStoryById(storyId);
+    selectedStoryFrontend = selectedStoryRecord?.frontend || null;
     const wasOpen = sessionSelection.classList.contains('is-open');
     if (wasOpen && selectedStory !== storyId) {
         hideSessionSelection();
@@ -2026,7 +2237,11 @@ function displaySavedGames() {
 function createSession() {
     isAwaitingGameStart = true;
     showGameLoadingScreen(selectedStoryTitle || selectedStory);
-    socket.send(JSON.stringify({ type: 'create_session', story_id: selectedStory }));
+    socket.send(JSON.stringify({
+        type: 'create_session',
+        story_id: selectedStory,
+        client_type: getDesiredClientTypeForStory(getSelectedStoryFrontend())
+    }));
     hideSessionSelection();
     console.log('正在创建新会话...');
 }
@@ -2044,21 +2259,34 @@ function joinSession() {
 function joinRoomByCode(roomId) {
     isAwaitingGameStart = true;
     showGameLoadingScreen(selectedStoryTitle || 'Adventure');
-    socket.send(JSON.stringify({ type: 'join_session', session_code: roomId }));
+    socket.send(JSON.stringify({
+        type: 'join_session',
+        session_code: roomId,
+        client_type: getDesiredClientTypeForStory(getSelectedStoryFrontend())
+    }));
     hideSessionSelection();
     console.log(`正在尝试加入会话: ${roomId}`);
 }
 
 // 显示界面
-function showGameInterface() {
+function showGameInterface(useStoryApp = false) {
     welcomeMessage.style.display = 'none';
     playerNameInput.style.display = 'none';
     storySelection.style.display = 'none';
     hideSessionSelection();
     mainContent.style.display = 'flex';
+    if (useStoryApp) {
+        storyAppHost?.classList.remove('hidden');
+        gameArea?.classList.add('hidden');
+    } else {
+        storyAppHost?.classList.add('hidden');
+        gameArea?.classList.remove('hidden');
+    }
     // Add in-game class to container to prevent container scrolling
     document.querySelector('.container').classList.add('in-game');
-    userInput.focus();
+    if (!useStoryApp) {
+        userInput.focus();
+    }
 }
 
 // 显示会话代码
@@ -2893,8 +3121,6 @@ function handleCommandResult(content) {
 
     // narrative_response is NOT displayed here -- it was already streamed
     // to the player during the Architect's commit_world_event tool call.
-    // It exists in command_result only for build_game_state_dict's
-    // current_perception (to avoid a redundant render_perception LLM call).
 
     // Control input based on script_paused status
     if (responseData && responseData.script_paused) {
@@ -2937,9 +3163,8 @@ function appendTranscriptEntry(entry) {
 
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    contentDiv.innerHTML = entry.is_html
-        ? (entry.content || '')
-        : converter.makeHtml(entry.content || '');
+    contentDiv.innerHTML = entry.client_content?.html
+        || (entry.is_html ? (entry.content || '') : renderInteractiveHtml(entry.content || ''));
 
     const timestampDiv = document.createElement('div');
     timestampDiv.className = 'message-timestamp';
@@ -2966,9 +3191,11 @@ function replayTranscript(entries) {
 
 function handleGameStart(content) {
     const gameState = content.game_state;
-    const response = content.response; // This can be a string or an object
+    const perception = content.perception || null;
     const transcript = content.transcript || [];
     const pendingForm = content.pending_form || null;
+    const storyFrontend = content.story_frontend || getSelectedStoryFrontend();
+    selectedStoryFrontend = storyFrontend || null;
 
     gameMessages.innerHTML = '';
     messageQueue = [];
@@ -3004,43 +3231,39 @@ function handleGameStart(content) {
         }
     }
 
+    if (isSandboxedStoryApp(storyFrontend)) {
+        mountStoryApp(storyFrontend, {
+            playerId,
+            playerName,
+            storyId: selectedStory || gameState?.story_id || null,
+            storyFrontend,
+            sessionId: gameState?.session_id || null,
+            gameState,
+            perception,
+            transcript,
+            pendingForm,
+        });
+        showGameInterface(true);
+        isAwaitingGameStart = false;
+        hideGameLoadingScreen();
+        return;
+    }
+
     if (transcript.length > 0) {
         replayTranscript(transcript);
     }
 
-    // Display the response, handling both string and object formats
-    if (response) {
-        let narrativeResponse = "";
-        let scriptPaused = false;
-
-        if (typeof response === 'string') {
-            narrativeResponse = response;
-        } else if (response.narrative_response) {
-            narrativeResponse = response.narrative_response;
-            scriptPaused = response.script_paused;
-        }
-
-        if (narrativeResponse) {
-            const processedNarrative = preprocessDescription(narrativeResponse);
-            addGameMessage(processedNarrative, 'game-message');
-            const descriptionHtml = converter.makeHtml(processedNarrative);
-            nodeDescription.innerHTML = `<h3>Description</h3>${descriptionHtml}`;
-        }
-
-        // Control input based on script_paused status
-        if (scriptPaused) {
-            userInput.disabled = true;
-            sendButton.disabled = true;
-        } else {
-            userInput.disabled = false;
-            sendButton.disabled = false;
-            userInput.focus();
-        }
+    if (perception) {
+        applyPerception(perception);
     }
+    userInput.disabled = false;
+    sendButton.disabled = false;
+    userInput.focus();
     if (pendingForm) {
         displayForm(pendingForm);
     }
-    showGameInterface();
+    unmountStoryApp();
+    showGameInterface(false);
     isAwaitingGameStart = false;
     hideGameLoadingScreen();
 }
@@ -3099,10 +3322,9 @@ function updateDisplayPanel(gameState) {
     if (player && player.location) {
         const currentNode = worldData.nodes[player.location];
         if (currentNode) {
-            const description = currentNode.processed_description || currentNode.state || currentNode.description;
+            const description = currentNode.perception || currentNode.state || currentNode.description;
             if (description) {
-                const processedDescription = preprocessDescription(description);
-                const descriptionHtml = converter.makeHtml(processedDescription);
+                const descriptionHtml = renderInteractiveHtml(description);
                 nodeDescription.innerHTML = `<h3>Description</h3>${descriptionHtml}`;
             }
         }

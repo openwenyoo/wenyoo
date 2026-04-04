@@ -27,6 +27,85 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+TASK_PROFILE_WORLD_ACTION = "worldAction"
+TASK_PROFILE_PERCEPTION_RENDER = "perceptionRender"
+TASK_PROFILE_UI_DECISION = "uiDecision"
+TASK_PROFILE_WORKFLOW = "workflowTask"
+TASK_PROFILE_BACKGROUND_SIMULATION = "backgroundSimulation"
+
+DELIVERY_POLICY_IMMEDIATE = "immediate"
+DELIVERY_POLICY_CAPTURE_ONLY = "capture_only"
+DELIVERY_POLICY_STRUCTURED_ONLY = "structured_only"
+DELIVERY_POLICY_SUPPRESS_PLAYER_DELIVERY = "suppress_player_delivery"
+
+EXPECTED_OUTPUT_WORLD_EVENT = "world_event"
+EXPECTED_OUTPUT_PLAYER_FACING_TEXT = "player_facing_text"
+EXPECTED_OUTPUT_STRUCTURED_RESULT = "structured_result"
+EXPECTED_OUTPUT_WORLD_EVENT_OR_NOOP = "world_event_or_noop"
+
+DEFAULT_TASK_PROFILE_BY_TYPE = {
+    "player_input": TASK_PROFILE_WORLD_ACTION,
+    "execute_intent": TASK_PROFILE_WORLD_ACTION,
+    "guided_intent": TASK_PROFILE_WORLD_ACTION,
+    "scene_interaction": TASK_PROFILE_WORLD_ACTION,
+    "character_interaction": TASK_PROFILE_WORLD_ACTION,
+    "tool_assisted_decision": TASK_PROFILE_WORLD_ACTION,
+    "render_perception": TASK_PROFILE_PERCEPTION_RENDER,
+    "process_form_result": TASK_PROFILE_WORKFLOW,
+    "process_event": TASK_PROFILE_WORKFLOW,
+    "background_materialization": TASK_PROFILE_BACKGROUND_SIMULATION,
+    "ui_requested_generation": TASK_PROFILE_UI_DECISION,
+}
+
+
+def infer_task_profile(task_type: str, explicit_profile: Optional[str] = None) -> str:
+    """Resolve the task profile that should govern Architect behavior."""
+    if explicit_profile:
+        return explicit_profile
+    return DEFAULT_TASK_PROFILE_BY_TYPE.get(task_type, TASK_PROFILE_WORLD_ACTION)
+
+
+def infer_expected_output(
+    task_type: str,
+    task_profile: str,
+    explicit_output: Optional[str] = None,
+) -> str:
+    """Resolve the main output contract for a task."""
+    if explicit_output:
+        return explicit_output
+    if task_profile == TASK_PROFILE_PERCEPTION_RENDER:
+        return EXPECTED_OUTPUT_PLAYER_FACING_TEXT
+    if task_profile == TASK_PROFILE_UI_DECISION:
+        return EXPECTED_OUTPUT_STRUCTURED_RESULT
+    if task_profile == TASK_PROFILE_BACKGROUND_SIMULATION:
+        return EXPECTED_OUTPUT_WORLD_EVENT_OR_NOOP
+    if task_type == "process_form_result":
+        return EXPECTED_OUTPUT_PLAYER_FACING_TEXT
+    return EXPECTED_OUTPUT_WORLD_EVENT
+
+
+def infer_delivery_policy(
+    task_type: str,
+    task_profile: str,
+    explicit_policy: Optional[str] = None,
+    *,
+    capture_only: bool = False,
+    allow_player_facing_narrative: bool = True,
+) -> str:
+    """Resolve how task results should be delivered to clients."""
+    if explicit_policy:
+        return explicit_policy
+    if capture_only or task_profile == TASK_PROFILE_PERCEPTION_RENDER:
+        return DELIVERY_POLICY_CAPTURE_ONLY
+    if task_profile == TASK_PROFILE_UI_DECISION:
+        return DELIVERY_POLICY_STRUCTURED_ONLY
+    if (
+        task_type == "background_materialization"
+        and not allow_player_facing_narrative
+    ):
+        return DELIVERY_POLICY_SUPPRESS_PLAYER_DELIVERY
+    return DELIVERY_POLICY_IMMEDIATE
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Task Dataclass
@@ -40,6 +119,11 @@ class ArchitectTask:
     node_id: Optional[str] = None           # For render_perception tasks
     event_context: Optional[str] = None     # For trigger/event tasks
     form_data: Optional[Dict[str, Any]] = None  # For process_form_result tasks
+    task_profile: Optional[str] = None
+    purpose: Optional[str] = None
+    structured_input: Optional[Dict[str, Any]] = None
+    expected_output: Optional[str] = None
+    delivery_policy: Optional[str] = None
     extra_context: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -66,6 +150,25 @@ class Architect:
         self._tool_definitions: List[Dict] = []
         self._register_tools()
         self._system_prompt: Optional[str] = None
+
+    def _normalize_task_contract(self, task: ArchitectTask) -> ArchitectTask:
+        """Fill task contract defaults so callers do not need frontend-shaped assumptions."""
+        task.task_profile = infer_task_profile(task.task_type, task.task_profile)
+        task.expected_output = infer_expected_output(
+            task.task_type,
+            task.task_profile,
+            task.expected_output,
+        )
+        task.delivery_policy = infer_delivery_policy(
+            task.task_type,
+            task.task_profile,
+            task.delivery_policy,
+            capture_only=bool(task.extra_context.get("capture_only")),
+            allow_player_facing_narrative=bool(
+                task.extra_context.get("background_allow_player_facing_narrative", True)
+            ),
+        )
+        return task
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Tool Registration
@@ -321,6 +424,32 @@ class Architect:
             }
         })
 
+        self._register("return_structured_result", self._tool_return_structured_result, {
+            "type": "function",
+            "function": {
+                "name": "return_structured_result",
+                "description": (
+                    "Return a strictly non-player-facing structured result for UI- or "
+                    "workflow-oriented tasks. Use this when the task profile explicitly "
+                    "asks for structured output instead of immediate player narration."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "result": {
+                            "type": "object",
+                            "description": "Structured payload for the caller/UI."
+                        },
+                        "summary": {
+                            "type": "string",
+                            "description": "Optional short internal summary of what the result means."
+                        }
+                    },
+                    "required": ["result"]
+                }
+            }
+        })
+
     def _register(self, name: str, handler: Callable, definition: Dict):
         """Register a tool with its handler and OpenAI function definition."""
         self._tool_registry[name] = handler
@@ -344,6 +473,7 @@ class Architect:
             player_id: The player's ID
             story: The story definition
         """
+        task = self._normalize_task_contract(task)
         system_prompt = self._get_system_prompt()
         world_index = self._build_world_index(game_state, player_id, story)
         user_prompt = self._build_task_prompt(task, world_index, game_state, player_id)
@@ -365,7 +495,12 @@ class Architect:
             "player_id": player_id,
             "story": story,
             "displayed_messages": [],
+            "world_events": [],
+            "structured_results": [],
             "task_type": task.task_type,
+            "task_profile": task.task_profile,
+            "expected_output": task.expected_output,
+            "delivery_policy": task.delivery_policy,
         }
         ctx.update(task.extra_context)
 
@@ -434,7 +569,14 @@ class Architect:
         # graph-neighborhood retrieval once the story graph / runtime overlay
         # pipeline exists.
         task_type = ctx.get("task_type", "")
-        if task_type in ("player_input", "render_perception", "process_form_result", "background_materialization"):
+        task_profile = ctx.get("task_profile", TASK_PROFILE_WORLD_ACTION)
+        if task_profile in (
+            TASK_PROFILE_WORLD_ACTION,
+            TASK_PROFILE_PERCEPTION_RENDER,
+            TASK_PROFILE_UI_DECISION,
+            TASK_PROFILE_WORKFLOW,
+            TASK_PROFILE_BACKGROUND_SIMULATION,
+        ):
             preload_id = "preloaded_read_game_state_local"
             gs_result = self._tool_read_game_state_sync(
                 game_state,
@@ -503,7 +645,21 @@ class Architect:
                     # models are reliable enough to follow tool-calling instructions.
                     if response_msg.content and not ctx["displayed_messages"]:
                         bare = response_msg.content
-                        if task_type == "background_materialization":
+                        if ctx.get("delivery_policy") == DELIVERY_POLICY_STRUCTURED_ONLY:
+                            logger.warning(
+                                "Architect [%d] returned bare text during structured-only task; "
+                                "dropping non-tool output: %s...",
+                                iteration + 1,
+                                bare[:200],
+                            )
+                        elif ctx.get("delivery_policy") == DELIVERY_POLICY_SUPPRESS_PLAYER_DELIVERY:
+                            logger.warning(
+                                "Architect [%d] returned bare text during suppressed-delivery task; "
+                                "dropping non-tool output: %s...",
+                                iteration + 1,
+                                bare[:200],
+                            )
+                        elif task_type == "background_materialization":
                             logger.warning(
                                 "Architect [%d] returned bare text during background_materialization; "
                                 "dropping non-tool output: %s...",
@@ -563,28 +719,56 @@ class Architect:
                 tool_names = [tc.function.name for tc in response_msg.tool_calls]
                 had_commit = "commit_world_event" in tool_names
                 had_present_form = "present_form" in tool_names
+                had_structured_result = "return_structured_result" in tool_names
                 only_terminal_tools = all(
-                    n in ("commit_world_event", "present_form", "roll_dice", "read_node", "queue_materialization")
+                    n in (
+                        "commit_world_event",
+                        "present_form",
+                        "return_structured_result",
+                        "roll_dice",
+                        "read_node",
+                        "queue_materialization",
+                    )
                     for n in tool_names
                 )
-                if had_commit and only_terminal_tools and task_type in (
-                    "player_input", "render_perception", "process_form_result", "background_materialization"
+                if had_commit and only_terminal_tools and task_profile in (
+                    TASK_PROFILE_WORLD_ACTION,
+                    TASK_PROFILE_PERCEPTION_RENDER,
+                    TASK_PROFILE_WORKFLOW,
+                    TASK_PROFILE_BACKGROUND_SIMULATION,
                 ):
                     logger.info(
                         "Architect completed after %d iterations (early exit after commit)",
                         iteration + 1,
                     )
                     break
-                if had_present_form and only_terminal_tools and task_type == "player_input":
+                if had_present_form and only_terminal_tools and task_profile in (
+                    TASK_PROFILE_WORLD_ACTION,
+                    TASK_PROFILE_WORKFLOW,
+                ):
                     logger.info(
                         "Architect completed after %d iterations (early exit after present_form)",
+                        iteration + 1,
+                    )
+                    break
+                if had_structured_result and only_terminal_tools and task_profile == TASK_PROFILE_UI_DECISION:
+                    logger.info(
+                        "Architect completed after %d iterations (early exit after structured result)",
                         iteration + 1,
                     )
                     break
 
             except (KeyError, ValueError, TypeError) as e:
                 logger.warning(f"Architect tool error at iteration {iteration}: {e}", exc_info=True)
-                if not ctx["displayed_messages"]:
+                if not ctx["displayed_messages"] and ctx.get("delivery_policy") == DELIVERY_POLICY_STRUCTURED_ONLY:
+                    ctx["structured_result"] = {
+                        "result": {"error": "Something went wrong while processing your request."},
+                        "summary": "architect_tool_error",
+                        "task_type": ctx.get("task_type"),
+                        "task_profile": ctx.get("task_profile"),
+                    }
+                    ctx["structured_results"].append(ctx["structured_result"])
+                elif not ctx["displayed_messages"]:
                     fallback_text = "Something went wrong while processing your request."
                     await self._send_text_to_player(
                         fallback_text,
@@ -594,7 +778,15 @@ class Architect:
                 break
             except Exception as e:
                 logger.error(f"Unexpected architect error at iteration {iteration}: {e}", exc_info=True)
-                if not ctx["displayed_messages"]:
+                if not ctx["displayed_messages"] and ctx.get("delivery_policy") == DELIVERY_POLICY_STRUCTURED_ONLY:
+                    ctx["structured_result"] = {
+                        "result": {"error": "Something went wrong while processing your request."},
+                        "summary": "architect_unexpected_error",
+                        "task_type": ctx.get("task_type"),
+                        "task_profile": ctx.get("task_profile"),
+                    }
+                    ctx["structured_results"].append(ctx["structured_result"])
+                elif not ctx["displayed_messages"]:
                     fallback_text = "Something went wrong while processing your request."
                     await self._send_text_to_player(
                         fallback_text,
@@ -893,8 +1085,28 @@ class Architect:
 
         parts.append(world_index)
         parts.append("")
+        parts.append("## TASK CONTRACT")
+        parts.append(f"Task type: {task.task_type}")
+        parts.append(f"Task profile: {task.task_profile or infer_task_profile(task.task_type)}")
+        if task.purpose:
+            parts.append(f"Purpose: {task.purpose}")
+        parts.append(
+            f"Expected output: {task.expected_output or infer_expected_output(task.task_type, task.task_profile or infer_task_profile(task.task_type))}"
+        )
+        parts.append(
+            f"Delivery policy: {task.delivery_policy or infer_delivery_policy(task.task_type, task.task_profile or infer_task_profile(task.task_type))}"
+        )
+        parts.append("")
 
-        if task.task_type in ("player_input", "execute_intent"):
+        if task.task_type in (
+            "player_input",
+            "execute_intent",
+            "guided_intent",
+            "scene_interaction",
+            "character_interaction",
+            "tool_assisted_decision",
+            "ui_requested_generation",
+        ):
             player_location = game_state.get_player_location(player_id)
             node = game_state.nodes.get(player_location) if player_location else None
             controlled_char_id = game_state.get_controlled_character_id(player_id)
@@ -1000,23 +1212,40 @@ class Architect:
 
             _INPUT_BOUNDARY = "════ UNTRUSTED PLAYER INPUT ════"
             _MAX_PLAYER_INPUT_LEN = 2000
-            player_input = task.player_input
+            player_input = task.player_input or ""
             if len(player_input) > _MAX_PLAYER_INPUT_LEN:
                 player_input = player_input[:_MAX_PLAYER_INPUT_LEN]
                 logger.warning("Player input truncated from %d to %d chars",
                                len(task.player_input), _MAX_PLAYER_INPUT_LEN)
 
-            parts.append("## PLAYER INPUT")
-            parts.append(_INPUT_BOUNDARY)
-            if input_type == "action_click":
-                parts.append(f'The player selected the option: "{player_input}"')
-            else:
-                parts.append(f'The player says: "{player_input}"')
-            parts.append(_INPUT_BOUNDARY)
+            if task.task_type == "player_input":
+                parts.append("## PLAYER INPUT")
+                parts.append(_INPUT_BOUNDARY)
+                if input_type == "action_click":
+                    parts.append(f'The player selected the option: "{player_input}"')
+                else:
+                    parts.append(f'The player says: "{player_input}"')
+                parts.append(_INPUT_BOUNDARY)
 
-            if action_hint:
-                parts.append("")
-                parts.append(f"**Action hint (from story author):** {action_hint}")
+                if action_hint:
+                    parts.append("")
+                    parts.append(f"**Action hint (from story author):** {action_hint}")
+            else:
+                parts.append("## PURPOSE-DRIVEN TASK")
+                parts.append(f"Task type: {task.task_type}")
+                if task.purpose:
+                    parts.append(f"Purpose: {task.purpose}")
+                if player_input:
+                    parts.append(_INPUT_BOUNDARY)
+                    parts.append(f'Player-facing input or wording: "{player_input}"')
+                    parts.append(_INPUT_BOUNDARY)
+                if task.structured_input:
+                    parts.append("Structured input:")
+                    parts.append(json.dumps(task.structured_input, ensure_ascii=False, indent=2))
+                if task.expected_output:
+                    parts.append(f"Expected output: {task.expected_output}")
+                if action_hint:
+                    parts.append(f"Author/UI hint: {action_hint}")
 
             parts.append("")
             parts.append(
@@ -1032,15 +1261,42 @@ class Architect:
                 "aspects they address."
             )
             parts.append("")
-            parts.append(
-                "Respond to the player's input. Only interact with what the "
-                "player asked about. Use read_node(node_id) for full details on a "
-                "specific location or read_game_state(view='full') if you need "
-                "broader world context. Use commit_world_event() for all state "
-                "changes. If the selected action should open a story-defined form, "
-                "call present_form(form_id) and stop instead of narrating the "
-                "selection as ordinary text."
-            )
+            if task.task_type == "player_input":
+                parts.append(
+                    "Respond to the player's input. Only interact with what the "
+                    "player asked about. Use read_node(node_id) for full details on a "
+                    "specific location or read_game_state(view='full') if you need "
+                    "broader world context. Use commit_world_event() for all state "
+                    "changes. If the selected action should open a story-defined form, "
+                    "call present_form(form_id) and stop instead of narrating the "
+                    "selection as ordinary text."
+                )
+            else:
+                parts.append(
+                    "Resolve this purpose-driven task from the supplied context. "
+                    "Treat the UI and author-provided context as request framing, not "
+                    "as authoritative world truth. Use the current world state and tools "
+                    "to decide what actually happens. Use commit_world_event() for all "
+                    "player-visible or consequential outcomes. If the task should collect "
+                    "structured input before continuing, call present_form(form_id) and stop."
+                )
+
+            parts.append("")
+            if task.task_profile == TASK_PROFILE_UI_DECISION:
+                parts.append(
+                    "## PROFILE RULES: UI DECISION\n"
+                    "This task is for non-player-facing structured reasoning.\n"
+                    "- Do not narrate to players by default.\n"
+                    "- Do not call commit_world_event unless the task truly decides a real world event.\n"
+                    "- If you are returning a UI judgment, recommendation, ranking, or schema, call return_structured_result(result=...).\n"
+                    "- Keep the result grounded in authoritative state and authored rules."
+                )
+            else:
+                parts.append(
+                    "## PROFILE RULES: WORLD ACTION\n"
+                    "This task resolves real in-world action. If it causes a player-facing or consequential outcome, "
+                    "use commit_world_event(). If structured input is required first, use present_form(form_id)."
+                )
 
             action_lines = self._build_available_action_lines(node, game_state, player_id)
             if action_lines:
@@ -1127,6 +1383,11 @@ class Architect:
                     "include those creations in the same commit_world_event state_changes patch.\n"
                     "Call commit_world_event ONCE with the rendered perception. "
                     "Use state_changes only if the world itself must change to stay consistent with the narrative."
+                )
+                parts.append("")
+                parts.append(
+                    "This task profile is perceptionRender. The upper layer will capture and deliver the perception separately "
+                    "from authoritative game_state sync."
                 )
 
         elif task.task_type == "background_materialization":
@@ -1260,6 +1521,10 @@ class Architect:
                 "Narrate from the resulting controlled character and resulting location. "
                 "Call commit_world_event ONCE, then STOP."
             )
+            parts.append("")
+            parts.append(
+                "This task profile is workflowTask. Treat the form flow as authoritative workflow framing, but keep world state and player-facing outcome coherent."
+            )
 
         elif task.task_type == "process_event":
             parts.append("## EVENT")
@@ -1273,6 +1538,10 @@ class Architect:
                 "result only to players who can currently perceive it. If no players "
                 "should receive text immediately, you may commit state_changes without "
                 "narrative."
+            )
+            parts.append("")
+            parts.append(
+                "This task profile is workflowTask. It is an engine-driven workflow/event resolution task, not a free-form chat turn."
             )
 
         if task.extra_context:
@@ -1454,6 +1723,33 @@ class Architect:
             ctx["presented_form"] = {"form_id": form_id}
         return result
 
+    async def _tool_return_structured_result(self, args: Dict, ctx: Dict) -> Dict:
+        """Record a non-player-facing structured result for the caller."""
+        if ctx.get("delivery_policy") != DELIVERY_POLICY_STRUCTURED_ONLY:
+            return {
+                "error": (
+                    "return_structured_result is only allowed for structured-only tasks. "
+                    f"Current delivery_policy={ctx.get('delivery_policy')!r}."
+                )
+            }
+
+        result = args.get("result")
+        if not isinstance(result, dict):
+            return {"error": "return_structured_result requires result to be an object"}
+
+        recorded = {
+            "result": self._make_serializable(result),
+            "summary": (args.get("summary") or "").strip(),
+            "task_type": ctx.get("task_type"),
+            "task_profile": ctx.get("task_profile"),
+        }
+        ctx["structured_results"].append(recorded)
+        ctx["structured_result"] = recorded
+        return {
+            "status": "recorded",
+            "structured_result": recorded,
+        }
+
     def _make_serializable(self, obj: Any) -> Any:
         """Recursively convert non-JSON-serializable objects to plain dicts/strings."""
         if obj is None or isinstance(obj, (str, int, float, bool)):
@@ -1466,6 +1762,55 @@ class Architect:
             return {k: self._make_serializable(v) for k, v in obj.__dict__.items()
                     if not k.startswith('_')}
         return str(obj)
+
+    async def _apply_world_event_state_changes(
+        self,
+        state_changes: Any,
+        ctx: Dict[str, Any],
+    ) -> List[str]:
+        """Apply authoritative state changes for a world event and return touched paths."""
+        if not isinstance(state_changes, dict):
+            return []
+
+        player_id = ctx["player_id"]
+        game_state: 'GameState' = ctx["game_state"]
+        applied = game_state.apply_merge_patch(state_changes, player_id)
+
+        if any("character_states" in a for a in applied):
+            node_id = game_state.get_player_location(player_id)
+            if node_id:
+                try:
+                    await self.game_kernel._push_characters_update(
+                        game_state,
+                        player_id,
+                        node_id,
+                    )
+                except Exception as e:
+                    logger.error(f"commit_world_event: failed to push characters update: {e}")
+
+        return applied
+
+    def _record_world_event(
+        self,
+        ctx: Dict[str, Any],
+        *,
+        deliveries: List[Dict[str, Any]],
+        state_applied: List[str],
+        target_player_ids: List[str],
+        version: int,
+    ) -> Dict[str, Any]:
+        """Store the authoritative event result independently from client delivery."""
+        event_record = {
+            "task_type": ctx.get("task_type"),
+            "task_profile": ctx.get("task_profile"),
+            "delivery_policy": ctx.get("delivery_policy"),
+            "deliveries": self._make_serializable(deliveries),
+            "state_applied": list(state_applied),
+            "target_player_ids": list(target_player_ids),
+            "version": version,
+        }
+        ctx["world_events"].append(event_record)
+        return event_record
 
     # ═══════════════════════════════════════════════════════════════════════════
     # World Event Tool
@@ -1509,6 +1854,7 @@ class Architect:
 
         player_id = ctx["player_id"]
         game_state: 'GameState' = ctx["game_state"]
+        delivery_policy = ctx.get("delivery_policy", DELIVERY_POLICY_IMMEDIATE)
         applied: List[str] = []
 
         capture_only = bool(ctx.get("capture_only"))
@@ -1541,20 +1887,10 @@ class Architect:
         # ── Phase 1: Apply state changes (if any) ──
         if state_changes and isinstance(state_changes, dict):
             try:
-                applied = game_state.apply_merge_patch(state_changes, player_id)
+                applied = await self._apply_world_event_state_changes(state_changes, ctx)
             except Exception as e:
                 logger.error(f"commit_world_event state_changes failed: {e}", exc_info=True)
                 return {"error": f"Failed to apply state_changes: {str(e)}"}
-
-            if any("character_states" in a for a in applied):
-                node_id = game_state.get_player_location(player_id)
-                if node_id:
-                    try:
-                        await self.game_kernel._push_characters_update(
-                            game_state, player_id, node_id
-                        )
-                    except Exception as e:
-                        logger.error(f"commit_world_event: failed to push characters update: {e}")
 
         # ── Phase 2: Stream narrative to players or capture it ──
         deliveries: List[Dict[str, Any]] = []
@@ -1580,14 +1916,33 @@ class Architect:
                 "exclude_player_ids": _coerce_string_list(entry.get("exclude_player_ids") or []),
             })
 
+        if delivery_policy == DELIVERY_POLICY_STRUCTURED_ONLY and deliveries:
+            return {
+                "error": (
+                    "commit_world_event cannot deliver player-facing narrative during structured-only tasks. "
+                    "Use return_structured_result(...) unless the task is explicitly world-facing."
+                )
+            }
+        if delivery_policy == DELIVERY_POLICY_SUPPRESS_PLAYER_DELIVERY and deliveries:
+            return {
+                "error": (
+                    "commit_world_event narrative is not allowed for this task's delivery policy. "
+                    "Only authoritative state changes may be committed here."
+                )
+            }
+
         if not deliveries:
             if applied:
+                event_record = self._record_world_event(
+                    ctx,
+                    deliveries=[],
+                    state_applied=applied,
+                    target_player_ids=[player_id],
+                    version=game_state.version,
+                )
                 result: Dict[str, Any] = {
                     "status": "captured" if bool(ctx.get("capture_only")) else "committed",
-                    "deliveries": [],
-                    "target_player_ids": [player_id],
-                    "state_applied": applied,
-                    "version": game_state.version,
+                    **event_record,
                 }
                 await self._maybe_schedule_background_materialization(ctx, game_state, player_id, applied)
                 return result
@@ -1712,17 +2067,20 @@ class Architect:
         if already_streamed:
             ctx.pop("_narrative_already_streamed", None)
 
+        event_record = self._record_world_event(
+            ctx,
+            deliveries=delivery_results,
+            state_applied=applied,
+            target_player_ids=flattened_targets or [player_id],
+            version=game_state.version,
+        )
         result: Dict[str, Any] = {
             "status": "captured" if capture_only else "committed",
-            "deliveries": delivery_results,
-            "target_player_ids": flattened_targets or [player_id],
+            **event_record,
         }
         if len(delivery_results) == 1:
             result["narrative_length"] = delivery_results[0]["narrative_length"]
             result["audience"] = delivery_results[0]["audience"]
-        if applied:
-            result["state_applied"] = applied
-            result["version"] = game_state.version
         await self._maybe_schedule_background_materialization(ctx, game_state, player_id, applied)
         return result
 
@@ -2260,13 +2618,26 @@ class Architect:
             if not session_id:
                 continue
             game_state_dict = await build_game_state_dict(
-                game_state, session_id, target_player_id, self.game_kernel
+                game_state,
+                session_id,
+                target_player_id,
             )
             frontend._format_game_state_for_player(game_state_dict, target_player_id)
             await frontend.send_json_message({
                 "type": "game_state",
                 "content": game_state_dict,
             }, target_player_id)
+            if frontend.player_sessions.get(target_player_id, {}).get("client_type", "web") == "web":
+                perception_payload = await frontend._build_perception_payload(
+                    game_state,
+                    target_player_id,
+                    display_in_chat=False,
+                )
+                if perception_payload:
+                    await frontend.send_json_message({
+                        "type": "perception",
+                        **perception_payload,
+                    }, target_player_id)
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Narrative Streaming Parser
@@ -2449,12 +2820,13 @@ class Architect:
         tool_calls_map = {}  # index -> {id, function_name, arguments}
         role = None
 
-        # Narrative streaming: one extractor per commit_world_event tool call.
-        # Disabled for capture_only contexts (e.g. render_perception) where the
-        # narrative is captured internally and not sent directly to the player.
+        # Narrative streaming belongs to immediate player-delivery tasks only.
         extractors: Dict[int, 'Architect._NarrativeStreamExtractor'] = {}
         frontend = self.game_kernel.frontend_adapter
-        enable_narrative_streaming = frontend is not None and not ctx.get("capture_only")
+        enable_narrative_streaming = (
+            frontend is not None
+            and ctx.get("delivery_policy") == DELIVERY_POLICY_IMMEDIATE
+        )
 
         async for chunk in stream:
             delta = chunk.choices[0].delta if chunk.choices else None

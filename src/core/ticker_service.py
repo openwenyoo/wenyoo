@@ -123,7 +123,12 @@ class TickerService:
             )
             return
 
-        from src.core.architect import ArchitectTask
+        from src.core.architect import (
+            ArchitectTask,
+            infer_delivery_policy,
+            infer_expected_output,
+            infer_task_profile,
+        )
 
         for event, event_data in triggered_events:
             actor_player_id = self._resolve_actor_player_id(event, session_entry, game_state)
@@ -143,6 +148,15 @@ class TickerService:
             task = ArchitectTask(
                 task_type="process_event",
                 event_context=self._build_timed_event_context(event),
+                task_profile=infer_task_profile("process_event"),
+                expected_output=infer_expected_output(
+                    "process_event",
+                    infer_task_profile("process_event"),
+                ),
+                delivery_policy=infer_delivery_policy(
+                    "process_event",
+                    infer_task_profile("process_event"),
+                ),
                 extra_context=extra_context,
             )
 

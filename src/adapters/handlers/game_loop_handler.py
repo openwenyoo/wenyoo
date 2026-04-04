@@ -18,6 +18,7 @@ from ..utils.game_state_serializer import (
     build_object_definitions,
     format_stories_list
 )
+from ..utils.client_interaction_router import ClientInteractionRouter
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ class GameLoopHandler:
         self.player_sessions = player_sessions
         self.persistent_player_to_session = persistent_player_to_session
         self.frontend_adapter = frontend_adapter
+        self.interaction_router = ClientInteractionRouter()
 
     async def game_loop(self, websocket: WebSocket, player_id: str, session_id: str) -> bool:
         """Main game loop for a connected player.
@@ -114,6 +116,11 @@ class GameLoopHandler:
                 # Handle form submission
                 if msg_type == "form_submit":
                     await self._handle_form_submit(websocket, player_id, session_id, message)
+                    continue
+
+                if await self.interaction_router.route_message(
+                    self, websocket, player_id, session_id, message
+                ):
                     continue
 
                 # Handle game commands
@@ -203,29 +210,27 @@ class GameLoopHandler:
             session_id: The session ID.
         """
         game_state = self.game_sessions[session_id]["game_state"]
-        player_location = game_state.get_player_location(player_id)
-
-        full_description = await self.game_kernel.get_node_perception(
-            game_state, player_location, player_id
-        )
         game_state_dict = await build_game_state_dict(
             game_state,
             session_id,
             player_id,
-            self.game_kernel,
-            current_perception=full_description,
         )
 
         if self.frontend_adapter:
             self.frontend_adapter._format_game_state_for_player(game_state_dict, player_id)
-            client_type = self.player_sessions.get(player_id, {}).get('client_type', 'web')
-            full_description = self.frontend_adapter.format_for_client(full_description, client_type)
+            perception_payload = await self.frontend_adapter._build_perception_payload(
+                game_state,
+                player_id,
+                display_in_chat=False,
+            )
+        else:
+            perception_payload = None
 
         await websocket.send_json({
             "type": "game_start",
             "content": {
                 "game_state": game_state_dict,
-                "response": full_description
+                "perception": perception_payload,
             }
         })
 
@@ -325,6 +330,39 @@ class GameLoopHandler:
             "actions": actions_data,
         })
 
+    async def _handle_get_current_perception(
+        self,
+        websocket: WebSocket,
+        player_id: str,
+        session_id: str,
+    ) -> None:
+        """Render and send the current scene perception explicitly."""
+        if not self.frontend_adapter or session_id not in self.game_sessions:
+            await websocket.send_json({
+                "type": "error",
+                "content": "Perception is unavailable for this session.",
+            })
+            return
+
+        game_state = self.game_sessions[session_id]["game_state"]
+        perception_payload = await self.frontend_adapter._build_perception_payload(
+            game_state,
+            player_id,
+            display_in_chat=False,
+            force=True,
+        )
+        if not perception_payload:
+            await websocket.send_json({
+                "type": "error",
+                "content": "Unable to build a perception payload for this client.",
+            })
+            return
+
+        await websocket.send_json({
+            "type": "perception",
+            **perception_payload,
+        })
+
     def _is_instant_command(self, command: str) -> bool:
         """Check if a command can be processed instantly without LLM.
         
@@ -348,6 +386,11 @@ class GameLoopHandler:
             return True
         
         return False
+
+    def _should_send_perception(self, player_id: str) -> bool:
+        """Default web clients receive explicit perception updates."""
+        client_type = self.player_sessions.get(player_id, {}).get('client_type', 'web')
+        return client_type == 'web'
 
     # TODO: The keepalive-during-processing approach below is a pragmatic fix.
     #       A more elegant solution would decouple the WebSocket receive loop
@@ -438,6 +481,137 @@ class GameLoopHandler:
         finally:
             ping_task.cancel()
 
+    async def _handle_architect_action(
+        self,
+        websocket: WebSocket,
+        player_id: str,
+        session_id: str,
+        message: Dict[str, Any],
+    ):
+        """Handle a typed Architect task request from a custom frontend."""
+        if session_id not in self.game_sessions:
+            await websocket.send_json({
+                "type": "error",
+                "content": "Session not found. Please rejoin or start a new game.",
+            })
+            return
+
+        game_session = self.game_sessions[session_id]
+        game_state = game_session["game_state"]
+        story = game_state.story
+        original_location = game_state.get_player_location(player_id)
+        original_version = game_state.version
+
+        task_payload = dict(message.get("task") or {})
+        if not task_payload and message.get("payload"):
+            task_payload = dict(message.get("payload") or {})
+        if not task_payload:
+            task_payload = {
+                "task_type": message.get("task_type", "execute_intent"),
+                "task_profile": message.get("task_profile"),
+                "player_input": message.get("display_text") or message.get("action_id") or "",
+                "purpose": message.get("purpose"),
+                "structured_input": message.get("payload") or {},
+                "expected_output": message.get("expected_output"),
+                "delivery_policy": message.get("delivery_policy"),
+                "action_hint": message.get("action_hint", ""),
+                "input_type": message.get("input_type", "story_app"),
+            }
+
+        task = self.game_kernel.build_architect_task_from_payload(
+            task_payload,
+            session_id=session_id,
+        )
+
+        ping_task = asyncio.create_task(self._keepalive_ping_loop(websocket))
+        try:
+            session_lock = game_session.get("lock")
+            if session_lock:
+                async with session_lock:
+                    response = await self.game_kernel.run_architect_task(
+                        task, game_state, story, player_id
+                    )
+                    await self._post_command_update(
+                        websocket,
+                        player_id,
+                        session_id,
+                        response,
+                        task.task_type,
+                        original_location,
+                        original_version,
+                        game_state,
+                    )
+            else:
+                response = await self.game_kernel.run_architect_task(
+                    task, game_state, story, player_id
+                )
+                await self._post_command_update(
+                    websocket,
+                    player_id,
+                    session_id,
+                    response,
+                    task.task_type,
+                    original_location,
+                    original_version,
+                    game_state,
+                )
+        finally:
+            ping_task.cancel()
+
+    async def _handle_deterministic_merge_patch(
+        self,
+        websocket: WebSocket,
+        player_id: str,
+        session_id: str,
+        patch: Dict[str, Any],
+        *,
+        display_text: Optional[str] = None,
+    ):
+        """Apply a direct merge-patch to authoritative game state for trusted story apps."""
+        if session_id not in self.game_sessions:
+            await websocket.send_json({
+                "type": "error",
+                "content": "Session not found. Please rejoin or start a new game.",
+            })
+            return
+        if not isinstance(patch, dict) or not patch:
+            await websocket.send_json({
+                "type": "error",
+                "content": "deterministic merge_patch requires a non-empty object patch.",
+            })
+            return
+
+        game_session = self.game_sessions[session_id]
+        game_state = game_session["game_state"]
+        original_location = game_state.get_player_location(player_id)
+        original_version = game_state.version
+
+        session_lock = game_session.get("lock")
+        if session_lock:
+            async with session_lock:
+                applied = game_state.apply_merge_patch(patch, player_id)
+        else:
+            applied = game_state.apply_merge_patch(patch, player_id)
+
+        response = {
+            "narrative_response": "",
+            "script_paused": False,
+            "deterministic_result": {
+                "applied": applied,
+                "display_text": display_text or "",
+            },
+        }
+        await self._post_command_update(
+            websocket,
+            player_id,
+            session_id,
+            response,
+            "merge_patch",
+            original_location,
+            original_version,
+            game_state,
+        )
+
     async def _post_command_update(
         self,
         websocket: WebSocket,
@@ -451,27 +625,57 @@ class GameLoopHandler:
     ):
         """Send game_state snapshot and broadcast to other players (background)."""
         try:
-            current_perception = None
+            narrative = ""
+            perception_payload = None
             if isinstance(response, dict):
                 narrative = response.get("narrative_response", "")
-                if narrative:
-                    current_perception = narrative
 
             game_state_dict = await build_game_state_dict(
-                game_state, session_id, player_id, self.game_kernel,
-                current_perception=current_perception,
+                game_state,
+                session_id,
+                player_id,
             )
 
             if self.frontend_adapter:
                 self.frontend_adapter._format_game_state_for_player(game_state_dict, player_id)
+                if self._should_send_perception(player_id):
+                    perception_payload = await self.frontend_adapter._build_perception_payload(
+                        game_state,
+                        player_id,
+                        text=narrative or None,
+                        display_in_chat=False,
+                    )
 
             await websocket.send_json({
                 "type": "command_result",
                 "content": {
                     "game_state": game_state_dict,
-                    "response": response
+                    "response": response,
+                    "structured_result": (
+                        response.get("structured_result")
+                        if isinstance(response, dict)
+                        else None
+                    ),
+                    "structured_results": (
+                        response.get("structured_results")
+                        if isinstance(response, dict)
+                        else None
+                    ),
+                    "response_client": (
+                        self.frontend_adapter._build_client_text_payload(
+                            response.get("narrative_response", ""),
+                            self.player_sessions.get(player_id, {}).get("client_type", "web"),
+                        )
+                        if self.frontend_adapter and isinstance(response, dict)
+                        else None
+                    ),
                 }
             })
+            if perception_payload:
+                await websocket.send_json({
+                    "type": "perception",
+                    **perception_payload,
+                })
 
             new_location = game_state.get_player_location(player_id)
             if game_state.version != original_version or new_location != original_location:
@@ -540,18 +744,42 @@ class GameLoopHandler:
                 })
                 
                 game_state_dict = await build_game_state_dict(
-                    game_state, session_id, player_id, self.game_kernel
+                    game_state,
+                    session_id,
+                    player_id,
                 )
                 if self.frontend_adapter:
                     self.frontend_adapter._format_game_state_for_player(game_state_dict, player_id)
+                    perception_payload = await self.frontend_adapter._build_perception_payload(
+                        game_state,
+                        player_id,
+                        display_in_chat=False,
+                    )
+                else:
+                    perception_payload = None
 
                 await websocket.send_json({
                     "type": "command_result",
                     "content": {
                         "game_state": game_state_dict,
-                        "response": {"narrative_response": "", "script_paused": result.get("script_paused", False)}
+                        "response": {"narrative_response": "", "script_paused": result.get("script_paused", False)},
+                        "structured_result": None,
+                        "structured_results": [],
+                        "response_client": (
+                            self.frontend_adapter._build_client_text_payload(
+                                "",
+                                self.player_sessions.get(player_id, {}).get("client_type", "web"),
+                            )
+                            if self.frontend_adapter
+                            else None
+                        ),
                     }
                 })
+                if perception_payload:
+                    await websocket.send_json({
+                        "type": "perception",
+                        **perception_payload,
+                    })
                 await self._push_session_state(session_id, exclude_player_id=player_id)
             else:
                 # Send validation errors
@@ -582,11 +810,24 @@ class GameLoopHandler:
                 continue
 
             game_state_dict = await build_game_state_dict(
-                game_state, session_id, target_player_id, self.game_kernel
+                game_state,
+                session_id,
+                target_player_id,
             )
             self.frontend_adapter._format_game_state_for_player(game_state_dict, target_player_id)
             await self.websocket_manager.send_to_player(target_player_id, {
                 "type": "game_state",
                 "content": game_state_dict
             })
+            if self._should_send_perception(target_player_id):
+                perception_payload = await self.frontend_adapter._build_perception_payload(
+                    game_state,
+                    target_player_id,
+                    display_in_chat=False,
+                )
+                if perception_payload:
+                    await self.websocket_manager.send_to_player(target_player_id, {
+                        "type": "perception",
+                        **perception_payload,
+                    })
 

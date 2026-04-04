@@ -1,0 +1,71 @@
+id: custom_ui_signal_lab
+name: Signal Lab
+title: Signal Lab
+description: A demo story package that uses a sandboxed custom frontend to mix local UI, direct backend state updates, and Architect-guided analysis.
+version: "1.0"
+author: Wenyoo Demo
+start_node_id: signal_lab
+
+frontend:
+  app:
+    mode: sandboxed_app
+    app_root: frontend
+    entry: index.html
+    sandbox:
+      - allow-scripts
+      - allow-same-origin
+    client_type: story_app
+    capabilities:
+      - local_state
+      - ui_query
+      - deterministic_action
+      - architect_action
+
+initial_variables:
+  lab_charge: 0
+  scan_count: 0
+  anomaly_stage: dormant
+  recommended_action: observe
+  lore_world_setting: "You are operating a compact signal-analysis lab built around a mysterious star-borne anomaly."
+  lore_lab_directive: "Any meaningful discovery shown to the player must be reflected in the world state."
+
+characters:
+  - id: station_ai
+    name: Station AI
+    definition: |
+      【身份】An embedded research assistant that helps interpret the anomaly.
+      【性格与说话风格】Calm, technical, concise, but capable of wonder when evidence is surprising.
+      【行为规则】
+      ## Analysis
+      - Base every conclusion on the current game state and the operator's provided context.
+      - If a scan reveals a meaningful new fact, update the world state so later scenes can remember it.
+    state: "A patient voice waits behind the lab speakers."
+    properties:
+      location: signal_lab
+
+nodes:
+  signal_lab:
+    name: Signal Lab
+    definition: |
+      A compact research chamber built around a resonant signal console. The room contains a phased capacitor,
+      a waveform monitor, and a sealed observation window aimed at an impossible light in the dark.
+    state: |
+      The console is live, but the anomaly is still only partially understood. The capacitor charge,
+      scan count, and operator notes can all influence how the next analysis feels.
+    objects:
+      - id: signal_core
+        name: Signal Core
+        definition: |
+          The lab's signal core translates the anomaly into readable waveforms.
+        state: "A glass-cased lattice glows softly behind the control panel."
+        actions:
+          - id: inspect_waveform
+            text: Inspect waveform presets
+            intent: "Describe the current waveform presets available in the signal core and how they relate to the anomaly's present state."
+          - id: ask_for_hint
+            text: Ask the station AI for a hint
+            intent: "Offer a brief practical hint about what the operator could try next, based on the current variables and anomaly stage."
+    actions:
+      - id: observe_lab
+        text: Observe the lab
+        intent: "Describe the current atmosphere of the signal lab using the current world state without inventing unsupported facts."

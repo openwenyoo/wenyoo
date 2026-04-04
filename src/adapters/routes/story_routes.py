@@ -175,7 +175,8 @@ def register_story_routes(app: FastAPI, story_manager: Any):
             "title": s['title'],
             "name": s.get('name', s['title']),
             "author": s.get('author', 'Unknown'),
-            "description": s.get('description', '')
+            "description": s.get('description', ''),
+            "frontend": s.get('frontend'),
         } for s in stories]
 
     @app.get("/api/story/{story_id}")

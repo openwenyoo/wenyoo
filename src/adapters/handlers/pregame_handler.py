@@ -121,7 +121,14 @@ class PregameHandler:
                     await websocket.send_json({
                         "type": "control", 
                         "subtype": "story_info", 
-                        "story": {"title": story_or_template.title}
+                        "story": {
+                            "title": story_or_template.title,
+                            "frontend": (
+                                story_or_template.frontend.to_client_dict(story_or_template.id)
+                                if getattr(story_or_template, "frontend", None)
+                                else None
+                            ),
+                        }
                     })
                     # Store the selected story for session creation
                     session_entry["selected_story"] = story_or_template
@@ -187,20 +194,14 @@ class PregameHandler:
             )
         else:
             # Fallback used by non-web contexts.
-            player_location = game_state.get_player_location(player_id)
-            full_description = await self.game_kernel.get_node_perception(
-                game_state, player_location, player_id
-            )
             game_state_dict = await build_game_state_dict(
                 game_state,
                 session_id,
                 player_id,
-                self.game_kernel,
-                current_perception=full_description,
             )
             content = {
                 "game_state": game_state_dict,
-                "response": full_description,
+                "perception": None,
                 "transcript": [],
                 "pending_form": None,
             }
@@ -215,11 +216,12 @@ class PregameHandler:
             isinstance(entry, dict) and entry.get("message_type") == "game"
             for entry in transcript_entries
         )
-        if content.get("response") and not has_visible_game_transcript:
+        perception = content.get("perception") or {}
+        if perception.get("display_in_chat") and perception.get("content") and not has_visible_game_transcript:
             game_state.add_transcript_entry(
                 "game",
-                content["response"],
-                is_html=True,
+                perception["content"],
+                is_html=False,
                 player_ids=[player_id],
                 location=game_state.get_player_location(player_id),
                 metadata={"event_type": "initial_room_render"},

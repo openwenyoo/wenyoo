@@ -44,9 +44,7 @@ async def build_game_state_dict(
     game_state: GameState, 
     session_id: str,
     player_id: Optional[str] = None,
-    game_kernel: Optional[Any] = None,
     include_diff: bool = True,
-    current_perception: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build a standardized game state dictionary for sending to clients.
     
@@ -54,9 +52,7 @@ async def build_game_state_dict(
         game_state: The current game state.
         session_id: The session ID.
         player_id: Optional player ID for player-specific data.
-        game_kernel: Optional game kernel for getting player-specific perception.
         include_diff: Whether to include object definitions in a 'diff' key.
-        current_perception: Optional precomputed player-facing scene text.
         
     Returns:
         A dictionary representation of the game state.
@@ -69,6 +65,11 @@ async def build_game_state_dict(
         "nodes": {node_id: node.dict() for node_id, node in game_state.nodes.items()},
         "session_id": session_id,
         "visited_nodes": game_state.visited_nodes,
+        "story_frontend": (
+            game_state.story.frontend.to_client_dict(game_state.story_id)
+            if getattr(game_state.story, "frontend", None)
+            else None
+        ),
     }
 
     if player_id:
@@ -87,19 +88,9 @@ async def build_game_state_dict(
             "status": game_state.get_player_status(player_id),
         }
 
-    # Add processed description for player's current location.
     current_node_id = None
-    if player_id and game_kernel:
-        player_location = game_state.get_player_location(player_id)
-        if player_location:
-            current_node_id = player_location
-            full_description = current_perception
-            if full_description is None:
-                full_description = await game_kernel.get_node_perception(
-                    game_state, player_location, player_id
-                )
-            if player_location in game_state_dict['nodes']:
-                game_state_dict['nodes'][player_location]['processed_description'] = full_description
+    if player_id:
+        current_node_id = game_state.get_player_location(player_id)
     
     if game_state.story.characters:
         character_list = []
@@ -138,9 +129,17 @@ def format_stories_list(stories: list) -> list:
         stories: Raw story list from story manager.
         
     Returns:
-        Formatted list with id, title, description.
+        Formatted list with id, title, description, and frontend metadata.
     """
-    return [{"id": s['id'], "title": s['title'], "description": s.get('description', '')} for s in stories]
+    return [
+        {
+            "id": s["id"],
+            "title": s["title"],
+            "description": s.get("description", ""),
+            "frontend": s.get("frontend"),
+        }
+        for s in stories
+    ]
 
 
 

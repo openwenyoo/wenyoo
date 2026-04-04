@@ -10,7 +10,7 @@ The adapter has been refactored into modular components:
 """
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional, Dict, Any, List
@@ -296,6 +296,15 @@ class WebFrontendAdapter(FrontendAdapter):
             with open(editor_path, "r", encoding="utf-8") as f:
                 return f.read()
 
+        @self.app.get("/story-apps/{story_id}/{asset_path:path}")
+        async def get_story_app_asset(story_id: str, asset_path: str):
+            if not self.story_manager:
+                return JSONResponse({"error": "Story manager unavailable."}, status_code=503)
+            resolved = self.story_manager.resolve_story_frontend_asset(story_id, asset_path)
+            if not resolved:
+                return JSONResponse({"error": "Story frontend asset not found."}, status_code=404)
+            return FileResponse(resolved)
+
         # Register API routes from modules
         register_story_routes(self.app, self.story_manager)
         register_llm_routes(self.app, self.game_kernel, self.story_manager)
@@ -520,6 +529,119 @@ class WebFrontendAdapter(FrontendAdapter):
         self.game_kernel.stop_ticker(room_id)
         del self.game_sessions[room_id]
 
+    _HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+    def _strip_html_tags(self, text: str) -> str:
+        if not text:
+            return ""
+        return self._HTML_TAG_RE.sub("", text)
+
+    def _should_send_perception(self, player_id: str) -> bool:
+        client_type = self.player_sessions.get(player_id, {}).get("client_type", "web")
+        return client_type == "web"
+
+    async def _build_perception_payload(
+        self,
+        game_state: GameState,
+        player_id: str,
+        *,
+        text: Optional[str] = None,
+        display_in_chat: bool = False,
+        force: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        if not force and not self._should_send_perception(player_id):
+            return None
+
+        node_id = game_state.get_player_location(player_id)
+        if not node_id:
+            return None
+
+        if text is None:
+            text = await self.game_kernel.get_node_perception(
+                game_state,
+                node_id,
+                player_id,
+            )
+
+        client_type = self.player_sessions.get(player_id, {}).get("client_type", "web")
+        return {
+            "node_id": node_id,
+            "content": text,
+            "client_content": self._build_client_text_payload(text, client_type),
+            "display_in_chat": display_in_chat,
+        }
+
+    def _build_client_text_payload(self, text: str, client_type: str = "web") -> Dict[str, Any]:
+        if not text:
+            return {"format": "plain", "text": "", "segments": []}
+
+        segments: List[Dict[str, Any]] = []
+
+        def add_text_segment(chunk: str) -> None:
+            if chunk:
+                segments.append({"type": "text", "text": chunk})
+
+        last_index = 0
+        for match in self._LINK_TOKEN_RE.finditer(text):
+            add_text_segment(text[last_index:match.start()])
+            link_type = match.group(1)
+            left = match.group(2)
+            display = match.group(3)
+            if link_type == "input":
+                segments.append({
+                    "type": "input_action",
+                    "text": left,
+                    "display_text": left,
+                    "action_hint": display,
+                })
+            elif link_type == "character":
+                segments.append({
+                    "type": "character_link",
+                    "character_id": left,
+                    "display_text": display,
+                })
+            else:
+                segments.append({
+                    "type": "object_link",
+                    "object_id": left,
+                    "display_text": display,
+                })
+            last_index = match.end()
+        add_text_segment(text[last_index:])
+
+        plain_text = "".join(
+            segment.get("display_text") or segment.get("text", "")
+            for segment in segments
+        ) if segments else text
+        if client_type == "story_app":
+            plain_text = self.format_for_client(text, "story_app")
+
+        payload = {
+            "format": "plain" if client_type == "story_app" else "html",
+            "text": plain_text,
+            "segments": segments,
+            "source_text": text,
+        }
+        if client_type == "web":
+            payload["html"] = self.format_for_client(text, "web")
+        return payload
+
+    def _annotate_transcript_for_player(self, transcript: List[Dict[str, Any]], player_id: str) -> List[Dict[str, Any]]:
+        client_type = self.player_sessions.get(player_id, {}).get("client_type", "web")
+        annotated: List[Dict[str, Any]] = []
+        for entry in transcript:
+            if not isinstance(entry, dict):
+                annotated.append(entry)
+                continue
+            enriched = copy.deepcopy(entry)
+            metadata = entry.get("metadata") or {}
+            base_text = metadata.get("raw_text") or entry.get("content") or ""
+            if entry.get("is_html"):
+                base_text = self._strip_html_tags(base_text)
+            enriched["client_content"] = self._build_client_text_payload(base_text, client_type)
+            annotated.append(enriched)
+        return annotated
+
     async def _build_room_start_content(
         self,
         room_id: str,
@@ -528,26 +650,19 @@ class WebFrontendAdapter(FrontendAdapter):
         *,
         full_description: Optional[str] = None,
     ) -> Dict[str, Any]:
-        transcript = game_state.get_transcript_for_player(player_id)
+        transcript = self._annotate_transcript_for_player(
+            game_state.get_transcript_for_player(player_id),
+            player_id,
+        )
         has_visible_game_transcript = any(
             isinstance(entry, dict) and entry.get("message_type") == "game"
             for entry in transcript
         )
 
-        player_location = game_state.get_player_location(player_id)
-        if full_description is None and not has_visible_game_transcript:
-            full_description = await self.game_kernel.get_node_perception(
-                game_state,
-                player_location,
-                player_id,
-            )
-
         game_state_dict = await build_game_state_dict(
             game_state,
             room_id,
             player_id,
-            self.game_kernel,
-            current_perception=full_description,
         )
         self._format_game_state_for_player(game_state_dict, player_id)
         pending_form_payload = None
@@ -564,16 +679,23 @@ class WebFrontendAdapter(FrontendAdapter):
                 if prefill:
                     pending_form_payload["prefill"] = dict(prefill)
 
-        client_type = self.player_sessions.get(player_id, {}).get("client_type", "web")
-        response = ""
-        if not has_visible_game_transcript:
-            response = self.format_for_client(full_description, client_type)
+        perception_payload = await self._build_perception_payload(
+            game_state,
+            player_id,
+            text=full_description,
+            display_in_chat=not has_visible_game_transcript,
+        )
 
         return {
             "game_state": game_state_dict,
-            "response": response,
+            "perception": perception_payload,
             "transcript": transcript,
             "pending_form": pending_form_payload,
+            "story_frontend": (
+                game_state.story.frontend.to_client_dict(game_state.story_id)
+                if getattr(game_state.story, "frontend", None)
+                else None
+            ),
         }
 
     async def _reaper_task(self):
@@ -607,6 +729,7 @@ class WebFrontendAdapter(FrontendAdapter):
             msg_type = message.get("type")
             player_id = message.get("player_id")
             client_token = message.get("session_token")
+            client_capabilities = list(message.get("client_capabilities") or [])
 
             if msg_type != "register_or_rejoin" or not player_id:
                 logger.warning(f"First message was not register_or_rejoin. Got: {message}")
@@ -657,6 +780,7 @@ class WebFrontendAdapter(FrontendAdapter):
                         "session_id": session_id, 
                         "websocket": websocket,
                         "client_type": client_type,
+                        "client_capabilities": client_capabilities,
                     }
                     self.game_sessions[session_id]["players"].add(player_id)
                     self._restore_pending_form_for_player(session_id, player_id)
@@ -679,6 +803,8 @@ class WebFrontendAdapter(FrontendAdapter):
                     await websocket.send_json({
                         "type": "rejoined",
                         "content": start_content,
+                        "protocol_version": 2,
+                        "server_capabilities": ["ui_action", "ui_query", "ui_event", "story_app_bridge"],
                     })
                     
                     current_session_id = session_id
@@ -687,24 +813,36 @@ class WebFrontendAdapter(FrontendAdapter):
                 if token_entry and existing_token:
                     logger.info(f"Returning player {player_id} (no active room).")
                     player_name = token_entry.get("player_name")
-                    self.player_sessions[player_id] = {"name": player_name, "websocket": websocket}
+                    self.player_sessions[player_id] = {
+                        "name": player_name,
+                        "websocket": websocket,
+                        "client_capabilities": client_capabilities,
+                    }
                     await websocket.send_json({
                         "type": "registered",
                         "player_id": player_id,
                         "player_name": player_name,
                         "session_token": existing_token,
+                        "protocol_version": 2,
+                        "server_capabilities": ["ui_action", "ui_query", "ui_event", "story_app_bridge"],
                     })
                 else:
                     logger.info(f"Registering new player {player_id}.")
                     new_token = secrets.token_urlsafe(32)
                     self._player_tokens[player_id] = {"token": new_token, "player_name": None}
                     self._save_player_tokens()
-                    self.player_sessions[player_id] = {"name": None, "websocket": websocket}
+                    self.player_sessions[player_id] = {
+                        "name": None,
+                        "websocket": websocket,
+                        "client_capabilities": client_capabilities,
+                    }
                     await websocket.send_json({
                         "type": "registered",
                         "player_id": player_id,
                         "player_name": None,
                         "session_token": new_token,
+                        "protocol_version": 2,
+                        "server_capabilities": ["ui_action", "ui_query", "ui_event", "story_app_bridge"],
                     })
 
             while True:
@@ -761,6 +899,8 @@ class WebFrontendAdapter(FrontendAdapter):
             return text
 
         def _render_input_link(display_text: str, action_hint: str = "") -> str:
+            if client_type == "story_app":
+                return display_text
             safe_display = html_escape(display_text)
             escaped_display = display_text.replace("'", "\\'").replace('"', '\\"')
             escaped_hint = action_hint.replace("'", "\\'").replace('"', '\\"')
@@ -771,6 +911,8 @@ class WebFrontendAdapter(FrontendAdapter):
             )
 
         def _render_entity_link(link_type: str, element_id: str, display_text: str) -> str:
+            if client_type == "story_app":
+                return display_text
             safe_display = html_escape(display_text)
             escaped_id = element_id.replace("'", "\\'").replace('"', '\\"')
             if link_type == 'character':
@@ -816,6 +958,16 @@ class WebFrontendAdapter(FrontendAdapter):
         formatted = self._BRACE_BARE_LINK_RE.sub(_replace_brace_bare, formatted)
         return formatted
 
+    def _format_game_state_for_player(self, game_state_dict: dict, player_id: str) -> dict:
+        story_frontend = None
+        if self.story_manager:
+            story_id = game_state_dict.get("story_id")
+            story_meta = self.story_manager.get_story_metadata(story_id) if story_id else None
+            story_frontend = story_meta.get("frontend") if story_meta else None
+        if story_frontend:
+            game_state_dict["story_frontend"] = copy.deepcopy(story_frontend)
+        return game_state_dict
+
     # ---- Observer pattern methods ----
 
     async def start(self) -> None:
@@ -844,13 +996,21 @@ class WebFrontendAdapter(FrontendAdapter):
             
             for player_id in players_in_session:
                 game_state_dict = await build_game_state_dict(
-                    game_state, session_id, player_id, self.game_kernel
+                    game_state,
+                    session_id,
+                    player_id,
                 )
                 self._format_game_state_for_player(game_state_dict, player_id)
                 await self.websocket_manager.send_to_player(player_id, {
                     "type": "game_state",
                     "content": game_state_dict
                 })
+                perception_payload = await self._build_perception_payload(game_state, player_id)
+                if perception_payload:
+                    await self.websocket_manager.send_to_player(player_id, {
+                        "type": "perception",
+                        **perception_payload,
+                    })
             
             return True
         logger.warning("update_display called with no session_id")
@@ -1034,6 +1194,7 @@ class WebFrontendAdapter(FrontendAdapter):
             client_type = self.player_sessions.get(target_player_id, {}).get('client_type', 'web')
             formatted = self.format_for_client(message, client_type)
             payload = {"type": message_type, "content": formatted}
+            payload["client_content"] = self._build_client_text_payload(message, client_type)
             payload.update(extra)
             sent = await self.websocket_manager.send_to_player(target_player_id, payload)
             success = success or sent
@@ -1055,7 +1216,7 @@ class WebFrontendAdapter(FrontendAdapter):
                 content=transcript_content,
                 is_html=True,
                 player_ids=transcript_targets,
-                metadata={"formatted_via_client": True},
+                metadata={"formatted_via_client": True, "raw_text": message},
             )
         return success
 
@@ -1084,6 +1245,11 @@ class WebFrontendAdapter(FrontendAdapter):
         msg = {"type": "stream_end"}
         if final_html is not None:
             msg["final_html"] = final_html
+            client_type = self.player_sessions.get(player_id, {}).get("client_type", "web")
+            msg["client_content"] = self._build_client_text_payload(
+                self._strip_html_tags(final_html),
+                client_type,
+            )
         sent = await self.websocket_manager.send_to_player(player_id, msg)
         if sent and final_html is not None:
             room_id = self.player_sessions.get(player_id, {}).get("session_id")

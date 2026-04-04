@@ -32,7 +32,13 @@ from src.core.text_processor import TextProcessor
 from src.core.variable_resolver import VariableResolver
 from src.core.ticker_service import TickerService
 from src.core.node_generator import NodeGenerator
-from src.core.architect import Architect, ArchitectTask
+from src.core.architect import (
+    Architect,
+    ArchitectTask,
+    infer_delivery_policy,
+    infer_expected_output,
+    infer_task_profile,
+)
 from src.core.background_materialization import (
     BackgroundMaterializationJob,
     BackgroundMaterializationScheduler,
@@ -320,6 +326,16 @@ class GameKernel:
         task = ArchitectTask(
             task_type="render_perception",
             node_id=node_id,
+            task_profile=infer_task_profile("render_perception"),
+            expected_output=infer_expected_output(
+                "render_perception",
+                infer_task_profile("render_perception"),
+            ),
+            delivery_policy=infer_delivery_policy(
+                "render_perception",
+                infer_task_profile("render_perception"),
+                capture_only=True,
+            ),
             extra_context={"capture_only": True},
         )
         ctx = await self.architect.handle(
@@ -742,6 +758,15 @@ JSON array:"""
         task = ArchitectTask(
             task_type="player_input",
             player_input=user_input,
+            task_profile=infer_task_profile("player_input"),
+            expected_output=infer_expected_output(
+                "player_input",
+                infer_task_profile("player_input"),
+            ),
+            delivery_policy=infer_delivery_policy(
+                "player_input",
+                infer_task_profile("player_input"),
+            ),
             extra_context=extra,
         )
         ctx = await self.architect.handle(task, game_state, player_id, story)
@@ -751,6 +776,79 @@ JSON array:"""
             if displayed:
                 last_narrative = displayed[-1].get("text", "")
         return {"narrative_response": last_narrative, "script_paused": False}
+
+    def build_architect_task_from_payload(
+        self,
+        payload: Dict[str, Any],
+        *,
+        session_id: Optional[str] = None,
+    ) -> ArchitectTask:
+        """Build an ArchitectTask from a typed frontend payload."""
+        payload = payload or {}
+        extra_context = dict(payload.get("extra_context") or {})
+        if session_id and "session_id" not in extra_context:
+            extra_context["session_id"] = session_id
+        if payload.get("action_hint") and "action_hint" not in extra_context:
+            extra_context["action_hint"] = payload["action_hint"]
+        if payload.get("input_type") and "input_type" not in extra_context:
+            extra_context["input_type"] = payload["input_type"]
+
+        task_type = payload.get("task_type", "execute_intent")
+        task_profile = infer_task_profile(task_type, payload.get("task_profile"))
+        expected_output = infer_expected_output(
+            task_type,
+            task_profile,
+            payload.get("expected_output"),
+        )
+        delivery_policy = infer_delivery_policy(
+            task_type,
+            task_profile,
+            payload.get("delivery_policy"),
+            capture_only=bool(extra_context.get("capture_only")),
+            allow_player_facing_narrative=bool(
+                extra_context.get("background_allow_player_facing_narrative", True)
+            ),
+        )
+
+        return ArchitectTask(
+            task_type=task_type,
+            player_input=payload.get("player_input"),
+            node_id=payload.get("node_id"),
+            event_context=payload.get("event_context"),
+            form_data=payload.get("form_data"),
+            task_profile=task_profile,
+            purpose=payload.get("purpose"),
+            structured_input=payload.get("structured_input"),
+            expected_output=expected_output,
+            delivery_policy=delivery_policy,
+            extra_context=extra_context,
+        )
+
+    async def run_architect_task(
+        self,
+        task: ArchitectTask,
+        game_state: GameState,
+        story: 'Story',
+        player_id: str,
+    ) -> Dict[str, Any]:
+        """Run a purpose-driven Architect task and normalize the response."""
+        ctx = await self.architect.handle(task, game_state, player_id, story)
+        last_narrative = ""
+        if isinstance(ctx, dict):
+            displayed = ctx.get("displayed_messages", [])
+            if displayed:
+                last_narrative = displayed[-1].get("text", "")
+        return {
+            "narrative_response": last_narrative,
+            "script_paused": False,
+            "task_type": task.task_type,
+            "task_profile": task.task_profile,
+            "expected_output": task.expected_output,
+            "delivery_policy": task.delivery_policy,
+            "structured_result": ctx.get("structured_result") if isinstance(ctx, dict) else None,
+            "structured_results": ctx.get("structured_results", []) if isinstance(ctx, dict) else [],
+            "world_events": ctx.get("world_events", []) if isinstance(ctx, dict) else [],
+        }
 
     # ========================================================================
     # Form Submission Processing
@@ -839,12 +937,21 @@ JSON array:"""
                 on_submit_summary = self._summarize_on_submit(on_submit) if on_submit else ""
                 task = ArchitectTask(
                     task_type="process_form_result",
+                    task_profile=infer_task_profile("process_form_result"),
                     form_data={
                         "form_id": form_id,
                         "form_title": form_def.title,
                         "submitted_data": processed_data,
                         "on_submit_summary": on_submit_summary,
                     },
+                    expected_output=infer_expected_output(
+                        "process_form_result",
+                        infer_task_profile("process_form_result"),
+                    ),
+                    delivery_policy=infer_delivery_policy(
+                        "process_form_result",
+                        infer_task_profile("process_form_result"),
+                    ),
                     extra_context={"session_id": self.frontend_adapter.player_sessions.get(player_id, {}).get("session_id")} if self.frontend_adapter else {},
                 )
                 await self.architect.handle(task, game_state, player_id, story)

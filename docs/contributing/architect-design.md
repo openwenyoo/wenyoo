@@ -22,7 +22,8 @@ The Architect is:
 
 - a unified LLM agent
 - a runtime world interpreter
-- a narrator that only speaks through engine-approved write tools
+- a shared world-reasoning core that can serve multiple frontend layers
+- a narrator only when the task profile and upper layer call for narration
 - a bridge between authored data and moment-to-moment player interaction
 
 The Architect is not:
@@ -32,6 +33,28 @@ The Architect is not:
 - a separate game design layer that invents rules on its own
 
 The author's YAML remains the source of truth for the world model. The Architect's job is to apply that model at runtime.
+
+## Core Vs Upper Layers
+
+Wenyoo should be understood as having one shared Architect core plus frontend-specific upper layers.
+
+- The core Architect owns world reading, rule resolution, tool use, and authoritative event/state decisions.
+- The default web layer owns text-first transcript/perception presentation for the built-in chat-style client.
+- The custom frontend layer owns purpose-driven UI tasks, structured results, and explicit perception requests for story apps.
+
+This means the shared core should not assume that every meaningful task is a default-web narration turn.
+
+## Task Profiles
+
+Architect behavior is driven by task profile rather than by which caller invoked it.
+
+- `worldAction`: player/world interaction that may change authoritative state.
+- `perceptionRender`: viewer-scoped scene rendering, captured and delivered by an upper layer.
+- `workflowTask`: form, event, or guided workflow completion.
+- `uiDecision`: strictly non-player-facing structured reasoning for custom UI.
+- `backgroundSimulation`: deferred or offscreen world evolution.
+
+These profiles let Wenyoo keep one Architect implementation while making delivery policy explicit.
 
 ## Mental Model
 
@@ -58,7 +81,9 @@ Before it describes anything to the player, it should determine:
 
 Only then should it narrate the event.
 
-That is why the architecture revolves around `commit_world_event`: narrative and state are committed together, instead of letting prose drift away from the underlying world model.
+That is why the architecture revolves around `commit_world_event`: authoritative world decisions and player-facing expression stay coherent instead of letting prose drift away from the underlying world model.
+
+The important layering detail is that `commit_world_event` belongs to the core world-event boundary, while transcript/perception delivery belongs to an upper presentation layer.
 
 ## Why A General World Agent
 
@@ -98,6 +123,7 @@ The current design centers on a small set of runtime tools such as:
 - `roll_dice`
 - `queue_materialization`
 - `present_form`
+- `return_structured_result`
 
 This matters because tools provide boundaries:
 
@@ -116,6 +142,7 @@ Examples:
 - presenting a form when the player needs to choose a class or answer a questionnaire
 - targeting different messages to different players in multiplayer
 - materializing new interactive entities so they appear in the UI and game state
+- returning structured judgments or recommendations to a custom story UI without pretending they are narration
 
 This is an important part of the design: the Architect is a world interaction agent, not just a storyteller.
 
@@ -160,8 +187,21 @@ When you add or change features, try to preserve the Architect's role:
 - prefer giving the Architect better tools or clearer state
 - avoid adding new ad hoc LLM call sites
 - make sure new player-visible behavior has a state representation when it needs one
+- keep authoritative state sync separate from perception, transcript, or client-specific delivery
+- route default-web and custom-frontend behavior through explicit upper-layer policies rather than hidden conditionals inside generic state paths
 
 If a feature changes how the Architect reasons, reads state, writes events, or interacts with the UI, update this document and `prompts/architect_system.txt` together.
+
+## Current Entry-Point Mapping
+
+The current intended profile mapping is:
+
+- `process_input()` text-box turns -> `worldAction`
+- explicit custom frontend Architect actions -> `worldAction` by default, or `uiDecision` when the caller requests structured non-player-facing output
+- `get_node_perception()` -> `perceptionRender`
+- `process_form_result` -> `workflowTask`
+- timed/process events -> `workflowTask`
+- background materialization -> `backgroundSimulation`
 
 ## Related Files
 

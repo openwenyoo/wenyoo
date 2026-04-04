@@ -83,12 +83,6 @@ class FrontendAdapter(ABC):
         Returns:
             The same dict with text fields formatted for the player's client.
         """
-        client_type = self.player_sessions.get(player_id, {}).get('client_type', 'web')
-        for node_data in game_state_dict.get('nodes', {}).values():
-            if 'processed_description' in node_data:
-                node_data['processed_description'] = self.format_for_client(
-                    node_data['processed_description'], client_type
-                )
         return game_state_dict
 
     async def on_game_start(self, player_name: str) -> bool:
