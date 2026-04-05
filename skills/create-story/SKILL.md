@@ -33,7 +33,7 @@ initial_variables: {}         # game state tracking
 nodes: {}                     # at least one node
 ```
 
-Optional top-level fields: `title`, `description`, `author`, `version`, `genre`, `characters`, `objects`, `triggers`, `forms`, `status_display_config`, `includes`, `functions`, `connections`, `player_character_defaults`.
+Optional top-level fields: `title`, `description`, `author`, `version`, `genre`, `characters`, `objects`, `triggers`, `forms`, `status_display_config`, `includes`, `functions`, `connections`, `player_character_defaults`, `frontend`.
 
 If `name` is omitted in YAML, the loader derives it from `title`. Both are accepted, but `name` is the canonical required field.
 
@@ -138,7 +138,7 @@ No `keywords` field needed -- the LLM handles intent matching from the `text` fi
 
 Runtime note:
 - Player input is resolved by the Architect, not by a generic action-effect runner in `GameKernel`.
-- The Architect must express consequential state changes through `commit_world_event(state_changes=...)`.
+- The Architect must express consequential state changes through `commit(state_changes=...)`.
 - Use `intent` for open-ended authored behavior.
 - Keep `effects` for authored mechanical intent that the Architect can translate into the correct state changes, especially for clear flows like navigation or form opening.
 
@@ -179,11 +179,11 @@ These effect types are still valid authoring shapes and still matter for validat
 Treat them as:
 - structured mechanical intent for authors
 - schema that stories and validators understand
-- hints the Architect may map into `commit_world_event(state_changes=...)`
+- hints the Architect may map into `commit(state_changes=...)`
 
 Special cases:
 - `present_form` is still a direct runtime action the Architect can call
-- form `on_submit.effects` are summarized for the Architect and then converted into one authoritative `commit_world_event`
+- form `on_submit.effects` are summarized for the Architect and then converted into one authoritative `commit`
 - trigger `effects` are legacy in the current kernel; prefer `intent` on triggers
 
 | Effect | Key Fields |
@@ -244,7 +244,7 @@ triggers:
 Current runtime guidance:
 - Prefer `intent` for authored trigger behavior.
 - In the current kernel, trigger `effects` are treated as legacy and skipped rather than executed directly.
-- If a trigger must cause player-visible or mechanical consequences, author it so the Architect can resolve it and record the result through `commit_world_event`.
+- If a trigger must cause player-visible or mechanical consequences, author it so the Architect can resolve it and record the result through `commit`.
 
 Node-level triggers only fire while the player is in that node. Story-level triggers (at the root `triggers:` key) fire globally.
 
@@ -339,7 +339,7 @@ functions:
 
 Invoke via: `{ type: call_function, function: apply_damage, parameters: { amount: 10 } }`
 
-Use this as story schema / authoring structure, especially when working with existing content. For new content, prefer patterns the current Architect runtime can faithfully translate into `commit_world_event(state_changes=...)`. See [stories/rubiks_nightmare.yaml](stories/rubiks_nightmare.yaml) for examples using `execute_script` with Lua.
+Use this as story schema / authoring structure, especially when working with existing content. For new content, prefer patterns the current Architect runtime can faithfully translate into `commit(state_changes=...)`. See [stories/rubiks_nightmare.yaml](stories/rubiks_nightmare.yaml) for examples using `execute_script` with Lua.
 
 ### Player Character Defaults
 
@@ -387,9 +387,146 @@ Runtime note:
 - `present_form` remains a first-class runtime operation.
 - On submission, `store_variables`, optional LLM processing, and optional Lua script run first.
 - `on_submit.effects` are then treated as authoritative writer intent and summarized for the Architect.
-- The Architect should convert the resulting mechanical changes into one `commit_world_event(state_changes=...)` rather than relying on a generic direct effect runner.
+- The Architect should convert the resulting mechanical changes into one `commit(state_changes=...)` rather than relying on a generic direct effect runner.
 
 For full form docs, read [prompts/story_format_description.md](prompts/story_format_description.md) Section 9.
+
+---
+
+### Custom Frontend (Story App)
+
+Stories can replace the default text-based chat UI with a sandboxed custom frontend. The story ships its own HTML/CSS/JS in a `frontend/` directory, and the engine loads it in an iframe.
+
+**Directory structure:**
+
+```
+stories/my_story/
+  main.yaml
+  frontend/
+    index.html    # entry point
+    app.js        # application logic
+    style.css     # styling
+    images/       # static assets (images, fonts, etc.)
+```
+
+**YAML frontend config:**
+
+```yaml
+frontend:
+  app:
+    mode: sandboxed_app
+    app_root: frontend        # directory relative to main.yaml
+    entry: index.html         # entry file within app_root
+    sandbox:
+      - allow-scripts
+      - allow-same-origin
+    client_type: story_app    # tells the engine this is a custom UI client
+    capabilities:             # what interaction types the frontend uses
+      - local_state           # purely client-side state (no backend)
+      - ui_query              # read-only queries to backend
+      - deterministic_action  # direct state patches (merge_patch)
+      - architect_action      # LLM-powered Architect tasks
+```
+
+**Frontend SDK:**
+
+The story app communicates with the engine via `WenyooStorySDK`:
+
+```html
+<script src="/static/js/wenyoo-story-sdk.js"></script>
+<script>
+  const bridge = WenyooStorySDK.createBridge();
+
+  // Listen for events
+  bridge.on("game_start", (msg) => { /* initialize UI */ });
+  bridge.on("game_state", (msg) => { /* update from state changes */ });
+  bridge.on("command_result", (msg) => { /* handle Architect responses */ });
+
+  // Request initial state
+  bridge.requestInitialState();
+
+  // Send an Architect task (LLM-powered)
+  bridge.sendArchitectTask("character_interaction", {
+    action_id: "chat_sophie",
+    player_input: "Hello!",
+    purpose: "Role-play Sophie's reply to the player's message.",
+    structured_input: { target_character: "sophie", message_text: "Hello!" },
+    extra_context: { input_type: "story_app" },
+  });
+
+  // Direct state mutation (no LLM)
+  bridge.sendDeterministicAction("merge_patch", {
+    patch: {
+      variables: { player_coins: 100 },
+      timed_events: [{
+        id: "delivery_123",
+        event_type: "gift_delivery",
+        delay_seconds: 120,
+        player_id: playerId,
+        event_context: "A gift has arrived. Update affection and react.",
+      }],
+    },
+  }, { display_text: "Bought a gift" });
+
+  // Read-only query
+  bridge.query("object_actions", { object_id: "signal_core" });
+
+  // Return to story selection
+  bridge.requestReturnToMenu();
+</script>
+```
+
+**Three interaction tiers:**
+
+| Tier | Method | Touches Architect? | Use case |
+|------|--------|-------------------|----------|
+| Local-only | Client JS, no bridge call | No | UI navigation, animations, local notes |
+| Direct mutation | `bridge.sendDeterministicAction("merge_patch", ...)` | No | Currency deduction, scheduling timed events |
+| Reasoned interaction | `bridge.sendArchitectTask(taskType, options)` | Yes | NPC chat, world queries, story progression |
+
+**Timed events from frontend:**
+
+Story apps can schedule timed events via merge_patch. Include `delay_seconds` and a detailed `event_context` that tells the Architect what to do when the event fires:
+
+```js
+bridge.sendDeterministicAction("merge_patch", {
+  patch: {
+    timed_events: [{
+      id: "gift_delivery_sophie_" + Date.now(),
+      event_type: "gift_delivery",
+      delay_seconds: 120,
+      player_id: playerId,     // capture from game_state.player_state.player_id
+      object_id: "tea_set",
+      scope: "player",
+      audience: "self",
+      event_context:
+        "A Tea Set has been delivered to Sophie. " +
+        "Check Sophie's gift_preferences. If the gift is in 'likes', " +
+        "increase affection by 8-12. Update state_changes accordingly " +
+        "and send an in-character reaction as a narrative artifact.",
+    }],
+  },
+});
+```
+
+**Static assets:**
+
+All files under `frontend/` are served at `/story-apps/{story_id}/{path}`. Use relative paths in HTML (`./images/bg.png`, `./lib/three.min.js`). The engine prevents path traversal outside the `frontend/` directory.
+
+**Game state access:**
+
+The `game_state` dict sent to clients includes `character_states` with all properties (affection, chat_history, inventory, etc.), `variables`, and `nodes`. The frontend reads these to render its UI.
+
+**Design guidelines for story app stories:**
+
+- Keep one node (the "virtual space") since the UI handles all navigation
+- Put world rules in `lore_*` variables so the Architect has context
+- Use `character.definition` with detailed behavior rules and `##` sections
+- Store per-character dynamic data in `character.properties` (affection, chat_history, gift_preferences, etc.)
+- Use `event_context` on timed events to give the Architect clear instructions
+- The Architect uses `commit(artifacts=[...], state_changes={...})` to respond — narrative artifacts for player-facing text, structured artifacts for data, and state_changes for world mutations
+
+**Reference example:** See [stories/phone_dating_sim/](stories/phone_dating_sim/) for a complete story app with chat, e-commerce, timed gift delivery, and affection system.
 
 ---
 
@@ -405,6 +542,6 @@ Read these files for comprehensive documentation when needed:
 
 - **Full story YAML format** -- [prompts/story_format_description.md](prompts/story_format_description.md)
 - **All effects, triggers, conditions** -- [prompts/node_format_description.md](prompts/node_format_description.md)
-- **Architect runtime behavior** -- [prompts/architect_system.txt](prompts/architect_system.txt) (this is the source of truth for how authored rules become `commit_world_event(...)` and `present_form(...)` calls at runtime)
+- **Architect runtime behavior** -- [prompts/architect_system.txt](prompts/architect_system.txt) (this is the source of truth for how authored rules become `commit(...)` and `present_form(...)` calls at runtime)
 - **Example stories** -- browse `stories/` for working references
 - **Validation checklist** -- [validation-checklist.md](validation-checklist.md)

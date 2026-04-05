@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Heartline</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="phone-frame">
+    <div class="status-bar">
+      <span class="time" id="status-time">12:00</span>
+      <span class="coins" id="status-coins">9999</span>
+    </div>
+
+    <!-- Home Screen -->
+    <div id="screen-home" class="screen active">
+      <div class="home-header">
+        <h1>Heartline</h1>
+        <p class="tagline">Your connections, one tap away</p>
+        <button id="return-menu-btn" class="return-menu-btn">Exit to Menu</button>
+      </div>
+      <div class="app-grid">
+        <button class="app-icon" data-app="heartchat">
+          <span class="icon-emoji">💬</span>
+          <span class="icon-label">HeartChat</span>
+        </button>
+        <button class="app-icon" data-app="giftbox">
+          <span class="icon-emoji">🎁</span>
+          <span class="icon-label">GiftBox</span>
+        </button>
+        <button class="app-icon placeholder">
+          <span class="icon-emoji">📷</span>
+          <span class="icon-label">Camera</span>
+        </button>
+        <button class="app-icon placeholder">
+          <span class="icon-emoji">🖼️</span>
+          <span class="icon-label">Gallery</span>
+        </button>
+        <button class="app-icon placeholder">
+          <span class="icon-emoji">🎵</span>
+          <span class="icon-label">Music</span>
+        </button>
+        <button class="app-icon placeholder">
+          <span class="icon-emoji">☀️</span>
+          <span class="icon-label">Weather</span>
+        </button>
+        <button class="app-icon placeholder">
+          <span class="icon-emoji">📅</span>
+          <span class="icon-label">Calendar</span>
+        </button>
+        <button class="app-icon placeholder">
+          <span class="icon-emoji">⚙️</span>
+          <span class="icon-label">Settings</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- HeartChat: Contact List -->
+    <div id="screen-contacts" class="screen">
+      <div class="app-header">
+        <button class="back-btn" data-back="home">&larr;</button>
+        <h2>HeartChat</h2>
+      </div>
+      <div id="contact-list" class="contact-list"></div>
+    </div>
+
+    <!-- HeartChat: Chat View -->
+    <div id="screen-chat" class="screen">
+      <div class="app-header">
+        <button class="back-btn" data-back="contacts">&larr;</button>
+        <div class="chat-header-info">
+          <h2 id="chat-name"></h2>
+          <span class="affection-badge" id="chat-affection"></span>
+        </div>
+      </div>
+      <div id="chat-messages" class="chat-messages"></div>
+      <div class="chat-input-bar">
+        <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
+        <button id="chat-send-btn">Send</button>
+      </div>
+    </div>
+
+    <!-- GiftBox: Product List -->
+    <div id="screen-giftbox" class="screen">
+      <div class="app-header">
+        <button class="back-btn" data-back="home">&larr;</button>
+        <h2>GiftBox</h2>
+      </div>
+      <div id="gift-recipient-bar" class="recipient-bar">
+        <span>Sending to:</span>
+        <select id="gift-recipient">
+          <option value="sophie">Sophie</option>
+          <option value="marcus">Marcus</option>
+          <option value="ava">Ava</option>
+        </select>
+        <button id="refresh-shop-btn" class="refresh-btn">Refresh 🪙 <span id="refresh-cost">50</span></button>
+      </div>
+      <div id="product-grid" class="product-grid"></div>
+      <div id="shop-loading" class="shop-loading hidden">
+        <span class="loading-spinner"></span>
+        <span>Curating gifts...</span>
+      </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script src="/static/js/wenyoo-story-sdk.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

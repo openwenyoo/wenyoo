@@ -281,3 +281,70 @@ nodes:
 ```
 
 **Key traits**: `lore_*` variables in `initial_variables` define world systems and constraints for LLM context. Nodes have rich `definition` but null `state` (AI generates). Very few predefined actions -- the Architect handles most player input creatively within the rules. See [stories/snow_train.yaml](stories/snow_train.yaml) for a full example.
+
+---
+
+## 5. Custom Frontend (Story App)
+
+Best for: phone simulators, visual novels, board games, data dashboards, interactive maps, any UI that goes beyond text chat.
+
+The story ships its own HTML/CSS/JS frontend in a `frontend/` directory. The default chat UI is replaced entirely by the custom app running in a sandboxed iframe. The app communicates with the engine via the `WenyooStorySDK` bridge.
+
+```yaml
+id: phone_dating_sim
+name: "Heartline"
+start_node_id: phone_home
+genre: "Contemporary dating sim"
+
+frontend:
+  app:
+    mode: sandboxed_app
+    app_root: frontend
+    entry: index.html
+    sandbox: [allow-scripts, allow-same-origin]
+    client_type: story_app
+    capabilities: [local_state, ui_query, deterministic_action, architect_action]
+
+initial_variables:
+  player_coins: 9999
+  lore_world_setting: "The player interacts through a smartphone interface."
+  lore_chat_rules: |
+    When role-playing an NPC in chat, respond ONLY as that character.
+    Keep replies to 1-3 short sentences in a natural texting style.
+    Personality, affection level, and chat history all influence tone.
+  lore_gift_rules: |
+    When a gift delivery event fires, check the gift against the
+    character's gift_preferences. Liked: +8-12 affection. Disliked:
+    -5-8 affection. Neutral: +2-4. Update state and send a reaction.
+
+characters:
+  - id: sophie
+    name: Sophie
+    definition: |
+      [Identity] A 26-year-old librarian with dry humor.
+      [Texting Style] Complete sentences, minimal emoji, literary refs.
+      [Behavior Rules]
+      ## Chat
+      - Stay in character. If affection > 70, share vulnerabilities.
+      ## Gifts
+      - Loves books and tea. Dislikes flashy jewelry.
+    state: "Sophie is at home reading."
+    properties:
+      location: phone_home
+      affection: 50
+      chat_history: []        # [{role: "player"|"npc", text: "..."}]
+      gift_history: []        # ["item_id", ...]
+      pending_gifts: []       # [{gift_id, gift_name}]
+      gift_preferences:
+        likes: [classic_novel, tea_set, scented_candle]
+        dislikes: [flashy_necklace, energy_drink]
+
+nodes:
+  phone_home:
+    name: "Phone Home Screen"
+    definition: |
+      A virtual space. All interaction happens through the phone UI.
+    state: "The phone is unlocked showing the home screen."
+```
+
+**Key traits**: `frontend.app` config replaces the default chat UI. Single node (the "virtual space") since the custom JS handles all navigation. Characters have `chat_history`, `gift_preferences`, and `affection` in properties. `lore_*` variables define rules for the Architect. Timed events (scheduled via `deterministic_action` merge_patch from the frontend) drive async game mechanics like gift delivery. See [stories/phone_dating_sim/](stories/phone_dating_sim/) for a complete example.

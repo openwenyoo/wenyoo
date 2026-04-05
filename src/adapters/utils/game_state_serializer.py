@@ -63,6 +63,7 @@ async def build_game_state_dict(
         "story_id": game_state.story_id,
         "variables": game_state._extract_changed_variables(),
         "nodes": {node_id: node.dict() for node_id, node in game_state.nodes.items()},
+        "character_states": dict(game_state.character_states),
         "session_id": session_id,
         "visited_nodes": game_state.visited_nodes,
         "story_frontend": (

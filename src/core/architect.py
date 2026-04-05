@@ -1713,6 +1713,14 @@ class Architect:
         list from ctx and handle delivery according to their own policies.
         """
         state_changes = args.get("state_changes")
+        # LLMs sometimes emit state_changes as a stringified JSON object; coerce it.
+        if isinstance(state_changes, str):
+            stripped = state_changes.strip()
+            if stripped.startswith("{"):
+                try:
+                    state_changes = json.loads(stripped)
+                except Exception:
+                    pass
         artifacts_raw = args.get("artifacts") or []
         # LLMs sometimes emit artifacts as a stringified JSON array; coerce it.
         if isinstance(artifacts_raw, str):
