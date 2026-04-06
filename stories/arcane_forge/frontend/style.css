@@ -1,0 +1,590 @@
+/* Arcane Forge styles */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0a12;
+  --surface: #14141f;
+  --surface-2: #1c1c2a;
+  --border: #2a2a3d;
+  --text: #e0dfe8;
+  --text-muted: #7a7a95;
+  --accent: #ffa726;
+  --accent-2: #ab47bc;
+  --fire: #ff5722;
+  --frost: #4fc3f7;
+  --storm: #b388ff;
+  --shadow: #616161;
+  --nature: #66bb6a;
+  --arcane: #ce93d8;
+  --holy: #fff59d;
+  --void: #263238;
+  --rarity-common: #9e9e9e;
+  --rarity-uncommon: #66bb6a;
+  --rarity-rare: #42a5f5;
+  --rarity-epic: #ab47bc;
+  --rarity-legendary: #ffa726;
+  --radius: 10px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 12px;
+}
+
+/* ── Header ────────────────────────────────────────────────────────── */
+
+.forge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 4px;
+}
+
+.forge-header h1 {
+  font-size: 22px;
+  background: linear-gradient(135deg, var(--accent), var(--fire));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.energy-badge {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.ghost-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.ghost-btn:hover { background: var(--surface); color: var(--text); }
+
+/* ── Tabs ──────────────────────────────────────────────────────────── */
+
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.tab.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.tab:hover:not(.active) { color: var(--text); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── Spirit speech ─────────────────────────────────────────────────── */
+
+.spirit-speech {
+  padding: 14px 16px;
+  background: var(--surface);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--accent);
+  line-height: 1.5;
+}
+
+/* ── Conjure input ─────────────────────────────────────────────────── */
+
+.conjure-section { margin-bottom: 20px; }
+
+.conjure-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.conjure-input-row input {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+
+.conjure-input-row input:focus { border-color: var(--accent); }
+
+#conjure-btn {
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  border: none;
+  background: linear-gradient(135deg, var(--accent), var(--fire));
+  color: #111;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+#conjure-btn:hover { opacity: 0.85; }
+#conjure-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Loading ───────────────────────────────────────────────────────── */
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.loading.hidden { display: none; }
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Section titles ────────────────────────────────────────────────── */
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.count-badge {
+  font-size: 12px;
+  background: var(--surface-2);
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: var(--text-muted);
+}
+
+/* ── Material cards ────────────────────────────────────────────────── */
+
+.materials-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.material-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.material-card.clickable { cursor: pointer; }
+.material-card.clickable:hover { transform: translateY(-2px); }
+
+.mat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.mat-effect-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.effect-glow { animation: effectPulse 2s ease-in-out infinite; }
+.effect-crackle { animation: effectCrackle 0.5s steps(3) infinite; }
+.effect-pulse { animation: effectPulse 1.5s ease-in-out infinite; }
+.effect-shimmer { animation: effectShimmer 2s linear infinite; }
+.effect-flame_lick { animation: effectFlame 0.8s ease-in-out infinite alternate; }
+.effect-frost_mist { animation: effectPulse 3s ease-in-out infinite; }
+.effect-shadow_wisp { animation: effectWisp 2s ease-in-out infinite; }
+
+@keyframes effectPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+@keyframes effectCrackle { 0% { opacity: 1; } 33% { opacity: 0.3; } 66% { opacity: 0.8; } 100% { opacity: 0.5; } }
+@keyframes effectShimmer { 0% { opacity: 0.4; } 25% { opacity: 1; } 50% { opacity: 0.6; } 75% { opacity: 0.9; } 100% { opacity: 0.4; } }
+@keyframes effectFlame { from { opacity: 0.6; transform: scale(1); } to { opacity: 1; transform: scale(1.3); } }
+@keyframes effectWisp { 0%, 100% { opacity: 0.3; transform: translateY(0); } 50% { opacity: 0.8; transform: translateY(-2px); } }
+
+.mat-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.mat-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.mat-element {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mat-prop {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.mat-stats {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Forge workbench ───────────────────────────────────────────────── */
+
+.forge-workbench { margin-bottom: 20px; }
+
+.slot-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.material-slot {
+  flex: 1;
+  min-height: 120px;
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  position: relative;
+  padding: 8px;
+}
+
+.material-slot:hover { border-color: var(--accent); }
+.material-slot.filled { border-style: solid; cursor: default; }
+.material-slot.filled .material-card { margin: 0; width: 100%; }
+
+.slot-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.slot-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.slot-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--fire);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.weapon-base-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.weapon-base-row select {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  text-transform: capitalize;
+}
+
+.weapon-base-row select:focus { border-color: var(--accent); }
+
+.forge-symbol {
+  font-size: 20px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.forge-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius);
+  border: none;
+  background: linear-gradient(135deg, var(--fire), var(--accent));
+  color: #111;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.forge-btn:hover { opacity: 0.9; }
+.forge-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Modal ─────────────────────────────────────────────────────────── */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal.hidden { display: none; }
+
+.modal-content {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.modal-header h3 { font-size: 16px; }
+
+.close-modal {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+/* ── Weapon cards ──────────────────────────────────────────────────── */
+
+.weapons-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.weapon-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  gap: 16px;
+  transition: transform 0.15s;
+}
+
+.weapon-card:hover { transform: translateY(-1px); }
+
+.weapon-card.rarity-common { border-left: 3px solid var(--rarity-common); }
+.weapon-card.rarity-uncommon { border-left: 3px solid var(--rarity-uncommon); }
+.weapon-card.rarity-rare { border-left: 3px solid var(--rarity-rare); }
+.weapon-card.rarity-epic { border-left: 3px solid var(--rarity-epic); }
+.weapon-card.rarity-legendary { border-left: 3px solid var(--rarity-legendary); }
+
+.weapon-svg-container {
+  width: 160px;
+  height: 200px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  position: relative;
+}
+
+.weapon-svg-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.weapon-runes-inline {
+  font-size: 12px;
+  letter-spacing: 2px;
+  opacity: 0.7;
+}
+
+/* Three.js handles all weapon animation — no CSS animations needed */
+
+.weapon-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.weapon-name {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.weapon-type {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+  margin-bottom: 6px;
+}
+
+.weapon-stats {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.weapon-special {
+  font-size: 12px;
+  color: var(--arcane);
+  margin-bottom: 4px;
+}
+
+.weapon-curse {
+  font-size: 12px;
+  color: var(--fire);
+  margin-bottom: 4px;
+}
+
+.weapon-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 6px;
+}
+
+/* ── Forge result ──────────────────────────────────────────────────── */
+
+.forge-result {
+  margin-top: 16px;
+  animation: resultReveal 0.6s ease-out;
+}
+
+.forge-result .weapon-card {
+  flex-direction: column;
+  align-items: center;
+}
+
+.forge-result .weapon-svg-container {
+  width: 280px;
+  height: 300px;
+}
+
+.forge-result.hidden { display: none; }
+
+@keyframes resultReveal {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Empty states ──────────────────────────────────────────────────── */
+
+.empty-state {
+  text-align: center;
+  padding: 30px 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* ── Toast ─────────────────────────────────────────────────────────── */
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.3s;
+  z-index: 100;
+}
+
+.toast.hidden { opacity: 0; pointer-events: none; }
+
+/* ── Scrollbar ─────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }

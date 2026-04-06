@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arcane Forge</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="forge-header">
+      <h1>Arcane Forge</h1>
+      <div class="header-stats">
+        <span class="energy-badge" id="forge-energy">⚡ 100</span>
+        <button id="return-menu-btn" class="ghost-btn">Exit</button>
+      </div>
+    </header>
+
+    <!-- Tab bar -->
+    <nav class="tab-bar">
+      <button class="tab active" data-tab="conjure">Conjure</button>
+      <button class="tab" data-tab="forge">Forge</button>
+      <button class="tab" data-tab="collection">Collection</button>
+    </nav>
+
+    <!-- Conjure Tab -->
+    <section id="tab-conjure" class="tab-content active">
+      <div class="conjure-section">
+        <div class="spirit-speech" id="spirit-speech">
+          <em>"Describe a material, mortal. I will shape it from the aether."</em>
+        </div>
+        <div class="conjure-input-row">
+          <input type="text" id="material-input" placeholder="A shard of frozen lightning from a storm god's spear..." autocomplete="off">
+          <button id="conjure-btn">Conjure</button>
+        </div>
+        <div id="conjure-loading" class="loading hidden">
+          <span class="spinner"></span> Shaping from the aether...
+        </div>
+      </div>
+      <h3 class="section-title">Your Materials <span id="material-count" class="count-badge">0</span></h3>
+      <div id="materials-grid" class="materials-grid">
+        <div class="empty-state">No materials yet. Conjure some above!</div>
+      </div>
+    </section>
+
+    <!-- Forge Tab -->
+    <section id="tab-forge" class="tab-content">
+      <div class="forge-workbench">
+        <div class="slot-row">
+          <div class="material-slot" id="slot-0" data-slot="0">
+            <span class="slot-label">Material 1</span>
+            <span class="slot-hint">Tap to select</span>
+          </div>
+          <div class="forge-symbol">+</div>
+          <div class="material-slot" id="slot-1" data-slot="1">
+            <span class="slot-label">Material 2</span>
+            <span class="slot-hint">Tap to select</span>
+          </div>
+          <div class="forge-symbol">+</div>
+          <div class="material-slot" id="slot-2" data-slot="2">
+            <span class="slot-label">Material 3</span>
+            <span class="slot-hint">(optional)</span>
+          </div>
+        </div>
+        <div class="weapon-base-row">
+          <label>Weapon Base:</label>
+          <select id="weapon-base-select">
+            <option value="sword">Sword</option>
+            <option value="axe">Axe</option>
+            <option value="spear">Spear</option>
+            <option value="dagger">Dagger</option>
+            <option value="hammer">Hammer</option>
+            <option value="staff">Staff</option>
+            <option value="bow">Bow</option>
+            <option value="scythe">Scythe</option>
+            <option value="whip">Whip</option>
+            <option value="gauntlet">Gauntlet</option>
+          </select>
+        </div>
+        <button id="forge-btn" class="forge-btn" disabled>Ignite the Forge</button>
+        <div id="forge-loading" class="loading hidden">
+          <span class="spinner"></span> The forge roars...
+        </div>
+      </div>
+
+      <!-- Material picker modal -->
+      <div id="material-picker" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Select Material</h3>
+            <button class="close-modal">&times;</button>
+          </div>
+          <div id="picker-materials" class="materials-grid"></div>
+        </div>
+      </div>
+
+      <!-- Forge result -->
+      <div id="forge-result" class="forge-result hidden"></div>
+      <div id="forge-spirit-speech" class="spirit-speech hidden"></div>
+    </section>
+
+    <!-- Collection Tab -->
+    <section id="tab-collection" class="tab-content">
+      <h3 class="section-title">Forged Weapons <span id="weapon-count" class="count-badge">0</span></h3>
+      <div id="weapons-grid" class="weapons-grid">
+        <div class="empty-state">No weapons forged yet. Visit the forge!</div>
+      </div>
+    </section>
+
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script src="/static/js/wenyoo-story-sdk.js"></script>
+  <script src="./weapon-renderer.js" type="module"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
