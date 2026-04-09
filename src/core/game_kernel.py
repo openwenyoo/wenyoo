@@ -776,6 +776,8 @@ JSON array:"""
             extra_context["action_hint"] = payload["action_hint"]
         if payload.get("input_type") and "input_type" not in extra_context:
             extra_context["input_type"] = payload["input_type"]
+        if payload.get("active_view") and "active_view" not in extra_context:
+            extra_context["active_view"] = payload["active_view"]
 
         task_type = payload.get("task_type", "execute_intent")
         task_profile = infer_task_profile(task_type, payload.get("task_profile"))

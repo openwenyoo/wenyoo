@@ -1486,13 +1486,54 @@ class StoryFrontendAppConfig(BaseModel):
         return payload
 
 
+class StoryFrontendViewContext(BaseModel):
+    """Author-described context for a specific custom frontend view."""
+    description: Optional[str] = None
+    player_sees: Optional[str] = None
+    player_can: Optional[str] = None
+    artifact_guidance: Optional[str] = None
+
+    def to_client_dict(self) -> Dict[str, Any]:
+        return {
+            "description": self.description,
+            "player_sees": self.player_sees,
+            "player_can": self.player_can,
+            "artifact_guidance": self.artifact_guidance,
+        }
+
+
+class StoryFrontendClientContext(BaseModel):
+    """Author-described representation guidance for a custom frontend."""
+    representation: str
+    description: Optional[str] = None
+    default_guidance: Optional[str] = None
+    views: Dict[str, StoryFrontendViewContext] = Field(default_factory=dict)
+
+    def to_client_dict(self) -> Dict[str, Any]:
+        return {
+            "representation": self.representation,
+            "description": self.description,
+            "default_guidance": self.default_guidance,
+            "views": {
+                view_id: view.to_client_dict()
+                for view_id, view in self.views.items()
+            },
+        }
+
+
 class StoryFrontendConfig(BaseModel):
     """Top-level frontend configuration for a story."""
     app: Optional[StoryFrontendAppConfig] = None
+    client_context: Optional[StoryFrontendClientContext] = None
 
     def to_client_dict(self, story_id: Optional[str] = None) -> Dict[str, Any]:
         return {
             "app": self.app.to_client_dict(story_id) if self.app else None,
+            "client_context": (
+                self.client_context.to_client_dict()
+                if self.client_context
+                else None
+            ),
         }
 
 

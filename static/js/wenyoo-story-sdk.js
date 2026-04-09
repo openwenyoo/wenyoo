@@ -89,8 +89,15 @@
         }
 
         sendArchitectTask(taskType, options = {}) {
+            const extraContext = {
+                ...(options.extra_context || {}),
+            };
+            if (options.active_view && !extraContext.active_view) {
+                extraContext.active_view = options.active_view;
+            }
             this.dispatchAction(options.action_id || taskType, options.payload || {}, {
                 execution: 'architect_action',
+                active_view: options.active_view,
                 task: {
                     task_type: taskType,
                     task_profile: options.task_profile,
@@ -99,7 +106,7 @@
                     structured_input: options.structured_input || options.payload || {},
                     expected_output: options.expected_output,
                     delivery_policy: options.delivery_policy,
-                    extra_context: options.extra_context || {},
+                    extra_context: extraContext,
                     action_hint: options.action_hint || '',
                     input_type: options.input_type || 'story_app',
                     node_id: options.node_id,

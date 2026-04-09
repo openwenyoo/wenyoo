@@ -1,0 +1,222 @@
+id: verdant_gate
+name: Verdant Gate
+title: "Verdant Gate: AI-Native Puzzle Diorama"
+description: >
+  A compact forest-ruins puzzle slice where the player types plausible object requests
+  into a command console, receives AI-interpreted low-poly props, and applies them to a
+  3D diorama with multiple valid solutions.
+version: "0.1"
+author: Wenyoo Demo
+start_node_id: gate_clearing
+
+frontend:
+  app:
+    mode: sandboxed_app
+    app_root: frontend
+    entry: index.html
+    sandbox:
+      - allow-scripts
+      - allow-same-origin
+    client_type: story_app
+    capabilities:
+      - local_state
+      - ui_query
+      - deterministic_action
+      - architect_action
+  client_context:
+    representation: diorama_3d
+    description: "A low-poly three.js puzzle diorama with a command console and hotspot inspector."
+    default_guidance: >
+      The player already sees the environment in 3D. Avoid scenic prose about geometry they can see.
+      Prefer concise analytical wording, short operator-facing feedback, and structured results for UI decisions.
+    views:
+      console:
+        description: "Object generation console"
+        player_sees: "A text box, recent prompts, generated item cards, and a 3D scene preview."
+        player_can: "Describe a plausible object they want to create and inspect the AI's affordance analysis."
+        artifact_guidance: >
+          For object generation or validation, prefer a structured result over narration.
+          If a short line of text is useful, write it like a terse console verdict, not scene prose.
+      analysis:
+        description: "Hotspot and object analysis panel"
+        player_sees: "Objective text, hotspot requirements, affordances, and failure reasons."
+        player_can: "Inspect why an item fits or fails in the current puzzle."
+        artifact_guidance: >
+          Keep guidance compact, grounded, and mechanical. Focus on what works, what fails, and why.
+      solved:
+        description: "Solved state banner and result panel"
+        player_sees: "The gate opening, the chosen solution path, and a short completion summary."
+        player_can: "Review how their chosen item solved the scene."
+        artifact_guidance: >
+          Keep success feedback brief and consequence-focused. Do not re-describe the whole scene.
+
+initial_variables:
+  objective_title: "Open the Verdant Gate"
+  objective_text: "Use a plausible generated object to open the ruined gate by crossing, cutting, weighing, or reaching the release mechanism."
+  object_limit: 5
+  hint_tokens_remaining: 3
+  generated_items: []
+  last_generation: null
+  last_hint: null
+  puzzle_state:
+    gate_open: false
+    solved: false
+    solution_path: null
+    solved_anchor_id: null
+    solved_with_item_id: null
+  hotspot_contracts:
+    - id: gap_bridge
+      label: Gap Span
+      accepts:
+        - bridgeable
+      solves_as: bridge_crossing
+      guidance: "A stable object can span the cracked gap and let you cross to the hand winch."
+    - id: vine_knot
+      label: Vine Knot
+      accepts:
+        - cutting
+      solves_as: cut_binding
+      guidance: "A sharp or sawing tool can sever the vine bundle binding the gate shut."
+    - id: pressure_plate
+      label: Pressure Plate
+      accepts:
+        - heavy
+      solves_as: weight_trigger
+      guidance: "A heavy object can keep the old pressure plate depressed."
+    - id: release_chain
+      label: Release Chain
+      accepts:
+        - hooking
+        - climbable
+      solves_as: chain_release
+      guidance: "A hooked or climbable object can help you reach and pull the hanging release chain."
+  lore_world_setting: |
+    You are assisting with a compact puzzle diorama set in a bright forest ruin.
+    The world is grounded, legible, and stylized in low-poly form. Do not invent broad fantasy powers or surreal exceptions.
+    If something is shown or stated to the player, it must remain consistent with the world state.
+  lore_visual_style: |
+    All generated items must feel like low-poly approximations suitable for a lightweight browser game.
+    Favor clear silhouettes, simple materials, and grounded colors such as wood, rope, stone, and worn metal.
+    Even when the request is imaginative, reinterpret it into a believable, puzzle-usable low-poly prop.
+  lore_generation_contract: |
+    This story's command console interprets object requests for a narrow puzzle grammar.
+    Treat ui_requested_generation as a UI decision task. Return structured data only unless explicitly asked otherwise.
+
+    Allowed affordances for this slice:
+    - bridgeable
+    - climbable
+    - cutting
+    - heavy
+    - hooking
+
+    Hotspot rules:
+    - gap_bridge is solved by bridgeable items that can span a short cracked gap.
+    - vine_knot is solved by cutting items that could realistically sever thick vines.
+    - pressure_plate is solved by heavy items that can stay put on a stone plate.
+    - release_chain is solved by hooking or climbable items that could help reach a hanging chain.
+
+    Rationality rules:
+    - Reject impossible, unsupported, or magical-cheat objects such as perpetual-motion machines, floating bridges, or telekinesis devices.
+    - Reject items whose behavior is too vague to validate.
+    - If a request is flavorful but salvageable, reinterpret it into a grounded object rather than rejecting it outright.
+    - Never invent affordances outside the allowed list.
+    - If the request is accepted, choose only the affordances that are physically justified.
+
+    When validating an object request, call return_structured_result(result=...) with exactly these fields:
+    - id: short snake_case identifier
+    - status: accepted | rejected | needs_clarification
+    - request_text: original player request
+    - label: concise player-facing name
+    - summary: one short sentence explaining what the object is
+    - canonical_type: ladder | plank | axe | block | hook | rope_bridge | saw | pole | crate | tool | unknown
+    - size_class: hand | medium | large
+    - material_tags: array of concise tags
+    - affordances: array using only the allowed affordances
+    - preferred_anchor_ids: array using only [gap_bridge, vine_knot, pressure_plate, release_chain]
+    - placement_rules: object with mode, stable, and notes
+    - interaction_rules: object with success_if and failure_if
+    - visual_spec: object with proxy_kind, primary_color, secondary_color, accent_color, silhouette, scale_hint, approximation
+    - rejection_reason: empty string if accepted, otherwise a concise reason
+
+    visual_spec.proxy_kind must be one of:
+    - ladder
+    - plank
+    - axe
+    - block
+    - hook
+    - rope_bridge
+    - saw
+    - pole
+    - crate
+    - tool
+    - unknown
+
+    Additional output rules:
+    - Keep labels short and readable in a UI card.
+    - Prefer one or two justified affordances over many weak ones.
+    - If accepted, make visual_spec.approximation true for this prototype build.
+    - Keep summary and rejection_reason short enough for a sidebar.
+  lore_hint_contract: |
+    When asked for a hint in this story, provide one concise actionable hint.
+    The hint must be grounded in the current puzzle state and available affordances.
+    Do not reveal every solution at once.
+    If the player has not generated any useful items yet, steer them toward one of the core affordance families:
+    bridgeable, cutting, heavy, or hooking/climbable.
+
+characters:
+  - id: archive_echo
+    name: Archive Echo
+    definition: |
+      [Identity]
+      A quiet restoration console echo embedded in the ruin's dormant control stone.
+
+      [Personality & Speaking Style]
+      Calm, concise, observant. Speaks like a field assistant that values clarity over drama.
+
+      [Behavior Rules]
+      - Give precise guidance rooted in the current puzzle state.
+      - Do not narrate scenery the player can already see in the diorama.
+      - When the player succeeds, acknowledge the mechanism they used and the consequence.
+    state: "A faint console echo waits inside the ruin's moss-dark control stone."
+    properties:
+      location: gate_clearing
+
+nodes:
+  gate_clearing:
+    id: gate_clearing
+    name: Verdant Gate Clearing
+    definition: |
+      A sunlit clearing surrounds a weathered stone gate half-swallowed by roots and ivy.
+      A short cracked gap interrupts the path before the archway, and old mechanisms still
+      cling to the ruin: a vine knot, a hanging release chain, and a squat pressure plate.
+    state: |
+      The gate is shut but not hopelessly broken. Each visible mechanism suggests a different
+      grounded way to open it if you can create the right object.
+    objects:
+      - id: ruined_gate
+        name: Verdant Gate
+        definition: "An old stone gate bound by vines and linked to forgotten release mechanisms."
+        state: "Two weathered stone leaves remain sealed beneath roots and rust."
+      - id: cracked_gap
+        name: Cracked Gap
+        definition: "A narrow gap interrupts the path before the gate."
+        state: "It is too wide for a casual step but short enough for a sturdy span."
+      - id: vine_knot_object
+        name: Vine Knot
+        definition: "A thick knot of living vines binds the gate's latch assembly."
+        state: "The vines look tough, fibrous, and cuttable with the right tool."
+      - id: hanging_chain
+        name: Release Chain
+        definition: "A rusted chain hangs slightly out of easy reach beside the arch."
+        state: "It sways above ground level, reachable with leverage, climbing, or a hook."
+      - id: pressure_plate_object
+        name: Pressure Plate
+        definition: "A flat stone plate linked to the gate's buried counterweight."
+        state: "It sinks a little under force, suggesting a heavy load could hold it down."
+    actions:
+      - id: observe_gate
+        text: Observe the gate mechanisms
+        intent: "Summarize the visible mechanisms around the Verdant Gate in a concise, player-facing way without inventing unsupported details."
+      - id: ask_archive_echo
+        text: Ask the Archive Echo for a hint
+        intent: "Give a brief hint about which kind of grounded object might help with the visible mechanisms."

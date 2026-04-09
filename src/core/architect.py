@@ -977,6 +977,48 @@ class Architect:
             lines.append(f"  - {action.id}: {action.text or action.description or action.id}{suffix}")
         return lines
 
+    def _build_client_context_lines(
+        self,
+        task: ArchitectTask,
+        game_state: 'GameState',
+    ) -> List[str]:
+        """Build optional client-context guidance for custom frontend tasks."""
+        story = getattr(game_state, "story", None)
+        frontend = getattr(story, "frontend", None) if story else None
+        client_context = getattr(frontend, "client_context", None) if frontend else None
+        if not client_context:
+            return []
+
+        lines: List[str] = ["## CLIENT CONTEXT"]
+        representation = getattr(client_context, "representation", None) or "custom_ui"
+        description = getattr(client_context, "description", None)
+        lines.append(f"Representation: {representation}")
+        if description:
+            lines.append(f"Representation details: {description}")
+
+        active_view = str(task.extra_context.get("active_view") or "").strip()
+        view_context = None
+        if active_view and getattr(client_context, "views", None):
+            view_context = client_context.views.get(active_view)
+        if active_view:
+            lines.append(f"Active view: {active_view}")
+
+        if view_context:
+            if view_context.description:
+                lines.append(f"View details: {view_context.description}")
+            if view_context.player_sees:
+                lines.append(f"Player sees: {view_context.player_sees}")
+            if view_context.player_can:
+                lines.append(f"Player can: {view_context.player_can}")
+            guidance = view_context.artifact_guidance or client_context.default_guidance
+        else:
+            guidance = client_context.default_guidance
+
+        if guidance:
+            lines.append(f"Guidance: {guidance}")
+        lines.append("")
+        return lines
+
     def _build_task_prompt(self, task: ArchitectTask, world_index: str,
                             game_state: 'GameState', player_id: str) -> str:
         """Build the user message for a specific task."""
@@ -1000,6 +1042,7 @@ class Architect:
         if task.purpose:
             parts.append(f"Purpose: {task.purpose}")
         parts.append("")
+        parts.extend(self._build_client_context_lines(task, game_state))
 
         if task.task_type in (
             "player_input",
