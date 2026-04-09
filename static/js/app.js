@@ -79,6 +79,7 @@ const mainContent = document.querySelector('.main-content');
 const gameArea = document.querySelector('.game-area');
 const storyAppHost = document.getElementById('story-app-host');
 const storyAppFrame = document.getElementById('story-app-frame');
+const storyAppReturnButton = document.getElementById('story-app-return-button');
 const gameMessages = document.getElementById('game-messages');
 const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
@@ -792,6 +793,7 @@ function setupEventListeners() {
     exportHistoryButton.addEventListener('click', handleExportMessages);
     document.getElementById('return-button').addEventListener('click', handleReturn);
     document.getElementById('reload-button').addEventListener('click', handleReload);
+    storyAppReturnButton?.addEventListener('click', handleReturn);
     document.addEventListener('textAdventure:localeChanged', () => {
         if (slashCommandState.isOpen) {
             renderSlashCommandPalette();
