@@ -69,7 +69,7 @@ def infer_task_profile(task_type: str, explicit_profile: Optional[str] = None) -
 @dataclass
 class ArchitectTask:
     """Describes what the Architect should do in a single invocation."""
-    task_type: str                  # "player_input", "render_perception", "process_form_result", "process_event", "background_materialization"
+    task_type: str                  # e.g. "player_input", "render_perception", "process_form_result", "process_event"
     player_input: Optional[str] = None      # For player_input tasks
     node_id: Optional[str] = None           # For render_perception tasks
     event_context: Optional[str] = None     # For trigger/event tasks
@@ -724,7 +724,7 @@ class Architect:
                     "type": "function",
                     "function": {
                         "name": tc.function.name,
-                        "arguments": tc.function.arguments,
+                        "arguments": Architect._sanitize_tool_arguments_json(tc.function.arguments),
                     },
                 }
                 for tc in tool_calls
@@ -765,6 +765,31 @@ class Architect:
         if repair:
             return raw + repair
         return raw
+
+    @staticmethod
+    def _sanitize_tool_arguments_json(raw: Optional[str]) -> str:
+        """Ensure tool-call arguments stored in message history are valid JSON.
+
+        Some providers return tool-call arguments with truncated trailing braces.
+        We already repair that form for local tool dispatch, but if we store the
+        original malformed string back into `messages`, providers like DashScope
+        reject the next round with a 400 because `function.arguments` must itself
+        be valid JSON. Normalize it here before re-sending assistant tool calls.
+        """
+        text = raw or ""
+        if not text.strip():
+            return "{}"
+        try:
+            json.loads(text)
+            return text
+        except json.JSONDecodeError:
+            repaired = Architect._repair_json(text)
+            try:
+                json.loads(repaired)
+                return repaired
+            except json.JSONDecodeError:
+                logger.warning("Architect: unable to sanitize malformed tool-call arguments; replacing with empty object")
+                return "{}"
 
     async def _dispatch_tool(self, tool_call, ctx: Dict[str, Any]) -> Any:
         """Dispatch a tool call to the appropriate handler."""
