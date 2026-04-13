@@ -133,23 +133,6 @@ Use this checklist after creating or editing a story. Work through each section 
 - [ ] `{player_id}` placeholder used correctly in paths like `{$players.{player_id}.character.stats.hp}`
 - [ ] If using `template`, the template name matches a file in `stories/status_display_templates/`
 
-## 15. Custom Frontend (if `frontend.app` is present)
-
-- [ ] `frontend.app.app_root` directory exists relative to main.yaml
-- [ ] `frontend.app.entry` file (e.g. `index.html`) exists inside `app_root`
-- [ ] `frontend.app.client_type` is set to `story_app`
-- [ ] `frontend.app.sandbox` includes `allow-scripts` (required for JS execution)
-- [ ] `frontend.app.capabilities` lists only used interaction types (`local_state`, `ui_query`, `deterministic_action`, `architect_action`)
-- [ ] Frontend JS loads SDK via `<script src="/static/js/wenyoo-story-sdk.js"></script>`
-- [ ] Frontend JS creates bridge with `WenyooStorySDK.createBridge()` (not `new WenyooStoryBridge`)
-- [ ] Frontend JS calls `bridge.requestInitialState()` on init
-- [ ] Frontend JS listens for `game_start`, `game_state`, `command_result` events
-- [ ] Static assets use relative paths (`./images/bg.png`, not `/images/bg.png`)
-- [ ] Timed events scheduled from frontend include `player_id` (captured from `game_state.player_state.player_id`)
-- [ ] Timed events include detailed `event_context` with clear Architect instructions
-- [ ] Characters used in chat have `chat_history: []` in initial properties
-- [ ] Characters with gift mechanics have `gift_preferences`, `gift_history: []`, `pending_gifts: []`
-
 ## Quick Smoke Test
 
 After validation, mentally walk through the story:

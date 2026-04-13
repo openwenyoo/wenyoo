@@ -1464,79 +1464,6 @@ class StatusDisplayConfig(BaseModel):
     stats_override: List[StatsDisplayItem] = Field(default_factory=list)  # Override template stats by label
 
 
-class StoryFrontendAppConfig(BaseModel):
-    """Configuration for a story-packaged sandboxed frontend app."""
-    mode: str = "sandboxed_app"
-    app_root: str = "frontend"
-    entry: str = "index.html"
-    sandbox: List[str] = Field(default_factory=lambda: ["allow-scripts", "allow-same-origin"])
-    client_type: str = "story_app"
-    capabilities: List[str] = Field(default_factory=list)
-
-    def to_client_dict(self, story_id: Optional[str] = None) -> Dict[str, Any]:
-        payload = {
-            "mode": self.mode,
-            "entry": self.entry,
-            "sandbox": list(self.sandbox),
-            "client_type": self.client_type,
-            "capabilities": list(self.capabilities),
-        }
-        if story_id:
-            payload["entry_url"] = f"/story-apps/{story_id}/{self.entry}"
-        return payload
-
-
-class StoryFrontendViewContext(BaseModel):
-    """Author-described context for a specific custom frontend view."""
-    description: Optional[str] = None
-    player_sees: Optional[str] = None
-    player_can: Optional[str] = None
-    artifact_guidance: Optional[str] = None
-
-    def to_client_dict(self) -> Dict[str, Any]:
-        return {
-            "description": self.description,
-            "player_sees": self.player_sees,
-            "player_can": self.player_can,
-            "artifact_guidance": self.artifact_guidance,
-        }
-
-
-class StoryFrontendClientContext(BaseModel):
-    """Author-described representation guidance for a custom frontend."""
-    representation: str
-    description: Optional[str] = None
-    default_guidance: Optional[str] = None
-    views: Dict[str, StoryFrontendViewContext] = Field(default_factory=dict)
-
-    def to_client_dict(self) -> Dict[str, Any]:
-        return {
-            "representation": self.representation,
-            "description": self.description,
-            "default_guidance": self.default_guidance,
-            "views": {
-                view_id: view.to_client_dict()
-                for view_id, view in self.views.items()
-            },
-        }
-
-
-class StoryFrontendConfig(BaseModel):
-    """Top-level frontend configuration for a story."""
-    app: Optional[StoryFrontendAppConfig] = None
-    client_context: Optional[StoryFrontendClientContext] = None
-
-    def to_client_dict(self, story_id: Optional[str] = None) -> Dict[str, Any]:
-        return {
-            "app": self.app.to_client_dict(story_id) if self.app else None,
-            "client_context": (
-                self.client_context.to_client_dict()
-                if self.client_context
-                else None
-            ),
-        }
-
-
 class Story(BaseModel):
     """A complete story with nodes and actions."""
     id: str
@@ -1553,7 +1480,6 @@ class Story(BaseModel):
     actions: List[StoryAction] = Field(default_factory=list)
     functions: Dict[str, Function] = Field(default_factory=dict)
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    frontend: Optional[StoryFrontendConfig] = None
     characters: Optional[List[Character]] = None
     player_character_defaults: Optional[Union[Dict[str, Any], str]] = None
     status_display_config: Optional[StatusDisplayConfig] = None
@@ -1681,7 +1607,7 @@ def _merge_story_data(base_data: Dict[str, Any], include_data: Dict[str, Any]) -
         Merged story data
     """
     # Keys that should be merged as dicts
-    dict_merge_keys = {'nodes', 'functions', 'forms', 'initial_variables', 'metadata', 'frontend'}
+    dict_merge_keys = {'nodes', 'functions', 'forms', 'initial_variables', 'metadata'}
     
     # Keys that should be merged as lists
     list_merge_keys = {'characters', 'objects', 'triggers', 'actions', 'connections'}
@@ -1823,7 +1749,6 @@ def load_story_from_file(file_path: str) -> Story:
     author = story_data.get("author", "Unknown")
     start_node_id = story_data.get("start_node_id", "start")
     metadata = story_data.get("metadata", {})
-    frontend_data = story_data.get("frontend")
     initial_variables = story_data.get("initial_variables", {})
     player_character_defaults = story_data.get("player_character_defaults")
     raw_connections = story_data.get("connections") or []
@@ -1893,7 +1818,6 @@ def load_story_from_file(file_path: str) -> Story:
     # Load status display config
     status_display_config_data = story_data.get("status_display_config")
     status_display_config = StatusDisplayConfig(**status_display_config_data) if status_display_config_data else None
-    frontend = StoryFrontendConfig(**frontend_data) if frontend_data else None
 
     # Load forms
     forms_data = story_data.get("forms", {})
@@ -1932,7 +1856,6 @@ def load_story_from_file(file_path: str) -> Story:
         actions=actions,
         functions=functions,
         metadata=metadata,
-        frontend=frontend,
         characters=characters,
         player_character_defaults=player_character_defaults,
         status_display_config=status_display_config,

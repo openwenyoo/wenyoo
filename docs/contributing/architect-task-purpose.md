@@ -57,7 +57,6 @@ Tasks should carry an explicit profile so behavior is driven by intent and deliv
 - `worldAction` for real in-world action and intent resolution
 - `perceptionRender` for viewer-scoped scene rendering
 - `workflowTask` for forms, events, and guided backend workflows
-- `uiDecision` for strictly non-player-facing structured UI reasoning
 - `backgroundSimulation` for deferred world evolution
 
 ## Relationship To `process_input()`
@@ -79,15 +78,14 @@ So the real boundary is the task contract, not the input box.
 The Architect should become flexible enough to support many kinds of purpose-driven invocations, including:
 
 - free-form player input
-- guided intent execution from custom UI
+- guided intent execution from higher-level engine workflows
 - scene or object interaction from structured interfaces
 - character-focused interaction with rich social context
 - interpretation of form or workflow completion
 - event-driven backend tasks
 - background world-evolution tasks
-- future UI-related generation requests
 
-The caller should be able to provide comprehensive context when needed, especially in custom story apps where the author knows more about the UI flow than a plain input line can convey.
+The caller should be able to provide comprehensive context when needed, especially when the engine has more workflow context than a plain input line can convey.
 
 ## What Should Stay True
 
@@ -96,7 +94,6 @@ Even with richer task types, the Architect should still preserve the core Wenyoo
 - the backend remains authoritative over game state
 - the Architect operates on meaningful world context, not isolated UI fragments
 - authored story intent should guide the request framing
-- custom UI can shape the request, but should not replace engine truth
 - the Architect remains a general world-handling backend capability, not a frontend-specific trick
 
 ## Summary

@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 TASK_PROFILE_WORLD_ACTION = "worldAction"
 TASK_PROFILE_PERCEPTION_RENDER = "perceptionRender"
-TASK_PROFILE_UI_DECISION = "uiDecision"
 TASK_PROFILE_WORKFLOW = "workflowTask"
 TASK_PROFILE_BACKGROUND_SIMULATION = "backgroundSimulation"
 
@@ -49,7 +48,6 @@ DEFAULT_TASK_PROFILE_BY_TYPE = {
     "process_form_result": TASK_PROFILE_WORKFLOW,
     "process_event": TASK_PROFILE_WORKFLOW,
     "background_materialization": TASK_PROFILE_BACKGROUND_SIMULATION,
-    "ui_requested_generation": TASK_PROFILE_UI_DECISION,
 }
 
 
@@ -105,7 +103,7 @@ class Architect:
         self._system_prompt: Optional[str] = None
 
     def _normalize_task_contract(self, task: ArchitectTask) -> ArchitectTask:
-        """Fill task contract defaults so callers do not need frontend-shaped assumptions."""
+        """Fill task contract defaults so callers do not need to set profiles directly."""
         task.task_profile = infer_task_profile(task.task_type, task.task_profile)
         return task
 
@@ -489,7 +487,6 @@ class Architect:
         if task_profile in (
             TASK_PROFILE_WORLD_ACTION,
             TASK_PROFILE_PERCEPTION_RENDER,
-            TASK_PROFILE_UI_DECISION,
             TASK_PROFILE_WORKFLOW,
             TASK_PROFILE_BACKGROUND_SIMULATION,
         ):
@@ -658,23 +655,12 @@ class Architect:
                         iteration + 1,
                     )
                     break
-                if (had_structured_result or had_commit) and only_terminal_tools and task_profile == TASK_PROFILE_UI_DECISION:
-                    logger.info(
-                        "Architect completed after %d iterations (early exit after structured result)",
-                        iteration + 1,
-                    )
-                    break
-
             except (KeyError, ValueError, TypeError) as e:
                 logger.warning(f"Architect tool error at iteration {iteration}: {e}", exc_info=True)
                 if not ctx["displayed_messages"]:
                     error_artifact = {
-                        "kind": ARTIFACT_KIND_STRUCTURED if task_profile == TASK_PROFILE_UI_DECISION else ARTIFACT_KIND_NARRATIVE,
-                        "payload": (
-                            {"error": "Something went wrong while processing your request."}
-                            if task_profile == TASK_PROFILE_UI_DECISION
-                            else "Something went wrong while processing your request."
-                        ),
+                        "kind": ARTIFACT_KIND_NARRATIVE,
+                        "payload": "Something went wrong while processing your request.",
                         "summary": "architect_tool_error",
                         "audience": "self",
                         "target_player_ids": [],
@@ -688,12 +674,8 @@ class Architect:
                 logger.error(f"Unexpected architect error at iteration {iteration}: {e}", exc_info=True)
                 if not ctx["displayed_messages"]:
                     error_artifact = {
-                        "kind": ARTIFACT_KIND_STRUCTURED if task_profile == TASK_PROFILE_UI_DECISION else ARTIFACT_KIND_NARRATIVE,
-                        "payload": (
-                            {"error": "Something went wrong while processing your request."}
-                            if task_profile == TASK_PROFILE_UI_DECISION
-                            else "Something went wrong while processing your request."
-                        ),
+                        "kind": ARTIFACT_KIND_NARRATIVE,
+                        "payload": "Something went wrong while processing your request.",
                         "summary": "architect_unexpected_error",
                         "audience": "self",
                         "target_player_ids": [],
@@ -1002,48 +984,6 @@ class Architect:
             lines.append(f"  - {action.id}: {action.text or action.description or action.id}{suffix}")
         return lines
 
-    def _build_client_context_lines(
-        self,
-        task: ArchitectTask,
-        game_state: 'GameState',
-    ) -> List[str]:
-        """Build optional client-context guidance for custom frontend tasks."""
-        story = getattr(game_state, "story", None)
-        frontend = getattr(story, "frontend", None) if story else None
-        client_context = getattr(frontend, "client_context", None) if frontend else None
-        if not client_context:
-            return []
-
-        lines: List[str] = ["## CLIENT CONTEXT"]
-        representation = getattr(client_context, "representation", None) or "custom_ui"
-        description = getattr(client_context, "description", None)
-        lines.append(f"Representation: {representation}")
-        if description:
-            lines.append(f"Representation details: {description}")
-
-        active_view = str(task.extra_context.get("active_view") or "").strip()
-        view_context = None
-        if active_view and getattr(client_context, "views", None):
-            view_context = client_context.views.get(active_view)
-        if active_view:
-            lines.append(f"Active view: {active_view}")
-
-        if view_context:
-            if view_context.description:
-                lines.append(f"View details: {view_context.description}")
-            if view_context.player_sees:
-                lines.append(f"Player sees: {view_context.player_sees}")
-            if view_context.player_can:
-                lines.append(f"Player can: {view_context.player_can}")
-            guidance = view_context.artifact_guidance or client_context.default_guidance
-        else:
-            guidance = client_context.default_guidance
-
-        if guidance:
-            lines.append(f"Guidance: {guidance}")
-        lines.append("")
-        return lines
-
     def _build_task_prompt(self, task: ArchitectTask, world_index: str,
                             game_state: 'GameState', player_id: str) -> str:
         """Build the user message for a specific task."""
@@ -1067,7 +1007,6 @@ class Architect:
         if task.purpose:
             parts.append(f"Purpose: {task.purpose}")
         parts.append("")
-        parts.extend(self._build_client_context_lines(task, game_state))
 
         if task.task_type in (
             "player_input",
@@ -1076,7 +1015,6 @@ class Architect:
             "scene_interaction",
             "character_interaction",
             "tool_assisted_decision",
-            "ui_requested_generation",
         ):
             player_location = game_state.get_player_location(player_id)
             node = game_state.nodes.get(player_location) if player_location else None
@@ -1243,7 +1181,7 @@ class Architect:
             else:
                 parts.append(
                     "Resolve this purpose-driven task from the supplied context. "
-                    "Treat the UI and author-provided context as request framing, not "
+                    "Treat the supplied framing as guidance, not "
                     "as authoritative world truth. Use the current world state and tools "
                     "to decide what actually happens. Use commit_world_event() for all "
                     "player-visible or consequential outcomes. If the task should collect "
@@ -1251,21 +1189,11 @@ class Architect:
                 )
 
             parts.append("")
-            if task.task_profile == TASK_PROFILE_UI_DECISION:
-                parts.append(
-                    "## PROFILE RULES: UI DECISION\n"
-                    "This task is for non-player-facing structured reasoning.\n"
-                    "- Do not narrate to players by default.\n"
-                    "- Do not call commit_world_event unless the task truly decides a real world event.\n"
-                    "- If you are returning a UI judgment, recommendation, ranking, or schema, call return_structured_result(result=...).\n"
-                    "- Keep the result grounded in authoritative state and authored rules."
-                )
-            else:
-                parts.append(
-                    "## PROFILE RULES: WORLD ACTION\n"
-                    "This task resolves real in-world action. If it causes a player-facing or consequential outcome, "
-                    "use commit_world_event(). If structured input is required first, use present_form(form_id)."
-                )
+            parts.append(
+                "## PROFILE RULES: WORLD ACTION\n"
+                "This task resolves real in-world action. If it causes a player-facing or consequential outcome, "
+                "use commit_world_event(). If structured input is required first, use present_form(form_id)."
+            )
 
             action_lines = self._build_available_action_lines(node, game_state, player_id)
             if action_lines:
@@ -1950,10 +1878,7 @@ class Architect:
             ctx["structured_result"] = recorded
 
         # ── Deliver narrative artifacts ──
-        suppress_narrative = (
-            (is_background and not allow_narrative)
-            or task_profile == TASK_PROFILE_UI_DECISION
-        )
+        suppress_narrative = is_background and not allow_narrative
 
         for index, art in enumerate(narrative_artifacts):
             narrative_text = art["payload"]
@@ -3061,7 +2986,7 @@ class Architect:
         enable_narrative_streaming = (
             frontend is not None
             and not bool(ctx.get("capture_only"))
-            and task_profile not in (TASK_PROFILE_UI_DECISION, TASK_PROFILE_BACKGROUND_SIMULATION)
+            and task_profile != TASK_PROFILE_BACKGROUND_SIMULATION
         )
 
         async for chunk in stream:

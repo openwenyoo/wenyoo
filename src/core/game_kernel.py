@@ -761,64 +761,6 @@ JSON array:"""
                 last_narrative = displayed[-1].get("text", "")
         return {"narrative_response": last_narrative, "script_paused": False}
 
-    def build_architect_task_from_payload(
-        self,
-        payload: Dict[str, Any],
-        *,
-        session_id: Optional[str] = None,
-    ) -> ArchitectTask:
-        """Build an ArchitectTask from a typed frontend payload."""
-        payload = payload or {}
-        extra_context = dict(payload.get("extra_context") or {})
-        if session_id and "session_id" not in extra_context:
-            extra_context["session_id"] = session_id
-        if payload.get("action_hint") and "action_hint" not in extra_context:
-            extra_context["action_hint"] = payload["action_hint"]
-        if payload.get("input_type") and "input_type" not in extra_context:
-            extra_context["input_type"] = payload["input_type"]
-        if payload.get("active_view") and "active_view" not in extra_context:
-            extra_context["active_view"] = payload["active_view"]
-
-        task_type = payload.get("task_type", "execute_intent")
-        task_profile = infer_task_profile(task_type, payload.get("task_profile"))
-
-        return ArchitectTask(
-            task_type=task_type,
-            player_input=payload.get("player_input"),
-            node_id=payload.get("node_id"),
-            event_context=payload.get("event_context"),
-            form_data=payload.get("form_data"),
-            task_profile=task_profile,
-            purpose=payload.get("purpose"),
-            structured_input=payload.get("structured_input"),
-            extra_context=extra_context,
-        )
-
-    async def run_architect_task(
-        self,
-        task: ArchitectTask,
-        game_state: GameState,
-        story: 'Story',
-        player_id: str,
-    ) -> Dict[str, Any]:
-        """Run a purpose-driven Architect task and normalize the response."""
-        ctx = await self.architect.handle(task, game_state, player_id, story)
-        last_narrative = ""
-        if isinstance(ctx, dict):
-            displayed = ctx.get("displayed_messages", [])
-            if displayed:
-                last_narrative = displayed[-1].get("text", "")
-        return {
-            "narrative_response": last_narrative,
-            "script_paused": False,
-            "task_type": task.task_type,
-            "task_profile": task.task_profile,
-            "artifacts": ctx.get("artifacts", []) if isinstance(ctx, dict) else [],
-            "structured_result": ctx.get("structured_result") if isinstance(ctx, dict) else None,
-            "structured_results": ctx.get("structured_results", []) if isinstance(ctx, dict) else [],
-            "world_events": ctx.get("world_events", []) if isinstance(ctx, dict) else [],
-        }
-
     # ========================================================================
     # Form Submission Processing
     # ========================================================================

@@ -4,7 +4,6 @@ Story manager component for discovering and loading stories.
 import logging
 import os
 import yaml
-from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 from src.models.story_models import Story, load_story_from_file
@@ -26,46 +25,6 @@ class StoryManager:
         self._stories: Optional[List[Dict[str, Any]]] = None
         self.logger.info(f"Story manager initialized with stories directory: {stories_dir}")
 
-    def _build_frontend_metadata(
-        self,
-        story_id: str,
-        story_data: Dict[str, Any],
-        story_root: str,
-    ) -> Optional[Dict[str, Any]]:
-        frontend = story_data.get("frontend") or {}
-        app = frontend.get("app") if isinstance(frontend, dict) else None
-        if not isinstance(app, dict):
-            return None
-
-        mode = app.get("mode", "sandboxed_app")
-        app_root = app.get("app_root", "frontend")
-        entry = app.get("entry", "index.html")
-        client_type = app.get("client_type", "story_app")
-        sandbox = app.get("sandbox") or ["allow-scripts", "allow-same-origin"]
-        capabilities = app.get("capabilities") or []
-
-        app_root_path = Path(story_root) / app_root
-        entry_path = app_root_path / entry
-        if not entry_path.exists():
-            self.logger.warning(
-                "Story '%s' declares frontend app entry '%s' but file does not exist.",
-                story_id,
-                entry_path,
-            )
-            return None
-
-        return {
-            "app": {
-                "mode": mode,
-                "app_root": app_root,
-                "entry": entry,
-                "entry_url": f"/story-apps/{story_id}/{entry}",
-                "client_type": client_type,
-                "sandbox": list(sandbox),
-                "capabilities": list(capabilities),
-            }
-        }
-    
     def discover_stories(self) -> List[Dict[str, Any]]:
         """
         Discover available stories in the stories directory.
@@ -120,7 +79,6 @@ class StoryManager:
                         "description": story_data.get('description', ''),
                         "file_path": file_path,
                         "story_root": entry_path,
-                        "frontend": self._build_frontend_metadata(story_id, story_data, entry_path),
                     })
                 except Exception as e:
                     self.logger.error(f"Error loading story folder {entry}: {e}")
@@ -148,7 +106,6 @@ class StoryManager:
                         "description": story_data.get('description', ''),
                         "file_path": file_path,
                         "story_root": os.path.dirname(file_path),
-                        "frontend": self._build_frontend_metadata(story_id, story_data, os.path.dirname(file_path)),
                     })
                 except Exception as e:
                     self.logger.error(f"Error loading story from {entry}: {e}")
@@ -218,24 +175,3 @@ class StoryManager:
         if not metadata:
             return None
         return metadata.get("story_root")
-
-    def resolve_story_frontend_asset(self, story_id: str, asset_path: str) -> Optional[str]:
-        """Resolve a frontend asset declared by a story to a safe absolute path."""
-        metadata = self.get_story_metadata(story_id)
-        frontend = metadata.get("frontend") if metadata else None
-        app = frontend.get("app") if isinstance(frontend, dict) else None
-        story_root = metadata.get("story_root") if metadata else None
-        if not app or not story_root:
-            return None
-
-        app_root = app.get("app_root", "frontend")
-        base_dir = os.path.realpath(os.path.join(story_root, app_root))
-        target_path = os.path.realpath(os.path.join(base_dir, asset_path or app.get("entry", "index.html")))
-        try:
-            if os.path.commonpath([target_path, base_dir]) != base_dir:
-                return None
-        except ValueError:
-            return None
-        if not os.path.exists(target_path) or not os.path.isfile(target_path):
-            return None
-        return target_path

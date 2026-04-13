@@ -50,7 +50,6 @@ Architect behavior is driven by task profile, which describes the **reasoning mo
 - `worldAction`: player/world interaction that may change authoritative state.
 - `perceptionRender`: viewer-scoped scene rendering, captured and delivered by an upper layer.
 - `workflowTask`: form, event, or guided workflow completion.
-- `uiDecision`: strictly non-player-facing structured reasoning for custom UI.
 - `backgroundSimulation`: deferred or offscreen world evolution.
 
 These profiles let Wenyoo keep one Architect implementation while allowing each upper layer to enforce its own coherence rules.
@@ -195,7 +194,6 @@ If a feature changes how the Architect reasons, reads state, writes events, or i
 The current intended profile mapping is:
 
 - `process_input()` text-box turns -> `worldAction`
-- explicit custom frontend Architect actions -> `worldAction` by default, or `uiDecision` when the caller requests structured non-player-facing output
 - `get_node_perception()` -> `perceptionRender`
 - `process_form_result` -> `workflowTask`
 - timed/process events -> `workflowTask`

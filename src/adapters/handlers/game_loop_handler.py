@@ -18,7 +18,6 @@ from ..utils.game_state_serializer import (
     build_object_definitions,
     format_stories_list
 )
-from ..utils.client_interaction_router import ClientInteractionRouter
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +70,6 @@ class GameLoopHandler:
         self.player_sessions = player_sessions
         self.persistent_player_to_session = persistent_player_to_session
         self.frontend_adapter = frontend_adapter
-        self.interaction_router = ClientInteractionRouter()
 
     async def game_loop(self, websocket: WebSocket, player_id: str, session_id: str) -> bool:
         """Main game loop for a connected player.
@@ -116,11 +114,6 @@ class GameLoopHandler:
                 # Handle form submission
                 if msg_type == "form_submit":
                     await self._handle_form_submit(websocket, player_id, session_id, message)
-                    continue
-
-                if await self.interaction_router.route_message(
-                    self, websocket, player_id, session_id, message
-                ):
                     continue
 
                 # Handle game commands
@@ -330,39 +323,6 @@ class GameLoopHandler:
             "actions": actions_data,
         })
 
-    async def _handle_get_current_perception(
-        self,
-        websocket: WebSocket,
-        player_id: str,
-        session_id: str,
-    ) -> None:
-        """Render and send the current scene perception explicitly."""
-        if not self.frontend_adapter or session_id not in self.game_sessions:
-            await websocket.send_json({
-                "type": "error",
-                "content": "Perception is unavailable for this session.",
-            })
-            return
-
-        game_state = self.game_sessions[session_id]["game_state"]
-        perception_payload = await self.frontend_adapter._build_perception_payload(
-            game_state,
-            player_id,
-            display_in_chat=False,
-            force=True,
-        )
-        if not perception_payload:
-            await websocket.send_json({
-                "type": "error",
-                "content": "Unable to build a perception payload for this client.",
-            })
-            return
-
-        await websocket.send_json({
-            "type": "perception",
-            **perception_payload,
-        })
-
     def _is_instant_command(self, command: str) -> bool:
         """Check if a command can be processed instantly without LLM.
         
@@ -480,135 +440,6 @@ class GameLoopHandler:
                     )
         finally:
             ping_task.cancel()
-
-    async def _handle_architect_action(
-        self,
-        websocket: WebSocket,
-        player_id: str,
-        session_id: str,
-        message: Dict[str, Any],
-    ):
-        """Handle a typed Architect task request from a custom frontend."""
-        if session_id not in self.game_sessions:
-            await websocket.send_json({
-                "type": "error",
-                "content": "Session not found. Please rejoin or start a new game.",
-            })
-            return
-
-        game_session = self.game_sessions[session_id]
-        game_state = game_session["game_state"]
-        story = game_state.story
-        original_location = game_state.get_player_location(player_id)
-        original_version = game_state.version
-
-        task_payload = dict(message.get("task") or {})
-        if not task_payload and message.get("payload"):
-            task_payload = dict(message.get("payload") or {})
-        if not task_payload:
-            task_payload = {
-                "task_type": message.get("task_type", "execute_intent"),
-                "task_profile": message.get("task_profile"),
-                "player_input": message.get("display_text") or message.get("action_id") or "",
-                "purpose": message.get("purpose"),
-                "structured_input": message.get("payload") or {},
-                "action_hint": message.get("action_hint", ""),
-                "input_type": message.get("input_type", "story_app"),
-            }
-
-        task = self.game_kernel.build_architect_task_from_payload(
-            task_payload,
-            session_id=session_id,
-        )
-
-        ping_task = asyncio.create_task(self._keepalive_ping_loop(websocket))
-        try:
-            session_lock = game_session.get("lock")
-            if session_lock:
-                async with session_lock:
-                    response = await self.game_kernel.run_architect_task(
-                        task, game_state, story, player_id
-                    )
-                    await self._post_command_update(
-                        websocket,
-                        player_id,
-                        session_id,
-                        response,
-                        task.task_type,
-                        original_location,
-                        original_version,
-                        game_state,
-                    )
-            else:
-                response = await self.game_kernel.run_architect_task(
-                    task, game_state, story, player_id
-                )
-                await self._post_command_update(
-                    websocket,
-                    player_id,
-                    session_id,
-                    response,
-                    task.task_type,
-                    original_location,
-                    original_version,
-                    game_state,
-                )
-        finally:
-            ping_task.cancel()
-
-    async def _handle_deterministic_merge_patch(
-        self,
-        websocket: WebSocket,
-        player_id: str,
-        session_id: str,
-        patch: Dict[str, Any],
-        *,
-        display_text: Optional[str] = None,
-    ):
-        """Apply a direct merge-patch to authoritative game state for trusted story apps."""
-        if session_id not in self.game_sessions:
-            await websocket.send_json({
-                "type": "error",
-                "content": "Session not found. Please rejoin or start a new game.",
-            })
-            return
-        if not isinstance(patch, dict) or not patch:
-            await websocket.send_json({
-                "type": "error",
-                "content": "deterministic merge_patch requires a non-empty object patch.",
-            })
-            return
-
-        game_session = self.game_sessions[session_id]
-        game_state = game_session["game_state"]
-        original_location = game_state.get_player_location(player_id)
-        original_version = game_state.version
-
-        session_lock = game_session.get("lock")
-        if session_lock:
-            async with session_lock:
-                applied = game_state.apply_merge_patch(patch, player_id)
-        else:
-            applied = game_state.apply_merge_patch(patch, player_id)
-
-        response = {
-            "narrative_response": "",
-            "script_paused": False,
-            "deterministic_result": {
-                "applied": applied,
-                "display_text": display_text or "",
-            },
-        }
-        await self._post_command_update(
-            websocket,
-            player_id,
-            session_id,
-            response,
-            "merge_patch",
-            original_location,
-            original_version,
-            game_state,
-        )
 
     async def _post_command_update(
         self,

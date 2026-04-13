@@ -6,7 +6,6 @@ let saveCode = ''; // 新增：保存的代码
 let selectedStory = ''; // 新增：当前选择的故事ID
 let selectedStoryTitle = '';
 let selectedStoryDescription = '';
-let selectedStoryFrontend = null;
 let isAwaitingGameStart = false;
 let currentNodeId = null;
 let messageQueue = [];
@@ -23,9 +22,6 @@ let pendingObjectActionRequest = null;
 let loadingBubbleEl = null;
 let isExportingMessages = false;
 let sessionSelectionHideTimer = null;
-let storyAppReady = false;
-let storyAppInitPayload = null;
-let pendingStoryAppMessages = [];
 
 // --- WebSocket Reconnection ---
 let reconnectAttempts = 0;
@@ -77,9 +73,6 @@ const settingsPlayerName = document.getElementById('settings-player-name');
 const settingsLogoutBtn = document.getElementById('settings-logout-btn');
 const mainContent = document.querySelector('.main-content');
 const gameArea = document.querySelector('.game-area');
-const storyAppHost = document.getElementById('story-app-host');
-const storyAppFrame = document.getElementById('story-app-frame');
-const storyAppReturnButton = document.getElementById('story-app-return-button');
 const gameMessages = document.getElementById('game-messages');
 const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
@@ -98,31 +91,6 @@ const languageSelect = document.getElementById('language-select');
 const mentionOverlay = document.getElementById('mention-overlay');
 const commandPalette = document.getElementById('command-palette');
 const mentionSuggestions = document.getElementById('mention-suggestions');
-
-if (storyAppFrame) {
-    storyAppFrame.addEventListener('load', () => {
-        storyAppReady = true;
-        postStoryAppInit(storyAppInitPayload);
-        flushStoryAppMessages();
-    });
-}
-
-window.addEventListener('message', (event) => {
-    if (event.origin !== window.location.origin) return;
-    if (event.source !== storyAppFrame?.contentWindow) return;
-    const message = event.data || {};
-    if (message.type === 'wenyoo:host') {
-        const action = message.payload?.action;
-        if (action === 'return_to_menu') {
-            handleReturn();
-        }
-        return;
-    }
-    if (message.type !== 'wenyoo:dispatch' || !socket || socket.readyState !== WebSocket.OPEN) {
-        return;
-    }
-    socket.send(JSON.stringify(message.payload));
-});
 
 // --- New Persistent ID Logic ---
 function generateUUID() {
@@ -173,87 +141,6 @@ function formatSessionCountLabel(count) {
 
 function getStoryById(storyId) {
     return availableStories.find(story => story.id === storyId) || null;
-}
-
-function isSandboxedStoryApp(frontend) {
-    return frontend?.app?.mode === 'sandboxed_app' && !!frontend?.app?.entry_url;
-}
-
-function getDesiredClientTypeForStory(frontend) {
-    return isSandboxedStoryApp(frontend) ? (frontend.app.client_type || 'story_app') : 'web';
-}
-
-function isCustomStoryFrontendActive() {
-    return isSandboxedStoryApp(selectedStoryFrontend);
-}
-
-function getSelectedStoryFrontend() {
-    return selectedStoryFrontend || getStoryById(selectedStory)?.frontend || null;
-}
-
-function flushStoryAppMessages() {
-    if (!storyAppReady || !storyAppFrame?.contentWindow) return;
-    while (pendingStoryAppMessages.length > 0) {
-        storyAppFrame.contentWindow.postMessage({
-            type: 'wenyoo:event',
-            payload: pendingStoryAppMessages.shift()
-        }, window.location.origin);
-    }
-}
-
-function postStoryAppInit(payload) {
-    if (!storyAppFrame?.contentWindow || !payload) return;
-    storyAppFrame.contentWindow.postMessage({
-        type: 'wenyoo:init',
-        payload
-    }, window.location.origin);
-}
-
-function forwardMessageToStoryApp(message) {
-    if (!isCustomStoryFrontendActive()) return;
-    if (!storyAppReady || !storyAppFrame?.contentWindow) {
-        pendingStoryAppMessages.push(message);
-        return;
-    }
-    storyAppFrame.contentWindow.postMessage({
-        type: 'wenyoo:event',
-        payload: message
-    }, window.location.origin);
-}
-
-function mountStoryApp(frontend, initPayload = null) {
-    if (!isSandboxedStoryApp(frontend) || !storyAppFrame || !storyAppHost) {
-        return;
-    }
-    selectedStoryFrontend = frontend;
-    storyAppReady = false;
-    storyAppInitPayload = initPayload;
-    pendingStoryAppMessages = [];
-    storyAppHost.classList.remove('hidden');
-    if (gameArea) {
-        gameArea.classList.add('hidden');
-    }
-    storyAppFrame.setAttribute('sandbox', (frontend.app.sandbox || ['allow-scripts', 'allow-same-origin']).join(' '));
-    if (storyAppFrame.dataset.src !== frontend.app.entry_url) {
-        storyAppFrame.dataset.src = frontend.app.entry_url;
-        storyAppFrame.src = frontend.app.entry_url;
-    } else {
-        storyAppReady = true;
-        postStoryAppInit(storyAppInitPayload);
-        flushStoryAppMessages();
-    }
-}
-
-function unmountStoryApp() {
-    storyAppReady = false;
-    storyAppInitPayload = null;
-    pendingStoryAppMessages = [];
-    if (storyAppHost) {
-        storyAppHost.classList.add('hidden');
-    }
-    if (gameArea) {
-        gameArea.classList.remove('hidden');
-    }
 }
 
 function setSelectedStoryCard(storyId) {
@@ -645,10 +532,7 @@ function preprocessDescription(text) {
     return processed;
 }
 
-function renderInteractiveHtml(rawText, clientContent = null) {
-    if (clientContent?.html) {
-        return clientContent.html;
-    }
+function renderInteractiveHtml(rawText) {
     const processedText = preprocessDescription(rawText || '');
     return converter.makeHtml(processedText);
 }
@@ -673,8 +557,7 @@ function applyPerception(perception) {
 
     const nodeId = perception.node_id || currentNodeId || 'unknown';
     const descriptionHtml = renderInteractiveHtml(
-        perception.content,
-        perception.client_content || null,
+        perception.client_content?.source_text || perception.content,
     );
     nodeDescription.innerHTML = `<h3>Description</h3>${descriptionHtml}`;
     cacheNodePerception(nodeId, perception.content);
@@ -793,7 +676,6 @@ function setupEventListeners() {
     exportHistoryButton.addEventListener('click', handleExportMessages);
     document.getElementById('return-button').addEventListener('click', handleReturn);
     document.getElementById('reload-button').addEventListener('click', handleReload);
-    storyAppReturnButton?.addEventListener('click', handleReturn);
     document.addEventListener('textAdventure:localeChanged', () => {
         if (slashCommandState.isOpen) {
             renderSlashCommandPalette();
@@ -1061,7 +943,7 @@ function connectWebSocket() {
         const payload = {
             type: 'register_or_rejoin',
             player_id: playerId,
-            client_capabilities: ['ui_action', 'ui_query', 'ui_event', 'story_app_bridge']
+            client_capabilities: []
         };
         const storedToken = localStorage.getItem('sessionToken');
         if (storedToken) {
@@ -1412,19 +1294,6 @@ function handleWebSocketMessage(message) {
         return;
     }
 
-    const storyAppHandledTypes = new Set([
-        'command_result', 'game_state', 'game', 'system', 'multiplayer',
-        'chat', 'combat', 'dialogue', 'present_choice', 'display_sequence', 'form',
-        'form_success', 'form_error', 'characters_update', 'session_players', 'object_actions', 'stream_start',
-        'stream_token', 'stream_end', 'node_description', 'description_update', 'perception', 'error'
-    ]);
-    if (isCustomStoryFrontendActive() && storyAppHandledTypes.has(message.type)) {
-        forwardMessageToStoryApp(message);
-        if (message.type !== 'error') {
-            return;
-        }
-    }
-    
     switch (message.type) {
         case 'ping':
             // Respond to server keepalive ping to prevent idle disconnection
@@ -1496,18 +1365,18 @@ function handleWebSocketMessage(message) {
                 const originalText = saveGameButton.textContent;
                 saveGameButton.textContent = '✓';
                 setTimeout(() => { saveGameButton.textContent = originalText; }, 1500);
-                addGameMessage(String(message.content), 'system-message');
+                addGameMessage(String(message.content), 'system-message', message.client_content || null);
                 break;
             }
             if (message._streamed && lastStreamEndTime && (Date.now() - lastStreamEndTime < 3000)) {
                 break;
             }
-            addGameMessage(String(message.content), 'game-message');
+            addGameMessage(String(message.content), 'game-message', message.client_content || null);
             break;
         case 'system':
         case 'multiplayer':
         case 'chat':
-            addGameMessage(String(message.content), `${message.type}-message`);
+            addGameMessage(String(message.content), `${message.type}-message`, message.client_content || null);
             break;
         case 'stories':
             displayStories(message.stories);
@@ -1516,9 +1385,6 @@ function handleWebSocketMessage(message) {
             if (message.subtype === 'story_info') {
                 if (message.story?.title) {
                     selectedStoryTitle = message.story.title;
-                }
-                if (message.story?.frontend) {
-                    selectedStoryFrontend = message.story.frontend;
                 }
                 console.log('Received story info for:', message.story.title);
             } else if (message.subtype === 'session_selection') {
@@ -1602,8 +1468,7 @@ function handleWebSocketMessage(message) {
                 break;
             }
             const descriptionHtml = renderInteractiveHtml(
-                message.content,
-                message.client_content || null,
+                message.client_content?.source_text || message.content,
             );
             nodeDescription.innerHTML = `<h3>Description</h3>${descriptionHtml}`;
 
@@ -1640,8 +1505,7 @@ function handleWebSocketMessage(message) {
             const nodeId = message.node_id || currentNodeId;
 
             const updatedHtml = renderInteractiveHtml(
-                message.content,
-                message.client_content || null,
+                message.client_content?.source_text || message.content,
             );
 
             // Update description panel
@@ -1829,7 +1693,6 @@ let isReturningToMenu = false; // Flag to track return to menu state
 function clearActiveRoomUi(options = {}) {
     const { keepSelectedStory = false } = options;
     mainContent.style.display = 'none';
-    unmountStoryApp();
     displayPanel.classList.add('hidden');
     gameMessages.innerHTML = '';
     messageQueue = [];
@@ -1843,7 +1706,6 @@ function clearActiveRoomUi(options = {}) {
     if (!keepSelectedStory) {
         selectedStory = '';
         selectedStoryTitle = '';
-        selectedStoryFrontend = null;
         localStorage.removeItem('selectedStory');
     }
 
@@ -1919,7 +1781,6 @@ function handleLogout() {
 
     hideSessionSelection();
     mainContent.style.display = 'none';
-    unmountStoryApp();
     storySelection.style.display = 'none';
     welcomeMessage.style.display = 'none';
     playerNameField.value = '';
@@ -1934,10 +1795,6 @@ function handleLogout() {
 
 function displayStories(stories) {
     availableStories = Array.isArray(stories) ? stories : [];
-    const currentStoryRecord = getStoryById(selectedStory);
-    if (currentStoryRecord) {
-        selectedStoryFrontend = currentStoryRecord.frontend || null;
-    }
     updatePlayerNameDisplay();
     const predefinedList = document.getElementById('story-list-predefined');
     predefinedList.innerHTML = '';
@@ -1984,8 +1841,6 @@ function displayStories(stories) {
 }
 
 function selectStory(storyId, title, description = '') {
-    const selectedStoryRecord = getStoryById(storyId);
-    selectedStoryFrontend = selectedStoryRecord?.frontend || null;
     const wasOpen = sessionSelection.classList.contains('is-open');
     if (wasOpen && selectedStory !== storyId) {
         hideSessionSelection();
@@ -2242,7 +2097,7 @@ function createSession() {
     socket.send(JSON.stringify({
         type: 'create_session',
         story_id: selectedStory,
-        client_type: getDesiredClientTypeForStory(getSelectedStoryFrontend())
+        client_type: 'web'
     }));
     hideSessionSelection();
     console.log('正在创建新会话...');
@@ -2264,31 +2119,23 @@ function joinRoomByCode(roomId) {
     socket.send(JSON.stringify({
         type: 'join_session',
         session_code: roomId,
-        client_type: getDesiredClientTypeForStory(getSelectedStoryFrontend())
+        client_type: 'web'
     }));
     hideSessionSelection();
     console.log(`正在尝试加入会话: ${roomId}`);
 }
 
 // 显示界面
-function showGameInterface(useStoryApp = false) {
+function showGameInterface() {
     welcomeMessage.style.display = 'none';
     playerNameInput.style.display = 'none';
     storySelection.style.display = 'none';
     hideSessionSelection();
     mainContent.style.display = 'flex';
-    if (useStoryApp) {
-        storyAppHost?.classList.remove('hidden');
-        gameArea?.classList.add('hidden');
-    } else {
-        storyAppHost?.classList.add('hidden');
-        gameArea?.classList.remove('hidden');
-    }
+    gameArea?.classList.remove('hidden');
     // Add in-game class to container to prevent container scrolling
     document.querySelector('.container').classList.add('in-game');
-    if (!useStoryApp) {
-        userInput.focus();
-    }
+    userInput.focus();
 }
 
 // 显示会话代码
@@ -2784,15 +2631,10 @@ function handleStreamToken(message) {
 function handleStreamEnd(message) {
     if (!streamingState) return;
     hideLoadingBubble();
-    const mdConverter = new showdown.Converter({
-        literalMidWordUnderscores: true,
-        simpleLineBreaks: true
-    });
-    const source = message.final_html || streamingState.rawText;
+    const source = streamingState.rawText || message.client_content?.source_text || message.final_html;
     if (source) {
         streamingState.messageDiv.style.display = '';
-        const processedSource = preprocessDescription(source);
-        streamingState.contentDiv.innerHTML = mdConverter.makeHtml(processedSource);
+        streamingState.contentDiv.innerHTML = renderInteractiveHtml(source);
     } else {
         streamingState.messageDiv.remove();
     }
@@ -2802,12 +2644,8 @@ function handleStreamEnd(message) {
     lastStreamEndTime = Date.now();
 }
 
-function addGameMessage(content, className) {
-    const converter = new showdown.Converter({
-        literalMidWordUnderscores: true,
-        simpleLineBreaks: true
-    });
-    const htmlContent = converter.makeHtml(content);
+function addGameMessage(content, className, clientContent = null) {
+    const htmlContent = renderInteractiveHtml(clientContent?.source_text || content);
 
     // 如果是用户消息，直接显示
     if (className === 'user-message') {
@@ -3165,8 +3003,10 @@ function appendTranscriptEntry(entry) {
 
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    contentDiv.innerHTML = entry.client_content?.html
-        || (entry.is_html ? (entry.content || '') : renderInteractiveHtml(entry.content || ''));
+    const transcriptSource = entry.is_html
+        ? (entry.content || entry.client_content?.source_text || '')
+        : (entry.client_content?.source_text || entry.content || '');
+    contentDiv.innerHTML = renderInteractiveHtml(transcriptSource);
 
     const timestampDiv = document.createElement('div');
     timestampDiv.className = 'message-timestamp';
@@ -3196,8 +3036,6 @@ function handleGameStart(content) {
     const perception = content.perception || null;
     const transcript = content.transcript || [];
     const pendingForm = content.pending_form || null;
-    const storyFrontend = content.story_frontend || getSelectedStoryFrontend();
-    selectedStoryFrontend = storyFrontend || null;
 
     gameMessages.innerHTML = '';
     messageQueue = [];
@@ -3233,24 +3071,6 @@ function handleGameStart(content) {
         }
     }
 
-    if (isSandboxedStoryApp(storyFrontend)) {
-        mountStoryApp(storyFrontend, {
-            playerId,
-            playerName,
-            storyId: selectedStory || gameState?.story_id || null,
-            storyFrontend,
-            sessionId: gameState?.session_id || null,
-            gameState,
-            perception,
-            transcript,
-            pendingForm,
-        });
-        showGameInterface(true);
-        isAwaitingGameStart = false;
-        hideGameLoadingScreen();
-        return;
-    }
-
     if (transcript.length > 0) {
         replayTranscript(transcript);
     }
@@ -3264,8 +3084,7 @@ function handleGameStart(content) {
     if (pendingForm) {
         displayForm(pendingForm);
     }
-    unmountStoryApp();
-    showGameInterface(false);
+    showGameInterface();
     isAwaitingGameStart = false;
     hideGameLoadingScreen();
 }

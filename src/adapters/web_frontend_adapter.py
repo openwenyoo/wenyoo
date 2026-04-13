@@ -10,7 +10,7 @@ The adapter has been refactored into modular components:
 """
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional, Dict, Any, List
@@ -295,15 +295,6 @@ class WebFrontendAdapter(FrontendAdapter):
                 return HTMLResponse("<html><body><h1>Editor coming soon!</h1></body></html>", status_code=200)
             with open(editor_path, "r", encoding="utf-8") as f:
                 return f.read()
-
-        @self.app.get("/story-apps/{story_id}/{asset_path:path}")
-        async def get_story_app_asset(story_id: str, asset_path: str):
-            if not self.story_manager:
-                return JSONResponse({"error": "Story manager unavailable."}, status_code=503)
-            resolved = self.story_manager.resolve_story_frontend_asset(story_id, asset_path)
-            if not resolved:
-                return JSONResponse({"error": "Story frontend asset not found."}, status_code=404)
-            return FileResponse(resolved)
 
         # Register API routes from modules
         register_story_routes(self.app, self.story_manager)
@@ -613,11 +604,9 @@ class WebFrontendAdapter(FrontendAdapter):
             segment.get("display_text") or segment.get("text", "")
             for segment in segments
         ) if segments else text
-        if client_type == "story_app":
-            plain_text = self.format_for_client(text, "story_app")
 
         payload = {
-            "format": "plain" if client_type == "story_app" else "html",
+            "format": "html",
             "text": plain_text,
             "segments": segments,
             "source_text": text,
@@ -691,11 +680,6 @@ class WebFrontendAdapter(FrontendAdapter):
             "perception": perception_payload,
             "transcript": transcript,
             "pending_form": pending_form_payload,
-            "story_frontend": (
-                game_state.story.frontend.to_client_dict(game_state.story_id)
-                if getattr(game_state.story, "frontend", None)
-                else None
-            ),
         }
 
     async def _reaper_task(self):
@@ -804,7 +788,7 @@ class WebFrontendAdapter(FrontendAdapter):
                         "type": "rejoined",
                         "content": start_content,
                         "protocol_version": 2,
-                        "server_capabilities": ["ui_action", "ui_query", "ui_event", "story_app_bridge"],
+                        "server_capabilities": [],
                     })
                     
                     current_session_id = session_id
@@ -824,7 +808,7 @@ class WebFrontendAdapter(FrontendAdapter):
                         "player_name": player_name,
                         "session_token": existing_token,
                         "protocol_version": 2,
-                        "server_capabilities": ["ui_action", "ui_query", "ui_event", "story_app_bridge"],
+                        "server_capabilities": [],
                     })
                 else:
                     logger.info(f"Registering new player {player_id}.")
@@ -842,7 +826,7 @@ class WebFrontendAdapter(FrontendAdapter):
                         "player_name": None,
                         "session_token": new_token,
                         "protocol_version": 2,
-                        "server_capabilities": ["ui_action", "ui_query", "ui_event", "story_app_bridge"],
+                        "server_capabilities": [],
                     })
 
             while True:
@@ -899,8 +883,6 @@ class WebFrontendAdapter(FrontendAdapter):
             return text
 
         def _render_input_link(display_text: str, action_hint: str = "") -> str:
-            if client_type == "story_app":
-                return display_text
             safe_display = html_escape(display_text)
             escaped_display = display_text.replace("'", "\\'").replace('"', '\\"')
             escaped_hint = action_hint.replace("'", "\\'").replace('"', '\\"')
@@ -911,8 +893,6 @@ class WebFrontendAdapter(FrontendAdapter):
             )
 
         def _render_entity_link(link_type: str, element_id: str, display_text: str) -> str:
-            if client_type == "story_app":
-                return display_text
             safe_display = html_escape(display_text)
             escaped_id = element_id.replace("'", "\\'").replace('"', '\\"')
             if link_type == 'character':
@@ -959,13 +939,6 @@ class WebFrontendAdapter(FrontendAdapter):
         return formatted
 
     def _format_game_state_for_player(self, game_state_dict: dict, player_id: str) -> dict:
-        story_frontend = None
-        if self.story_manager:
-            story_id = game_state_dict.get("story_id")
-            story_meta = self.story_manager.get_story_metadata(story_id) if story_id else None
-            story_frontend = story_meta.get("frontend") if story_meta else None
-        if story_frontend:
-            game_state_dict["story_frontend"] = copy.deepcopy(story_frontend)
         return game_state_dict
 
     # ---- Observer pattern methods ----

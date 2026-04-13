@@ -66,11 +66,6 @@ async def build_game_state_dict(
         "character_states": dict(game_state.character_states),
         "session_id": session_id,
         "visited_nodes": game_state.visited_nodes,
-        "story_frontend": (
-            game_state.story.frontend.to_client_dict(game_state.story_id)
-            if getattr(game_state.story, "frontend", None)
-            else None
-        ),
     }
 
     if player_id:

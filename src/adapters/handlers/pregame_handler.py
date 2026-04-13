@@ -123,11 +123,6 @@ class PregameHandler:
                         "subtype": "story_info", 
                         "story": {
                             "title": story_or_template.title,
-                            "frontend": (
-                                story_or_template.frontend.to_client_dict(story_or_template.id)
-                                if getattr(story_or_template, "frontend", None)
-                                else None
-                            ),
                         }
                     })
                     # Store the selected story for session creation
