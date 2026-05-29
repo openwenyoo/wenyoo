@@ -48,14 +48,12 @@ jobs:
       - name: Run test suite
         run: pytest
 
-  # ── NON-BLOCKING ratchet: editor lint + node tests ───────────────────────
-  # Today: 79 ESLint errors + 1 stale App.test.js failure (CRA boilerplate).
-  # Remove `continue-on-error` once the editor is lint-clean and the stale
-  # test is deleted.
+  # ── BLOCKING: editor lint + node tests ───────────────────────────────────
+  # Promoted from ratchet once the editor reached 0 ESLint errors. ESLint
+  # warnings (exhaustive-deps, react-refresh) do not fail the build.
   frontend:
-    name: frontend lint + tests (non-blocking)
+    name: frontend lint + tests
     runs-on: ubuntu-latest
-    continue-on-error: true
     defaults:
       run:
         working-directory: editor

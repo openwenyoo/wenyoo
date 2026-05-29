@@ -30,7 +30,7 @@ export const GenericListEditor = ({ list, onListChange, listName }) => {
                                     let newValue = e.target.value;
                                     try {
                                         newValue = JSON.parse(newValue);
-                                    } catch (error) { /* Ignore error, treat as string */ }
+                                    } catch (_error) { /* Ignore error, treat as string */ }
                                     handleItemChange(index, { ...item, [key]: newValue });
                                 }}
                                 rows={typeof value === 'object' ? 4 : 1}

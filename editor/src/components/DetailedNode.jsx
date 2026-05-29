@@ -14,7 +14,7 @@ const DetailedNode = ({ data, selected }) => {
     }
     
     const {
-        label,
+        _label,
         definition,
         state,
         generatedDescription,

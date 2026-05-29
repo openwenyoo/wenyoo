@@ -238,7 +238,7 @@ const parseCharacterCardImport = async (file) => {
 
         try {
             jsonData = JSON.parse(jsonText);
-        } catch (error) {
+        } catch (_error) {
             throw new Error('Invalid JSON file. Could not parse imported character card.');
         }
 

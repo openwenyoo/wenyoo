@@ -48,8 +48,6 @@ const LorePanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, story
     const [expandedCards, setExpandedCards] = useState({});
     const { t } = useLocale();
 
-    if (!isOpen) return null;
-
     const loreParameters = useMemo(() => {
         return Object.fromEntries(
             Object.entries(parameters).filter(([key, value]) => {
@@ -60,6 +58,8 @@ const LorePanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, story
             })
         );
     }, [parameters, searchTerm]);
+
+    if (!isOpen) return null;
 
     const handleAIRequest = async (prompt) => {
         setAiThinking(true);
@@ -120,7 +120,7 @@ const LorePanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, story
 
     const handleKeyRename = (oldKey, newKey) => {
         const normalizedKey = normalizeLoreKey(newKey);
-        if (normalizedKey && normalizedKey !== oldKey && !parameters.hasOwnProperty(normalizedKey)) {
+        if (normalizedKey && normalizedKey !== oldKey && !Object.hasOwn(parameters, normalizedKey)) {
             const nextParams = { ...parameters };
             nextParams[normalizedKey] = nextParams[oldKey];
             delete nextParams[oldKey];
@@ -133,7 +133,7 @@ const LorePanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, story
     const createUniqueLoreKey = (baseKey) => {
         let key = baseKey;
         let counter = 1;
-        while (parameters.hasOwnProperty(key)) {
+        while (Object.hasOwn(parameters, key)) {
             key = `${baseKey}_${counter}`;
             counter++;
         }

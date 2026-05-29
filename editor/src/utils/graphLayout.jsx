@@ -61,7 +61,7 @@ dagreGraph.setDefaultEdgeLabel(() => ({}));
  * @returns {Object} Object with layouted nodes and edges
  */
 export const getLayoutedElements = (nodes, edges, direction = 'TB', viewMode = 'default') => {
-    const isHorizontal = direction === 'LR';
+    const _isHorizontal = direction === 'LR';
     const isDetailed = viewMode === 'detailed';
 
     // Compact layout settings

@@ -107,7 +107,6 @@ const CharacterPanel = ({ isOpen, onClose, characters, onUpdateCharacters, nodes
     const handleBackToList = () => {
         setIsEditingChar(false);
         setSelectedCharId(null);
-        setIsAddingPlacement(false);
     };
 
     const handleAddCharacter = () => {

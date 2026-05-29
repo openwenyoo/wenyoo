@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import ReactFlow, {
     ReactFlowProvider,
     addEdge,
@@ -30,7 +30,7 @@ const NodeContainer = ({ type, label, style, children, onDelete, id }) => (
     </div>
 );
 
-const RootNode = ({ id }) => (
+const RootNode = ({ _id }) => (
     <div className="logic-node root">
         <div className="node-content">
             <div className="node-title">ROOT</div>
@@ -39,7 +39,7 @@ const RootNode = ({ id }) => (
     </div>
 );
 
-const SelectorNode = ({ id, data }) => {
+const SelectorNode = ({ id, _data }) => {
     const { deleteNode } = useCharacterLogic();
     return (
         <NodeContainer id={id} type="selector" label="Selector (?)" onDelete={deleteNode} style={{ borderColor: '#2196F3', backgroundColor: '#E3F2FD' }}>
@@ -48,7 +48,7 @@ const SelectorNode = ({ id, data }) => {
     );
 };
 
-const SequenceNode = ({ id, data }) => {
+const SequenceNode = ({ id, _data }) => {
     const { deleteNode } = useCharacterLogic();
     return (
         <NodeContainer id={id} type="sequence" label="Sequence (→)" onDelete={deleteNode} style={{ borderColor: '#4CAF50', backgroundColor: '#E8F5E9' }}>

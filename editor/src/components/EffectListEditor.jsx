@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLocale } from '../i18n';
 
 const EFFECT_TYPES = [
@@ -237,7 +237,7 @@ const EffectFields = ({ effect, onChange, t }) => {
                             try {
                                 const parsed = JSON.parse(e.target.value);
                                 onChange(parsed);
-                            } catch {}
+                            } catch { /* incomplete JSON while typing; keep last valid value */ }
                         }}
                         placeholder={t('effect.rawJsonPlaceholder')}
                         rows={3}

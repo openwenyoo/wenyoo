@@ -135,7 +135,7 @@ The full conventions and rationale live in
 | Job | Blocking? | What it runs |
 |-----|-----------|--------------|
 | `backend-tests` | **Yes** | `pytest` on Python 3.10 + 3.11 (installs `liblua5.4-dev` for `lupa`). Must pass to merge. |
-| `frontend` | No (ratchet) | `npm run lint` + `node --test` in `editor/`. Currently red (pre-existing ESLint debt + one stale `App.test.js`). |
+| `frontend` | **Yes** | `npm run lint` (0 errors; warnings allowed) + `node --test` in `editor/`. |
 | `ruff` | No (ratchet) | `ruff check src/ --select F`. Surfaces unused imports; needs a `TYPE_CHECKING`-aware config before it can block. |
 
 The non-blocking jobs exist to make pre-existing debt visible. To promote one to

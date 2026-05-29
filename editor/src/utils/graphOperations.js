@@ -123,7 +123,7 @@ function mergeArraysById(existing, incoming) {
     }
 
     // Merge: update existing items by id, append new ones
-    const existingMap = new Map((existing || []).map(item => [item.id, item]));
+    const _existingMap = new Map((existing || []).map(item => [item.id, item]));
     const result = [...existing];
 
     for (const incomingItem of incoming) {

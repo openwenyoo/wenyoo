@@ -86,8 +86,6 @@ const ParameterPanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, 
     const [typeFilter, setTypeFilter] = useState('all');
     const { t } = useLocale();
 
-    if (!isOpen) return null;
-
     // Filter parameters by search term
     const filteredParameters = useMemo(() => {
         if (!searchTerm && typeFilter === 'all') return parameters;
@@ -115,6 +113,8 @@ const ParameterPanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, 
 
     const groups = useMemo(() => groupParameters(filteredParameters), [filteredParameters]);
 
+    if (!isOpen) return null;
+
     const handleAIRequest = async (prompt) => {
         setAiThinking(true);
         setAiMessage('Starting...');
@@ -134,11 +134,11 @@ const ParameterPanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, 
                 setAiMessage(message);
             },
 
-            onFunctionCall: (functionName, args) => {
+            onFunctionCall: (functionName) => {
                 setAiMessage(`Calling ${functionName}...`);
             },
 
-            onParameterSet: (key, value, isNew) => {
+            onParameterSet: (key, value) => {
                 setCount++;
                 currentParams = { ...currentParams, [key]: value };
                 onUpdateParameters(currentParams);
@@ -152,7 +152,7 @@ const ParameterPanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, 
                 onUpdateParameters(currentParams);
             },
 
-            onComplete: ({ message, summary }) => {
+            onComplete: ({ message }) => {
                 setAiThinking(false);
                 setAiMessage('');
                 setShowAI(false);
@@ -191,7 +191,7 @@ const ParameterPanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, 
     };
 
     const handleKeyRename = (oldKey, newKey) => {
-        if (newKey && newKey !== oldKey && !parameters.hasOwnProperty(newKey)) {
+        if (newKey && newKey !== oldKey && !Object.hasOwn(parameters, newKey)) {
             const newParams = { ...parameters };
             newParams[newKey] = newParams[oldKey];
             delete newParams[oldKey];
@@ -205,7 +205,7 @@ const ParameterPanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, 
         const baseKey = 'new_parameter';
         let key = baseKey;
         let counter = 1;
-        while (parameters.hasOwnProperty(key)) {
+        while (Object.hasOwn(parameters, key)) {
             key = `${baseKey}_${counter}`;
             counter++;
         }
@@ -232,7 +232,7 @@ const ParameterPanel = ({ isOpen, onClose, parameters = {}, onUpdateParameters, 
     const handleDuplicateParameter = (key) => {
         let newKey = `${key}_copy`;
         let counter = 1;
-        while (parameters.hasOwnProperty(newKey)) {
+        while (Object.hasOwn(parameters, newKey)) {
             newKey = `${key}_copy_${counter}`;
             counter++;
         }

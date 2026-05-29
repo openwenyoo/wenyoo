@@ -54,7 +54,7 @@ const ObjectPanel = ({ isOpen, onClose, objects = [], onUpdateObjects, storyData
                 setAiMessage(message);
             },
 
-            onFunctionCall: (functionName, args) => {
+            onFunctionCall: (functionName, _args) => {
                 setAiMessage(`Calling ${functionName}...`);
             },
 
@@ -66,7 +66,7 @@ const ObjectPanel = ({ isOpen, onClose, objects = [], onUpdateObjects, storyData
                 setExpandedIds(prev => new Set(prev).add(obj.id));
             },
 
-            onObjectUpdated: (obj, updatedFields) => {
+            onObjectUpdated: (obj, _updatedFields) => {
                 updatedCount++;
                 currentObjects = currentObjects.map(o => 
                     o.id === obj.id ? sanitizeObject({ ...o, ...obj }) : o
@@ -80,7 +80,7 @@ const ObjectPanel = ({ isOpen, onClose, objects = [], onUpdateObjects, storyData
                 onUpdateObjects(currentObjects);
             },
 
-            onComplete: ({ message, summary }) => {
+            onComplete: ({ message, _summary }) => {
                 setAiThinking(false);
                 setAiMessage('');
                 setShowAI(false);

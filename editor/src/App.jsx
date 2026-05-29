@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ReactFlow, {
     ReactFlowProvider,
-    addEdge,
     useNodesState,
     useEdgesState,
     Controls,
@@ -48,7 +47,6 @@ import {
     calculateNewNodePosition,
     generatePlan,
     executePlan,
-    quickGenerate,
     generateOutlines,
     expandOutline,
     refineOutline,
@@ -75,7 +73,7 @@ import {
 // --- Main App Component ---
 const AppContent = () => {
     const { t } = useLocale();
-    const [nodes, setNodes, onNodesChange] = useNodesState([]);
+    const [nodes, setNodes, _onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [storyId, setStoryId] = useState(null);
     const [stories, setStories] = useState([]);
@@ -86,7 +84,7 @@ const AppContent = () => {
     const [llmPrompt, setLlmPrompt] = useState('');
     const [llmLoading, setLlmLoading] = useState(false);
     const [aiThinkingMessage, setAiThinkingMessage] = useState('');
-    const [useStreamingAI, setUseStreamingAI] = useState(true); // Toggle between streaming and legacy mode
+    const [useStreamingAI, _setUseStreamingAI] = useState(true); // Toggle between streaming and legacy mode
     const [usePlanBasedAI, setUsePlanBasedAI] = useState(true); // Use plan-based approach
     const [currentPlan, setCurrentPlan] = useState(null);
     const [showPlanReview, setShowPlanReview] = useState(false);
@@ -143,14 +141,14 @@ const AppContent = () => {
     // Use history hook
     const {
         addToHistory,
-        addToHistoryRef,
+        _addToHistoryRef,
         handleUndo,
         handleRedo,
         canUndo,
         canRedo,
         setHistoryIndex,
         markAsSaved,
-        resetSavedIndex,
+        _resetSavedIndex,
         unsavedCount,
         clearHistory
     } = useGraphHistory();
@@ -565,7 +563,7 @@ const AppContent = () => {
         }));
     }, [updateStoryConnections]);
 
-    const onNodeDoubleClick = useCallback((event, node) => {
+    const _onNodeDoubleClick = useCallback((event, node) => {
         setSelectedNode(node);
         setSecondaryEditorOpen(false);
         setSelectedShape(null);
@@ -750,7 +748,7 @@ const AppContent = () => {
         const groupPosition = selectedGroup.position;
 
         // Find children
-        const childNodes = nodes.filter(n => n.parentNode === selectedGroup.id);
+        const _childNodes = nodes.filter(n => n.parentNode === selectedGroup.id);
 
         const newNodes = nodes.filter(n => n.id !== selectedGroup.id).map(node => {
             if (node.parentNode === selectedGroup.id) {
@@ -1012,7 +1010,7 @@ const AppContent = () => {
                 setAiThinkingMessage(message);
             },
             
-            onFunctionCall: (functionName, args) => {
+            onFunctionCall: (functionName, _args) => {
                 setAiThinkingMessage(t('app.aiStatus.callingFunction', { functionName }));
             },
             
@@ -1092,7 +1090,7 @@ const AppContent = () => {
                 setAiThinkingMessage(t('app.aiStatus.createdCharacter', { name: character.name || character.id }));
             },
             
-            onCharacterUpdated: (character, updatedFields) => {
+            onCharacterUpdated: (character, _updatedFields) => {
                 setStoryData(prev => ({
                     ...prev,
                     characters: (prev?.characters || []).map(c =>
@@ -1119,7 +1117,7 @@ const AppContent = () => {
                 setAiThinkingMessage(t('app.aiStatus.createdObject', { name: obj.name || obj.id }));
             },
             
-            onObjectUpdated: (obj, updatedFields) => {
+            onObjectUpdated: (obj, _updatedFields) => {
                 setStoryData(prev => ({
                     ...prev,
                     objects: (prev?.objects || []).map(o =>
@@ -1473,7 +1471,7 @@ const AppContent = () => {
     ), []);
     
     // Handle outline selector completion (legacy - skeleton only)
-    const handleOutlinePlanReady = (plan, detailedOutline) => {
+    const handleOutlinePlanReady = (plan, _detailedOutline) => {
         setShowOutlineSelector(false);
         setCurrentPlan(plan);
         setShowPlanReview(true);

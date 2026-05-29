@@ -1412,7 +1412,7 @@ export const createCompleteStory = async (outline, modifications, handlers) => {
     try {
         // Phase 1: Expand outline to get detailed structure and plan
         onExpandStart?.();
-        const { detailedOutline, loreOutline, plan } = await expandOutline(outline, modifications);
+        const { detailedOutline, _loreOutline, plan } = await expandOutline(outline, modifications);
         onExpandComplete?.(detailedOutline, plan);
         
         // Phase 2: Execute the skeleton plan
@@ -1683,7 +1683,7 @@ export const validateNodeQuick = async (nodeId, nodeData, context = {}) => {
  * @returns {Object} Story formatted for review API
  */
 export const editorStateToStory = (editorState) => {
-    const { nodes, edges, characters, objects, parameters } = editorState;
+    const { nodes, _edges, characters, objects, parameters } = editorState;
     
     // Convert ReactFlow nodes to story nodes format
     const storyNodes = {};

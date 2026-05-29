@@ -159,7 +159,7 @@ function nodeToEffect(node) {
         case 'effect':
             return buildGenericEffect(data);
             
-        case 'llm_response':
+        case 'llm_response': {
             const llmEffect = {
                 type: 'llm_generate',
                 prompt: data.prompt || '',
@@ -177,7 +177,8 @@ function nodeToEffect(node) {
                 ];
             }
             return llmEffect;
-            
+        }
+
         case 'calculate':
             return {
                 type: 'calculate',

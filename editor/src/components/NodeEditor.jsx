@@ -42,7 +42,7 @@ const NodeEditor = ({ node, onNodeChange, onNodeClose, onShapeClick, onSecondary
             nodes: [node], // Context is mainly this node
             edges: [], // No edges context needed for internal node edits usually
             storyData: {},
-            onSuccess: (newNodes, newEdges, msg) => {
+            onSuccess: (newNodes, _newEdges, _msg) => {
                 // expecting newNodes to contain the updated node
                 const updated = newNodes.find(n => n.id === node.id);
                 if (updated) {

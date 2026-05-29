@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useContext } from 'react';
+import React, { useCallback, useEffect, useContext } from 'react';
 import ReactFlow, {
     ReactFlowProvider,
     addEdge,
@@ -500,7 +500,7 @@ const deserializeEffects = (effects) => {
 
         if (!chain) return;
 
-        chain.forEach((eff, idx) => {
+        chain.forEach((eff, _idx) => {
             const id = `node_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
             let type = 'story_effect';
             let data = { effectType: 'display_text' };

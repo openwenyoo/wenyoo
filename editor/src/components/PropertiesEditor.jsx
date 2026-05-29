@@ -13,7 +13,7 @@ const PropertiesEditor = ({ properties = {}, onChange }) => {
     const addEntry = () => {
         if (!newKey.trim()) return;
         const key = newKey.trim();
-        if (properties.hasOwnProperty(key)) {
+        if (Object.hasOwn(properties, key)) {
             alert(t('properties.exists', { key }));
             return;
         }
@@ -28,7 +28,7 @@ const PropertiesEditor = ({ properties = {}, onChange }) => {
 
     const updateKey = (oldKey, newKeyName) => {
         if (oldKey === newKeyName) return;
-        if (properties.hasOwnProperty(newKeyName)) {
+        if (Object.hasOwn(properties, newKeyName)) {
             alert(t('properties.exists', { key: newKeyName }));
             return;
         }

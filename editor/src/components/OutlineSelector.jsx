@@ -339,7 +339,7 @@ const OutlineSelector = ({
                             setNodesProgress(prev => ({ ...prev, total: data.total_nodes }));
                         }
                     },
-                    onNodeExpanding: (nodeId, nodeName, progress) => {
+                    onNodeExpanding: (nodeId, nodeName, _progress) => {
                         setConductingMessage(t('outline.expandingNode', { name: nodeName }));
                     },
                     onNodeComplete: (nodeId, nodeName, info) => {

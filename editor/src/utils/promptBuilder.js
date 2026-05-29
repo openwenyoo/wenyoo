@@ -3,7 +3,6 @@
  * Includes node format specification, story context, and user request
  */
 
-import { generateOutline } from './storyAnalyzer.js';
 import { EDITOR_PROMPT_LANGUAGE_SECTION } from './editorPromptLanguage.js';
 
 // We'll load the node format description at runtime
