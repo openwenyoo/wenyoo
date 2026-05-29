@@ -144,9 +144,16 @@ class WebFrontendAdapter(FrontendAdapter):
         # Set up routes
         self._setup_routes()
         
-        # Start background tasks
-        asyncio.create_task(self._reaper_task())
-        
+        # Start background tasks. The reaper needs a running loop to be
+        # scheduled; in production __init__ runs inside async main() so this
+        # succeeds. When constructed without a running loop (e.g. a sync test),
+        # skip it — the disconnected-player reaper is not needed there.
+        try:
+            asyncio.get_running_loop()
+            asyncio.create_task(self._reaper_task())
+        except RuntimeError:
+            logger.debug("No running event loop at init; disconnect-reaper not started.")
+
         logger.info(f"Web Frontend Adapter initialized on {host}:{port}")
 
     def _get_player_tokens_path(self) -> str:
