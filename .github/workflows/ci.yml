@@ -1,0 +1,99 @@
+name: CI
+
+# Backend tests are the BLOCKING gate (green today: 74 tests).
+# Frontend lint/tests and Ruff are NON-BLOCKING ratchets — they surface
+# pre-existing debt continuously without blocking PRs. Flip each to blocking
+# (remove `continue-on-error`) once its debt is cleared. See
+# docs/contributing/test-harness-rollout.md §14 and test-coverage-baseline.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── BLOCKING: the real gate ──────────────────────────────────────────────
+  backend-tests:
+    name: backend tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-test.txt
+
+      # lupa (Python<->Lua) may build from sdist; Lua headers make that safe.
+      # Mirrors the Dockerfile recipe (liblua5.4-dev).
+      - name: Install Lua headers
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends liblua5.4-dev
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-test.txt
+
+      - name: Run test suite
+        run: pytest
+
+  # ── NON-BLOCKING ratchet: editor lint + node tests ───────────────────────
+  # Today: 79 ESLint errors + 1 stale App.test.js failure (CRA boilerplate).
+  # Remove `continue-on-error` once the editor is lint-clean and the stale
+  # test is deleted.
+  frontend:
+    name: frontend lint + tests (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: editor
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: editor/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Node tests
+        run: node --test
+
+  # ── NON-BLOCKING ratchet: Ruff (Python lint) ─────────────────────────────
+  # Today: 62 pyflakes findings (41 unused imports + the F821 forward-ref
+  # false positive on TYPE_CHECKING annotations). Add a TYPE_CHECKING-aware
+  # [tool.ruff] config and clear the unused imports, then make this blocking.
+  ruff:
+    name: ruff pyflakes (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Ruff (pyflakes only)
+        run: ruff check src/ --select F --output-format=github

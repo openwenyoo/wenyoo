@@ -128,6 +128,20 @@ async def test_my_invariant(game_kernel, mock_tool_llm, started_game):
 The full conventions and rationale live in
 [`test-harness-rollout.md`](test-harness-rollout.md) (the one-time rollout plan).
 
+## Continuous Integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and every PR.
+
+| Job | Blocking? | What it runs |
+|-----|-----------|--------------|
+| `backend-tests` | **Yes** | `pytest` on Python 3.10 + 3.11 (installs `liblua5.4-dev` for `lupa`). Must pass to merge. |
+| `frontend` | No (ratchet) | `npm run lint` + `node --test` in `editor/`. Currently red (pre-existing ESLint debt + one stale `App.test.js`). |
+| `ruff` | No (ratchet) | `ruff check src/ --select F`. Surfaces unused imports; needs a `TYPE_CHECKING`-aware config before it can block. |
+
+The non-blocking jobs exist to make pre-existing debt visible. To promote one to
+blocking: clear its findings, then delete its `continue-on-error: true`. Coverage
+debt is tracked in [`test-coverage-baseline.md`](test-coverage-baseline.md).
+
 ## Cross-Language Docs
 
 When changing user-facing documentation:
