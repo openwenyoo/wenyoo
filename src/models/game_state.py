@@ -127,9 +127,9 @@ class GameState:
             return [self._serialize_json_safe(item) for item in value]
         if isinstance(value, dict):
             return {key: self._serialize_json_safe(item) for key, item in value.items()}
-        if hasattr(value, "dict"):
+        if hasattr(value, "model_dump"):
             try:
-                return value.dict()
+                return value.model_dump()
             except Exception:
                 return str(value)
         return value
@@ -1034,24 +1034,24 @@ class GameState:
         # Add global objects
         if self.story.objects:
             for obj in self.story.objects:
-                all_object_definitions[obj.id] = obj.dict()
+                all_object_definitions[obj.id] = obj.model_dump()
         # Add node-specific objects
         for node in self.story.nodes.values():
             for obj in node.objects:
-                all_object_definitions[obj.id] = obj.dict()
+                all_object_definitions[obj.id] = obj.model_dump()
 
         # Collect all character definitions from the story (including generated ones)
         all_character_definitions = {}
         if self.story.characters:
             for char in self.story.characters:
-                all_character_definitions[char.id] = char.dict()
+                all_character_definitions[char.id] = char.model_dump()
 
         # Collect dynamically created nodes (nodes not in the original story)
         all_node_definitions = {}
         original_node_ids = set(self.story.nodes.keys())
         for node_id, node in self.nodes.items():
             if node_id not in original_node_ids:
-                all_node_definitions[node_id] = node.dict()
+                all_node_definitions[node_id] = node.model_dump()
 
         # Collect dynamically added actions on existing nodes
         # (actions that weren't in the original story's nodes)
@@ -1062,7 +1062,7 @@ class GameState:
                 original_action_ids = set()
                 if original_node and original_node.actions:
                     original_action_ids = {a.id for a in original_node.actions}
-                new_actions = [a.dict() for a in node.actions if a.id not in original_action_ids]
+                new_actions = [a.model_dump() for a in node.actions if a.id not in original_action_ids]
                 if new_actions:
                     dynamic_actions[node_id] = new_actions
 
@@ -1356,7 +1356,7 @@ class GameState:
                         if trigger.intent:
                             t_entry['intent'] = trigger.intent
                         if trigger.conditions:
-                            t_entry['conditions'] = [c.dict() for c in trigger.conditions]
+                            t_entry['conditions'] = [c.model_dump() for c in trigger.conditions]
                         triggers_list.append(t_entry)
 
                 object_ids = [obj.id for obj in node.objects]
@@ -1664,9 +1664,9 @@ class GameState:
                 return [_serialize_pydantic_objects(item) for item in data]
             if isinstance(data, dict):
                 return {key: _serialize_pydantic_objects(value) for key, value in data.items()}
-            if hasattr(data, 'dict'):
+            if hasattr(data, 'model_dump'):
                 try:
-                    return data.dict()
+                    return data.model_dump()
                 except Exception:
                     return str(data)
             return data

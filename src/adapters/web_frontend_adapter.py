@@ -347,7 +347,7 @@ class WebFrontendAdapter(FrontendAdapter):
                 "form_id": form_context.get("form_id"),
                 "prefill": copy.deepcopy(form_context.get("prefill") or {}),
                 "on_submit_override": (
-                    on_submit_override.dict()
+                    on_submit_override.model_dump()
                     if hasattr(on_submit_override, "dict")
                     else copy.deepcopy(on_submit_override)
                 ),

@@ -1570,7 +1570,7 @@ class Story(BaseModel):
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert the story to a dictionary."""
-        return self.dict()
+        return self.model_dump()
 
     def to_json_schema(self) -> Dict[str, Any]:
         """Convert the story to a JSON schema."""
@@ -1873,15 +1873,15 @@ def load_story_from_file(file_path: str) -> Story:
     return story
 
 
-StoryAction.update_forward_refs()
-StoryNode.update_forward_refs()
-Story.update_forward_refs()
-StoryCondition.update_forward_refs()
-DialogueChoice.update_forward_refs()
-TimedEvent.update_forward_refs()
-Effect.update_forward_refs()
-Trigger.update_forward_refs()
-Character.update_forward_refs()
-FormDefinition.update_forward_refs()
-FormOnSubmit.update_forward_refs()
-FormField.update_forward_refs()
+StoryAction.model_rebuild()
+StoryNode.model_rebuild()
+Story.model_rebuild()
+StoryCondition.model_rebuild()
+DialogueChoice.model_rebuild()
+TimedEvent.model_rebuild()
+Effect.model_rebuild()
+Trigger.model_rebuild()
+Character.model_rebuild()
+FormDefinition.model_rebuild()
+FormOnSubmit.model_rebuild()
+FormField.model_rebuild()

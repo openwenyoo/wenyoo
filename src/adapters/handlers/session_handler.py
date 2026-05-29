@@ -448,7 +448,7 @@ class SessionHandler:
                 "form_id": pending_form.get("form_id"),
                 "prefill": dict(pending_form.get("prefill") or {}),
                 "on_submit_override": (
-                    on_submit_override.dict()
+                    on_submit_override.model_dump()
                     if hasattr(on_submit_override, "dict")
                     else copy.deepcopy(on_submit_override)
                 ),

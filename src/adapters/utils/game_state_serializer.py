@@ -30,12 +30,12 @@ def build_object_definitions(game_state: GameState) -> Dict[str, Any]:
     # Add story-level objects
     if game_state.story.objects:
         for obj in game_state.story.objects:
-            all_object_definitions[obj.id] = obj.dict()
+            all_object_definitions[obj.id] = obj.model_dump()
     
     # Add node-level objects
     for node in game_state.story.nodes.values():
         for obj in node.objects:
-            all_object_definitions[obj.id] = obj.dict()
+            all_object_definitions[obj.id] = obj.model_dump()
     
     return all_object_definitions
 
@@ -62,7 +62,7 @@ async def build_game_state_dict(
     game_state_dict = {
         "story_id": game_state.story_id,
         "variables": game_state._extract_changed_variables(),
-        "nodes": {node_id: node.dict() for node_id, node in game_state.nodes.items()},
+        "nodes": {node_id: node.model_dump() for node_id, node in game_state.nodes.items()},
         "character_states": dict(game_state.character_states),
         "session_id": session_id,
         "visited_nodes": game_state.visited_nodes,

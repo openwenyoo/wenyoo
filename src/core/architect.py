@@ -1544,7 +1544,7 @@ class Architect:
                 if trigger.intent:
                     t_entry['intent'] = trigger.intent
                 if trigger.conditions:
-                    t_entry['conditions'] = [c.dict() for c in trigger.conditions]
+                    t_entry['conditions'] = [c.model_dump() for c in trigger.conditions]
                 triggers_list.append(t_entry)
 
         object_ids = [obj.id for obj in node.objects]
