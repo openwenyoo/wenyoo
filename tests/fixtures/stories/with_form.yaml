@@ -1,0 +1,47 @@
+# 1-form fixture (see test-harness-rollout.md §5.6). Used by the present_form /
+# form-submission contract + integration tests. Illustrative ids only.
+id: with_form
+title: With-Form Test Story
+name: With-Form Test Story
+author: test-harness
+description: A minimal story containing a single form with store_variables on submit.
+version: '1.0'
+start_node_id: start_node
+
+initial_variables:
+  registered_name: ""
+  chosen_color: ""
+
+nodes:
+  start_node:
+    name: Start Node
+    definition: "[Description] A room with a sign-in form."
+    state: "A clipboard rests on a table."
+    actions:
+    - id: action_sign_in
+      text: "Sign the clipboard"
+      intent: "Present the sign_in form to the player."
+
+forms:
+  sign_in:
+    title: Sign In
+    description: Tell us who you are.
+    submit_text: Submit
+    fields:
+    - id: name
+      type: text
+      label: Your name
+      required: true
+    - id: color
+      type: select
+      label: Favorite color
+      options:
+      - red
+      - green
+      - blue
+    on_submit:
+      store_variables:
+      - field: name
+        to: registered_name
+      - field: color
+        to: chosen_color

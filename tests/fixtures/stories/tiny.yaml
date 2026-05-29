@@ -1,0 +1,67 @@
+# Workhorse contract-test fixture (see test-harness-rollout.md §5.6).
+# Intentionally illustrative, NEVER a real story: ids are start_node / entity_a /
+# character_x. Keep this minimal and treat it as part of the schema contract —
+# when story_models.py changes, update this in the same PR.
+id: tiny
+title: Tiny Test Story
+name: Tiny Test Story
+author: test-harness
+description: A 3-node minimal story exercising the surfaces a contract test needs.
+version: '1.0'
+start_node_id: start_node
+
+initial_variables:
+  turns: 0
+  door_open: false
+  lore_world: "A bare room used only for engine tests."
+
+characters:
+- id: character_x
+  name: Character X
+  is_playable: false
+  definition: "[Identity] A placeholder NPC used by engine tests."
+  state: "Standing quietly at the start node."
+  properties:
+    location: start_node
+
+nodes:
+  start_node:
+    name: Start Node
+    definition: "[Description] The starting room. [Rules] Nothing special happens here."
+    state: "The room is quiet."
+    objects:
+    - id: entity_a
+      name: Entity A
+      definition: "[Description] A nondescript test object."
+      state: "It sits untouched."
+      properties:
+        status: []
+    actions:
+    - id: action_open_door
+      text: "Open the door"
+      intent: "Open the door, set door_open to true, and narrate the change."
+
+  branch_node:
+    name: Branch Node
+    definition: "[Description] A second room reached from the start node."
+    state: "A doorway leads onward."
+    triggers:
+    - id: trigger_door_open
+      intent: "When the door is open, reveal the path onward."
+      conditions:
+      - type: variable
+        variable: door_open
+        operator: eq
+        value: true
+
+  end_node:
+    name: End Node
+    definition: "[Description] The final room."
+    state: "The story ends here."
+    is_ending: true
+
+connections:
+- id: start_to_branch
+  source: start_node
+  targets:
+  - branch_node

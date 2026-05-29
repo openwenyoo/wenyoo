@@ -24,3 +24,18 @@ dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools.packages.find]
 include = ["src*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"            # @pytest.mark.asyncio not required on every async test
+testpaths = ["tests"]
+addopts = [
+    "-ra",                       # short summary for skip/xfail/fail
+    "--strict-markers",
+    "--strict-config",
+    "-p", "no:cacheprovider",    # keep CI workspace clean
+]
+filterwarnings = [
+    "default",                   # report deprecations without failing (see rollout plan §5.3).
+                                 # Escalate to "error::DeprecationWarning" once green and all
+                                 # remaining warnings originate from src/.
+]

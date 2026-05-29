@@ -84,11 +84,49 @@ If you change editor capabilities, update:
 Common commands:
 
 ```bash
-pytest
+pip install -r requirements-test.txt
+pytest                         # full suite, LLM-free, < 30s
+pytest tests/contracts         # Architect invariant contracts
 pytest --cov=src
 python scripts/validate_story_yaml.py stories/example.yaml
 python tools/compile_connections.py stories/example.yaml --write
 ```
+
+### Test harness layout
+
+The suite is deterministic and LLM-free — no network, no real provider calls.
+
+| Path | What it covers |
+|------|----------------|
+| `tests/helpers/mock_llm_tool_calling.py` | `ToolCallingMockLLM` — scripts the Architect's `async_client.chat.completions.create(...)` surface in **both** non-streaming and streaming (`stream=True`) modes. The single most important piece: `MockLLMAdapter` alone cannot drive the Architect. |
+| `tests/conftest.py` | Shared fixtures: `mock_tool_llm`, `game_kernel` (no frontend adapter → non-streaming path), `started_game` → `(game_state, story)`. All disk I/O is pinned to `tmp_path`. |
+| `tests/fixtures/stories/` | `tiny.yaml` (3-node workhorse) and `with_form.yaml` (1 form). Treat these as part of the schema contract. |
+| `tests/contracts/` | Architect load-bearing invariants (commit atomicity, merge-patch, profile branching, loop cap). |
+| `tests/unit/` | Primitives: `apply_merge_patch`, story-model validators, config precedence, text/variable resolution. |
+| `tests/integration/` | `process_input`, form submission, multiplayer audience targeting, save/load. |
+| `tests/e2e/` | One real FastAPI WebSocket round-trip — the only test that exercises the **streaming** Architect path. |
+
+### Writing a new Architect test
+
+Copy an existing contract test. Queue the tool calls the Architect should make
+with the `tc(...)` helper, drive it through `architect.handle(task, gs, pid, story)`
+(or `game_kernel.process_input`), and assert the invariant:
+
+```python
+from tests.helpers.mock_llm_tool_calling import tc
+
+async def test_my_invariant(game_kernel, mock_tool_llm, started_game):
+    gs, story = started_game
+    mock_tool_llm.queue_tool_calls([
+        tc("commit", artifacts=[{"kind": "narrative", "payload": "..."}],
+           state_changes={"variables": {"x": 1}}),
+    ])
+    await game_kernel.architect.handle(make_task(), gs, "player1", story)
+    assert gs.variables["x"] == 1
+```
+
+The full conventions and rationale live in
+[`test-harness-rollout.md`](test-harness-rollout.md) (the one-time rollout plan).
 
 ## Cross-Language Docs
 
