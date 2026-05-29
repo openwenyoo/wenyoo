@@ -7,7 +7,7 @@ Environment variables take precedence over config file values.
 import os
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 from dataclasses import dataclass, field
 
 import yaml

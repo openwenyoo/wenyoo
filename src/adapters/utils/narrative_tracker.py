@@ -427,8 +427,6 @@ class NarrativeTracker:
         Returns:
             ContradictionReport if found
         """
-        content_lower = content.lower()
-        
         for fact in self.established_facts.values():
             # Check for same entities
             if not entities.intersection(fact.entities_involved):

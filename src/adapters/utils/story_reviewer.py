@@ -8,8 +8,7 @@ for structural, narrative, and numerical issues. It can be used:
 """
 
 import logging
-import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Any, Optional, Set, Tuple
 from enum import Enum
 from collections import defaultdict

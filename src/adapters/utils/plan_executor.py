@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 import json
 import logging
-import time
 
 from .editor_function_executor import EditorFunctionExecutor, SSEEvent, EventType
 from .editor_language import EDITOR_PROMPT_LANGUAGE_SECTION
@@ -379,10 +378,8 @@ def build_plan_generation_prompt(
     """
     # Build context about current state
     node_count = len(nodes)
-    has_nodes = node_count > 0
     
     # Extract lore outline if exists
-    lore_outline = parameters.get("lore_outline", "")
     lore_entries = {k: v for k, v in parameters.items() if k.startswith("lore_")}
     
     # Build node summary

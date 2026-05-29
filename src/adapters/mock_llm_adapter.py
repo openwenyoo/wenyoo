@@ -4,7 +4,7 @@ Mock LLM adapter for testing the AI Native game engine.
 This module provides a mock LLM adapter that returns deterministic responses,
 enabling tests to run without actual LLM API calls.
 """
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 import logging
 import json
 import re
@@ -72,7 +72,7 @@ class MockLLMAdapter(ILLMProvider):
         # Check for pattern matches
         for pattern, response in self._response_patterns:
             if re.search(pattern, prompt, re.IGNORECASE | re.DOTALL):
-                logger.debug(f"MockLLM: Pattern matched - returning scripted response")
+                logger.debug("MockLLM: Pattern matched - returning scripted response")
                 return response
         
         # Default response for JSON mode
@@ -97,7 +97,7 @@ class MockLLMAdapter(ILLMProvider):
         # Check for pattern matches
         for pattern, response in self._response_patterns:
             if re.search(pattern, prompt, re.IGNORECASE | re.DOTALL):
-                logger.debug(f"MockLLM: Pattern matched - returning scripted response")
+                logger.debug("MockLLM: Pattern matched - returning scripted response")
                 return response
         
         # Default placeholder response
@@ -143,7 +143,7 @@ class ScriptedMockLLMAdapter(MockLLMAdapter):
         
         if self._response_queue:
             response = self._response_queue.pop(0)
-            logger.debug(f"MockLLM: Returning queued response")
+            logger.debug("MockLLM: Returning queued response")
             return response
         
         return await super().generate_response(prompt, **kwargs)
@@ -159,7 +159,7 @@ class ScriptedMockLLMAdapter(MockLLMAdapter):
         
         if self._response_queue:
             response = self._response_queue.pop(0)
-            logger.debug(f"MockLLM: Returning queued response")
+            logger.debug("MockLLM: Returning queued response")
             return response
         
         return await super().generate_text_response(prompt, system_prompt, **kwargs)

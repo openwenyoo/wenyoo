@@ -185,7 +185,6 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
         # TODO(graph-context): Swap this heuristic local preload for compiled
         # graph-neighborhood retrieval once the story graph / runtime overlay
         # pipeline exists.
-        task_type = ctx.get("task_type", "")
         task_profile = ctx.get("task_profile", TASK_PROFILE_WORLD_ACTION)
         if task_profile in (
             TASK_PROFILE_WORLD_ACTION,
@@ -325,7 +324,6 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
                 tool_names = [tc.function.name for tc in response_msg.tool_calls]
                 had_commit = ("commit_world_event" in tool_names or "commit" in tool_names) and tool_results_ok
                 had_present_form = "present_form" in tool_names and tool_results_ok
-                had_structured_result = "return_structured_result" in tool_names and tool_results_ok
                 only_terminal_tools = all(
                     n in (
                         "commit_world_event",

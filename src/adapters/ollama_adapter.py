@@ -5,7 +5,7 @@ This module implements the adapter for the Ollama API,
 providing language model capabilities to the game engine.
 """
 from collections import OrderedDict
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 import logging
 import json
 import re

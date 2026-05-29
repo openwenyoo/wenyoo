@@ -2,7 +2,11 @@ import lupa
 import asyncio
 import copy
 from lupa import LuaRuntime
+from typing import TYPE_CHECKING
 from src.models.game_state import GameState
+
+if TYPE_CHECKING:
+    from src.core.game_kernel import GameKernel
 
 import logging
 logger = logging.getLogger(__name__)

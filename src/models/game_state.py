@@ -4,7 +4,7 @@ Game state models for the AI Native game engine.
 This module defines the data structures for representing game state,
 including player location, inventory, and game variables.
 """
-from typing import Dict, List, Optional, Any, Union, TYPE_CHECKING, Set
+from typing import Dict, List, Optional, Any, TYPE_CHECKING, Set
 import copy
 import time
 from datetime import datetime
@@ -685,7 +685,7 @@ class GameState:
         """Get or create the Lua runtime for evaluating derived variables."""
         if self._lua_runtime is None:
             try:
-                from src.core.lua_runtime import LuaRuntimeService
+                from src.core.lua_runtime import LuaRuntimeService  # noqa: F401  (availability probe for the lua module)
                 # Create a minimal LuaRuntimeService without game_kernel
                 # We'll use a lightweight version for expression evaluation only
                 self._lua_runtime = _DerivedVarLuaRuntime()

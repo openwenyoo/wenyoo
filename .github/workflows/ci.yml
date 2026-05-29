@@ -75,14 +75,12 @@ jobs:
       - name: Node tests
         run: node --test
 
-  # ── NON-BLOCKING ratchet: Ruff (Python lint) ─────────────────────────────
-  # Today: 62 pyflakes findings (41 unused imports + the F821 forward-ref
-  # false positive on TYPE_CHECKING annotations). Add a TYPE_CHECKING-aware
-  # [tool.ruff] config and clear the unused imports, then make this blocking.
+  # ── BLOCKING: Ruff pyflakes ──────────────────────────────────────────────
+  # Promoted from ratchet once src/ reached 0 pyflakes (F) findings. Version
+  # pinned so a future Ruff release can't break the gate by adding rules.
   ruff:
-    name: ruff pyflakes (non-blocking)
+    name: ruff pyflakes
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -91,7 +89,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Ruff
-        run: pip install ruff
+        run: pip install ruff==0.15.15
 
       - name: Ruff (pyflakes only)
         run: ruff check src/ --select F --output-format=github

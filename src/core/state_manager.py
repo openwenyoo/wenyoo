@@ -4,7 +4,7 @@ State Manager for the AI Native game engine.
 This module implements the state manager that handles game state persistence,
 including saving and loading game states.
 """
-from typing import List, Dict, Optional, Any, Union
+from typing import List, Dict, Optional, Any
 
 # Import GameState at the top of the file
 from src.models.game_state import GameState
@@ -282,7 +282,6 @@ class StateManager:
         try:
             state_id = state.get("id")
             player_name = state.get("player_name")
-            story_id = state.get("story_id")
             save_metadata = copy.deepcopy(state.get("save_metadata") or {})
             
             if not state_id:

@@ -20,16 +20,16 @@ import asyncio
 import json
 import logging
 import re
-from typing import Dict, List, Any, Optional, AsyncGenerator, Callable
+from typing import Dict, List, Any, Optional, AsyncGenerator
 from dataclasses import dataclass, field
 from enum import Enum
 
 # Import intelligent coordination components
 try:
     from .expansion_coordinator import ExpansionCoordinator, RichExpansionContext
-    from .world_blueprint import WorldBlueprint, BlueprintGenerator
-    from .numerical_design import NumericalDesign
-    from .narrative_tracker import NarrativeTracker
+    from .world_blueprint import WorldBlueprint, BlueprintGenerator  # noqa: F401  (availability probe gating COORDINATOR_AVAILABLE)
+    from .numerical_design import NumericalDesign  # noqa: F401  (availability probe)
+    from .narrative_tracker import NarrativeTracker  # noqa: F401  (availability probe)
     COORDINATOR_AVAILABLE = True
 except ImportError:
     COORDINATOR_AVAILABLE = False
@@ -139,7 +139,6 @@ class StoryConductor:
             nodes = raw_nodes
             
         characters = skeleton.get("characters", [])
-        objects = skeleton.get("objects", [])
         
         story_context = {
             "lore_outline": parameters.get("lore_outline", ""),

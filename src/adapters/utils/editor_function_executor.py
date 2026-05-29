@@ -291,13 +291,13 @@ class EditorFunctionExecutor:
         
         entity_fields = ['name', 'definition', 'state', 'properties', 
                          'actions', 'objects', 'triggers', 'is_ending']
-        for field in entity_fields:
-            if field in args and args[field] is not None:
-                if field == 'actions':
-                    existing[field] = self._normalize_actions(args[field])
+        for field_name in entity_fields:
+            if field_name in args and args[field_name] is not None:
+                if field_name == 'actions':
+                    existing[field_name] = self._normalize_actions(args[field_name])
                 else:
-                    existing[field] = args[field]
-                updated_fields.append(field)
+                    existing[field_name] = args[field_name]
+                updated_fields.append(field_name)
         
         if 'description' in args and args['description'] is not None and 'state' not in args:
             existing['state'] = args['description']
@@ -416,7 +416,7 @@ class EditorFunctionExecutor:
             return {"success": False, "error": f"Node '{node_id}' not found"}
         
         # Remove the node
-        deleted_node = self.state.nodes.pop(node_id)
+        self.state.nodes.pop(node_id)
         
         # Remove connected edges
         removed_edges = [e for e in self.state.edges 
@@ -652,10 +652,10 @@ class EditorFunctionExecutor:
         
         entity_fields = ['name', 'definition', 'state', 'properties',
                          'is_playable', 'parameters', 'stats']
-        for field in entity_fields:
-            if field in args and args[field] is not None:
-                existing[field] = args[field]
-                updated_fields.append(field)
+        for field_name in entity_fields:
+            if field_name in args and args[field_name] is not None:
+                existing[field_name] = args[field_name]
+                updated_fields.append(field_name)
         
         if 'description' in args and args['description'] is not None and 'state' not in args:
             existing['state'] = args['description']
@@ -765,10 +765,10 @@ class EditorFunctionExecutor:
         updated_fields = []
         
         entity_fields = ['name', 'definition', 'state', 'properties']
-        for field in entity_fields:
-            if field in args and args[field] is not None:
-                existing[field] = args[field]
-                updated_fields.append(field)
+        for field_name in entity_fields:
+            if field_name in args and args[field_name] is not None:
+                existing[field_name] = args[field_name]
+                updated_fields.append(field_name)
         
         if 'description' in args and args['description'] is not None and 'state' not in args:
             existing['state'] = args['description']

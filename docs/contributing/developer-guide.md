@@ -136,11 +136,12 @@ The full conventions and rationale live in
 |-----|-----------|--------------|
 | `backend-tests` | **Yes** | `pytest` on Python 3.10 + 3.11 (installs `liblua5.4-dev` for `lupa`). Must pass to merge. |
 | `frontend` | **Yes** | `npm run lint` (0 errors; warnings allowed) + `node --test` in `editor/`. |
-| `ruff` | No (ratchet) | `ruff check src/ --select F`. Surfaces unused imports; needs a `TYPE_CHECKING`-aware config before it can block. |
+| `ruff` | **Yes** | `ruff check src/ --select F` (pinned ruff 0.15.15). Pyflakes only: unused imports/vars, undefined names, f-string/shadowing issues. |
 
-The non-blocking jobs exist to make pre-existing debt visible. To promote one to
-blocking: clear its findings, then delete its `continue-on-error: true`. Coverage
-debt is tracked in [`test-coverage-baseline.md`](test-coverage-baseline.md).
+All three jobs block merges. Ruff is intentionally scoped to pyflakes (`F`)
+for now; widen the rule set in a follow-up. Intentional availability-probe
+imports are marked `# noqa: F401`. Coverage debt is tracked in
+[`test-coverage-baseline.md`](test-coverage-baseline.md).
 
 ## Cross-Language Docs
 

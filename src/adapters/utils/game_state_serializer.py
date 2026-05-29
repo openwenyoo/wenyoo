@@ -1,6 +1,6 @@
 """Game state serialization utilities."""
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from src.models.game_state import GameState
 from src.core.status_display_resolver import StatusDisplayResolver
 

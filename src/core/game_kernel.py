@@ -20,7 +20,6 @@ from src.models.story_models import (
     Story,
     Character,
     StoryAction,
-    StoryNode,
 )
 from src.core.story_manager import StoryManager
 from src.core.state_manager import StateManager

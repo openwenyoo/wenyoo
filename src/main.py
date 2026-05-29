@@ -9,7 +9,6 @@ import sys
 import logging
 import argparse
 
-from typing import Dict, Any, Optional
 
 from src.config import load_config, override_config, Config
 from src.core.game_kernel import GameKernel

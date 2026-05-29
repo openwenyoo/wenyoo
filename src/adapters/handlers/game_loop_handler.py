@@ -15,7 +15,6 @@ except ImportError:
 
 from ..utils.game_state_serializer import (
     build_game_state_dict, 
-    build_object_definitions,
     format_stories_list
 )
 

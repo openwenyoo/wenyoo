@@ -204,7 +204,7 @@ class FileTextExtractor:
                 except ImportError:
                     # Try pdfplumber as fallback
                     try:
-                        import pdfplumber
+                        import pdfplumber  # noqa: F401  (availability probe; real use is in _extract_pdf_pdfplumber)
                         return self._extract_pdf_pdfplumber(file_bytes, max_length)
                     except ImportError:
                         raise ImportError(

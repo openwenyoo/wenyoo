@@ -5,7 +5,6 @@ This module defines the data structures for representing stories,
 including story nodes, connections, and conditions.
 """
 from typing import Dict, List, Optional, Any, Union, Tuple, TYPE_CHECKING, Set
-from enum import Enum
 import hashlib
 import json
 import yaml
@@ -1022,7 +1021,7 @@ class Effect(BaseModel):
                     logger.warning(f"Attempted to remove non-existent item '{self.value}' from {self.owner} inventory.")
         elif self.type == "set_variable":
             if self.target is None:
-                logger.warning(f"StateModifier: 'set_variable' effect has no target, Skipping.")
+                logger.warning("StateModifier: 'set_variable' effect has no target, Skipping.")
                 return new_state
             # Set a variable in the variables dict
             var_path = self.target.split(".")
@@ -1790,10 +1789,6 @@ def load_story_from_file(file_path: str) -> Story:
     nodes = {}
     nodes_data = story_data.get("nodes", {}) or {}
     for node_id, node_data in nodes_data.items():
-        # Load actions for the node
-        node_actions_data = node_data.get("actions") or []
-        node_actions = [StoryAction(**action_data) for action_data in node_actions_data]
-        
         # Load object instances for the node
         node_objects_data = node_data.get("objects") or []
         node_objects = [StoryObject(**obj_data) for obj_data in node_objects_data]

@@ -8,7 +8,6 @@ routes written for the OpenAI client (e.g. editor AI) keep working.
 from typing import Dict, List, Optional, Any
 import logging
 import json
-import re
 from dataclasses import dataclass
 
 from anthropic import Anthropic, AsyncAnthropic

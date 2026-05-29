@@ -5,7 +5,6 @@ node expansions, ensuring consistency and providing rich context to each
 LLM call. It integrates with WorldBlueprint, NumericalDesign, and NarrativeTracker.
 """
 
-import json
 import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Set, Tuple
@@ -372,7 +371,6 @@ class ExpansionCoordinator:
         # Update numerical design with actions
         for action in expanded_data.get("actions", []):
             if isinstance(action, dict):
-                action_id = action.get("id", "")
                 self.numerical_design._extract_from_node(node_id, {"actions": [action]})
         
         # Update plot thread states

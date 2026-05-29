@@ -85,7 +85,7 @@ class TextProcessor:
         # Find the character in story
         story = game_state.story
         if not story or not story.characters:
-            logger.debug(f"Character ref substitution: no story or characters")
+            logger.debug("Character ref substitution: no story or characters")
             return original
         
         character = next((c for c in story.characters if c.id == char_id), None)

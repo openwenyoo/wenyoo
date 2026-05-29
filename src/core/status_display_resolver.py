@@ -12,7 +12,7 @@ import yaml
 
 if TYPE_CHECKING:
     from src.models.game_state import GameState
-    from src.models.story_models import Story, StatusDisplayConfig, StatsDisplayItem
+    from src.models.story_models import Story
 
 logger = logging.getLogger(__name__)
 

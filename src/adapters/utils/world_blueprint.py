@@ -6,11 +6,9 @@ entity management. The blueprint serves as the "source of truth" for
 coordinated story generation.
 """
 
-import json
 import logging
-import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Set, Tuple
+from typing import Dict, List, Any, Optional, Set
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -453,8 +451,6 @@ class BlueprintGenerator:
         blueprint.narrative.writing_style = outline.get("writing_style", "")
         
         # Build plot threads from story structure
-        story_structure = outline.get("story_structure", {})
-        
         # Main conflict as primary thread
         core_conflict = outline.get("core_conflict", "")
         if core_conflict:
