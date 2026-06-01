@@ -3,7 +3,7 @@ Game Kernel - Main orchestrator for the AI Native game engine.
 
 This is the central coordinator that delegates to specialized modules:
 - Architect: Unified LLM agent — handles narration and state changes via
-  read_game_state / commit_world_event / roll_dice
+  read_game_state / commit / roll_dice
 - NodeGenerator: Dynamic node generation with LLM
 - TextProcessor: Text substitution and hyperlinks
 - VariableResolver: Variable path resolution

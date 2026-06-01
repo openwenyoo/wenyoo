@@ -20,165 +20,14 @@ class _StreamingMixin:
     # Narrative Streaming Parser
     # ═══════════════════════════════════════════════════════════════════════════
 
-    class _NarrativeStreamExtractor:
-        """Incremental JSON parser that extracts the ``narrative`` string value
-        from a ``commit_world_event`` tool-call argument stream and forwards
-        each chunk to the player via WebSocket as it arrives.
-
-        Handles JSON string escapes (``\\n``, ``\\"``, ``\\\\``, ``\\t``,
-        ``\\/``, ``\\uXXXX``) so the player receives clean text.
-        """
-
-        # Parser states
-        _SCANNING_KEY = 0       # looking for "narrative" key
-        _AFTER_KEY = 1          # saw the key, waiting for ':'
-        _AFTER_COLON = 2        # saw ':', waiting for opening '"'
-        _IN_VALUE = 3           # inside the narrative string value
-        _DONE = 4               # closing '"' found or abandoned
-
-        _ESCAPE_MAP = {
-            '"': '"', '\\': '\\', '/': '/', 'n': '\n',
-            'r': '\r', 't': '\t', 'b': '\b', 'f': '\f',
-        }
-
-        def __init__(self, frontend_adapter, player_id: str):
-            self._frontend = frontend_adapter
-            self._player_id = player_id
-            self._state = self._SCANNING_KEY
-            self._buf = ""           # small lookahead buffer
-            self._escape_pending = False
-            self._unicode_buf = ""   # for \uXXXX sequences
-            self._stream_started = False
-            self._streamed_chars = 0
-
-        @property
-        def did_stream(self) -> bool:
-            return self._stream_started
-
-        async def feed(self, chunk: str) -> None:
-            """Feed a new argument chunk and forward any narrative text."""
-            self._buf += chunk
-            await self._consume()
-
-        async def finish(self) -> None:
-            """Signal end of stream; close the player-side stream if open."""
-            # stream_end is sent later by commit_world_event with final_html
-            pass
-
-        async def _consume(self) -> None:
-            while self._buf and self._state not in (self._DONE,):
-                if self._state == self._SCANNING_KEY:
-                    idx = self._buf.find('"narrative"')
-                    if idx == -1:
-                        # Keep last 12 chars in case "narrative" spans chunks
-                        if len(self._buf) > 12:
-                            self._buf = self._buf[-12:]
-                        return
-                    self._buf = self._buf[idx + len('"narrative"'):]
-                    self._state = self._AFTER_KEY
-
-                elif self._state == self._AFTER_KEY:
-                    idx = self._buf.find(':')
-                    if idx == -1:
-                        return  # wait for more
-                    self._buf = self._buf[idx + 1:]
-                    self._state = self._AFTER_COLON
-
-                elif self._state == self._AFTER_COLON:
-                    # skip whitespace
-                    stripped = self._buf.lstrip()
-                    if not stripped:
-                        self._buf = ""
-                        return
-                    if stripped[0] == '"':
-                        self._buf = stripped[1:]
-                        self._state = self._IN_VALUE
-                        # Start the player-side stream
-                        if self._frontend and not self._stream_started:
-                            self._stream_started = True
-                            await self._frontend.send_stream_start(
-                                self._player_id, "game"
-                            )
-                    else:
-                        # Not a string value (unexpected); abandon
-                        self._state = self._DONE
-                        return
-
-                elif self._state == self._IN_VALUE:
-                    await self._extract_string_content()
-                    return
-
-        async def _extract_string_content(self) -> None:
-            """Parse JSON string content, unescape, and forward to player."""
-            out_parts: list[str] = []
-            i = 0
-            while i < len(self._buf):
-                ch = self._buf[i]
-
-                if self._unicode_buf is not None and len(self._unicode_buf) > 0:
-                    # Accumulating \uXXXX
-                    self._unicode_buf += ch
-                    i += 1
-                    if len(self._unicode_buf) == 4:
-                        try:
-                            out_parts.append(chr(int(self._unicode_buf, 16)))
-                        except ValueError:
-                            out_parts.append('?')
-                        self._unicode_buf = ""
-                    continue
-
-                if self._escape_pending:
-                    self._escape_pending = False
-                    if ch == 'u':
-                        self._unicode_buf = ""  # start collecting 4 hex digits
-                    elif ch in self._ESCAPE_MAP:
-                        out_parts.append(self._ESCAPE_MAP[ch])
-                    else:
-                        out_parts.append(ch)
-                    i += 1
-                    continue
-
-                if ch == '\\':
-                    self._escape_pending = True
-                    i += 1
-                    continue
-
-                if ch == '"':
-                    # End of narrative string
-                    self._buf = self._buf[i + 1:]
-                    self._state = self._DONE
-                    # Flush remaining
-                    if out_parts:
-                        text = "".join(out_parts)
-                        self._streamed_chars += len(text)
-                        if self._frontend:
-                            await self._frontend.send_stream_token(
-                                self._player_id, text
-                            )
-                    return
-
-                out_parts.append(ch)
-                i += 1
-
-            # Consumed entire buffer without finding closing quote
-            self._buf = ""
-            # If escape_pending, keep the state but don't output yet
-            if out_parts:
-                text = "".join(out_parts)
-                self._streamed_chars += len(text)
-                if self._frontend:
-                    await self._frontend.send_stream_token(
-                        self._player_id, text
-                    )
-
     class _ArtifactStreamExtractor:
         """Incremental JSON parser that extracts the narrative payload from
         a ``commit`` tool-call argument stream and forwards each chunk to the
         player via WebSocket as it arrives.
 
         Scans for ``"kind":"narrative"`` followed by ``"payload":"..."``
-        within the ``artifacts`` array.  Reuses the same JSON-string-escape
-        handling as ``_NarrativeStreamExtractor``.
+        within the ``artifacts`` array.  Handles JSON string escapes so the
+        player receives clean text.
         """
 
         # Parser states
@@ -372,7 +221,7 @@ class _StreamingMixin:
     ):
         """Make a streaming LLM call, forwarding narrative tokens to the player.
 
-        When the LLM generates a ``commit`` or ``commit_world_event`` tool
+        When the LLM generates a ``commit`` tool
         call, the narrative content is streamed to the player in real-time
         via WebSocket, giving near-instant perceived responsiveness.
 
@@ -426,15 +275,11 @@ class _StreamingMixin:
                         if tc_delta.function.arguments:
                             entry["arguments"] += tc_delta.function.arguments
 
-                            # Forward narrative tokens for commit or commit_world_event
+                            # Forward narrative tokens for the commit tool call
                             if enable_narrative_streaming:
                                 fn_name = entry["function_name"]
                                 if fn_name == "commit" and idx not in extractors:
                                     extractors[idx] = self._ArtifactStreamExtractor(
-                                        frontend, player_id
-                                    )
-                                elif fn_name == "commit_world_event" and idx not in extractors:
-                                    extractors[idx] = self._NarrativeStreamExtractor(
                                         frontend, player_id
                                     )
                                 if idx in extractors:
@@ -447,7 +292,7 @@ class _StreamingMixin:
         for ext in extractors.values():
             await ext.finish()
 
-        # Flag in ctx so commit_world_event knows narrative was already streamed
+        # Flag in ctx so commit knows narrative was already streamed
         any_streamed = any(ext.did_stream for ext in extractors.values())
         if any_streamed:
             ctx["_narrative_already_streamed"] = True

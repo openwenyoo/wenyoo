@@ -7,7 +7,7 @@ It operates inside a tool-calling loop with two categories of tools:
 - Read Tools (agentic search) -- query game state to gather context
 - Write Tools (effects/actions) -- act on the world, including sending text to the player
 
-Key insight: the Architect calls `commit_world_event` as a tool mid-loop, atomically
+Key insight: the Architect calls `commit` as a tool mid-loop, atomically
 narrating to the player AND applying state changes in a single call.
 """
 
@@ -51,7 +51,7 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
     2. Builds system prompt + world index + task message
     3. Enters tool-calling loop with the LLM
     4. LLM calls Read tools to gather context, then Write tools to act
-    5. commit_world_event delivers narrative AND state changes atomically
+    5. commit delivers narrative AND state changes atomically
     6. Deferred world-enrichment can happen in later background passes
     """
 
@@ -134,7 +134,7 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
         turn_handled = bool(ctx["displayed_messages"]) or bool(ctx.get("presented_form"))
         if needs_display and not turn_handled:
             logger.warning(
-                f"Architect completed {task.task_type} without any commit_world_event "
+                f"Architect completed {task.task_type} without any commit "
                 "-- sending fallback message to player"
             )
             fallback = "*The world seems to pause for a moment, then continues as before.*"
@@ -159,7 +159,7 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
         """Run the Architect's tool-calling loop.
 
         The Architect controls all narrative and world-state changes through
-        tool calls.  All player-facing text goes through commit_world_event
+        tool calls.  All player-facing text goes through commit
         -- the LLM's bare text content is never sent to the player.
         """
         llm_provider = self.game_kernel.llm_provider
@@ -181,7 +181,7 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
             }
 
         # T1A: Pre-inject read_game_state result so the LLM can skip its
-        # first round-trip and go directly to commit_world_event.
+        # first round-trip and go directly to commit.
         # TODO(graph-context): Swap this heuristic local preload for compiled
         # graph-neighborhood retrieval once the story graph / runtime overlay
         # pipeline exists.
@@ -255,8 +255,8 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
 
                 if not response_msg.tool_calls:
                     # TODO: This fallback exists because some LLMs fail to call
-                    # commit_world_event and instead return bare text. Ideally the
-                    # LLM should always use commit_world_event; remove this when
+                    # commit and instead return bare text. Ideally the
+                    # LLM should always use commit; remove this when
                     # models are reliable enough to follow tool-calling instructions.
                     if response_msg.content and not ctx["displayed_messages"]:
                         bare = response_msg.content
@@ -322,14 +322,12 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
                     ]
                 )
                 tool_names = [tc.function.name for tc in response_msg.tool_calls]
-                had_commit = ("commit_world_event" in tool_names or "commit" in tool_names) and tool_results_ok
+                had_commit = "commit" in tool_names and tool_results_ok
                 had_present_form = "present_form" in tool_names and tool_results_ok
                 only_terminal_tools = all(
                     n in (
-                        "commit_world_event",
                         "commit",
                         "present_form",
-                        "return_structured_result",
                         "roll_dice",
                         "read_node",
                         "queue_materialization",

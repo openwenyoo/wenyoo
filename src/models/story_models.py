@@ -431,7 +431,7 @@ class StoryAction(BaseModel):
     
     The ``intent`` field contains natural language describing what should happen
     when this action is triggered. The Architect interprets it at runtime
-    using ``read_game_state`` and ``commit_world_event``.
+    using ``read_game_state`` and ``commit``.
     When ``intent`` is provided, ``effects`` is ignored.
     """
     id: str

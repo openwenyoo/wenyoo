@@ -179,34 +179,6 @@ async def test_loop_terminates_at_max_iterations(game_kernel, mock_tool_llm, sta
     assert _has_fallback(gs)
 
 
-# ── 9 ──────────────────────────────────────────────────────────────────────────
-
-async def test_commit_world_event_legacy_shim_delegates_to_commit(game_kernel, mock_tool_llm):
-    """commit_world_event(narrative=...) yields the same version bump and
-    narrative artifact as the equivalent commit (architect.py:1992)."""
-    # Game A: new-style commit.
-    gs_a = await game_kernel.start_new_game_async("tiny", "player1")
-    story = game_kernel.story_manifest
-    va0 = gs_a.version
-    mock_tool_llm.queue_tool_calls([
-        tc("commit", artifacts=[{"kind": "narrative", "payload": "A bell rings."}]),
-    ])
-    ctx_a = await _handle(game_kernel, gs_a, story, _world_action())
-
-    # Game B: legacy commit_world_event.
-    gs_b = await game_kernel.start_new_game_async("tiny", "player1")
-    vb0 = gs_b.version
-    mock_tool_llm.queue_tool_calls([
-        tc("commit_world_event", narrative="A bell rings."),
-    ])
-    ctx_b = await _handle(game_kernel, gs_b, story, _world_action())
-
-    assert (gs_a.version - va0) == (gs_b.version - vb0)
-    a, b = _narrative_artifacts(ctx_a), _narrative_artifacts(ctx_b)
-    assert len(a) == len(b) == 1
-    assert a[0]["payload"] == b[0]["payload"] == "A bell rings."
-
-
 # ── 10 ─────────────────────────────────────────────────────────────────────────
 
 async def test_form_pending_blocks_subsequent_input(game_kernel, mock_tool_llm, started_game):

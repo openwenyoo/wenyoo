@@ -2960,7 +2960,7 @@ function handleCommandResult(content) {
     }
 
     // narrative_response is NOT displayed here -- it was already streamed
-    // to the player during the Architect's commit_world_event tool call.
+    // to the player during the Architect's commit tool call.
 
     // Control input based on script_paused status
     if (responseData && responseData.script_paused) {

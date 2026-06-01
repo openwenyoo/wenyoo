@@ -29,11 +29,12 @@ initial_variables:
     - The relay resonator must be assembled from two separate parts that begin in
       different rooms, encouraging players to speak, confirm who is nearby, and hand
       parts directly to one another.
-    - When a shared mechanism changes (e.g. routing power across rooms), use
-      `deliveries` to notify every player who would perceive the effect, even if
-      they are in a different room. Use `location_players` with `location_id` to
-      target players at a specific location, or `specific_players` with concrete
-      IDs when you know exactly who should see it.
+    - When a shared mechanism changes (e.g. routing power across rooms), emit
+      multiple narrative `artifacts` in one `commit` to notify every player who
+      would perceive the effect, even if they are in a different room. Give each
+      artifact an `audience`: use `location_players` with `location_id` to target
+      players at a specific location, or `specific_players` with concrete IDs in
+      `target_player_ids` when you know exactly who should see it.
     - If a player uses shorthand such as `say: ...`, `give: name: item`, or
       `list_players`, treat it as parser help for the same underlying story-defined
       intent rather than as a special engine command.
@@ -49,16 +50,16 @@ initial_variables:
       If no active player name matches, tell the sender the call does not connect.
     - If multiple active players would match ambiguously, ask the sender to clarify.
     - A player cannot phone themself.
-    - When a phone message succeeds, use ONE `commit_world_event` call with a
-      `deliveries` array so the event stays atomic while different players receive
+    - When a phone message succeeds, use ONE `commit` call with two narrative
+      `artifacts` so the event stays atomic while different players receive
       different text.
-    - That success case must contain exactly two deliveries:
-      1. a recipient delivery using audience `specific_players` and the matched
+    - That success case must contain exactly two narrative artifacts:
+      1. a recipient artifact using audience `specific_players` and the matched
          recipient's concrete player ID in `target_player_ids`
-      2. a sender delivery using audience `self`
-    - The recipient delivery should say:
+      2. a sender artifact using audience `self`
+    - The recipient artifact should say:
       `<sender_name> says to you through the phone: "..."`.
-    - The sender delivery should separately confirm that the call connected and the
+    - The sender artifact should separately confirm that the call connected and the
       message was sent.
     - Do not send the sender confirmation to the recipient, and do not send the
       recipient-only wording back to the sender.
@@ -124,10 +125,10 @@ objects:
     - Reject the attempt if the player is trying to contact themself.
     - Confirm that the matched recipient also currently has `mobile_phone` in their inventory.
     - If any requirement fails, explain the failure only to the sender.
-    - If the call succeeds, use one `commit_world_event` with a `deliveries` array.
-    - The first delivery must target the matched recipient using audience
+    - If the call succeeds, use one `commit` with two narrative `artifacts`.
+    - The first artifact must target the matched recipient using audience
       `specific_players` and that player's concrete ID in `target_player_ids`.
-    - The second delivery must target the acting player using audience `self`.
+    - The second artifact must target the acting player using audience `self`.
     - Use this exact recipient wording for spoken content:
       `<sender_name> says to you through the phone: "message"`.
     - Use separate sender wording that confirms the phone connected and delivered the message.
@@ -228,14 +229,14 @@ nodes:
         - Route startup power to the relay gallery.
         - Set `power_routed` to true.
         - Update the lever's own current state so it is clearly engaged and routing power.
-        - Use `deliveries` to notify across rooms:
+        - Use two narrative `artifacts` in one `commit` to notify across rooms:
           1. audience `self` → describe pulling the lever, hearing power engage, and
              indicator strips shifting to green.
           2. audience `location_players` with `location_id` = `relay_gallery` → describe
              a low vibration rolling through the floor, the indicator panel beside the
              relay cradle flickering to life and glowing green, and the magnetic seal on
              the cradle releasing. Make clear that power has arrived from the archive.
-        - In the SAME authoritative `commit_world_event`, also schedule one delayed `timed_events` entry for 15 seconds later.
+        - In the SAME authoritative `commit`, also schedule one delayed `timed_events` entry for 15 seconds later.
         - That delayed event must return the lever to standby, set `power_routed` back to false, and describe power dropping again for any operators who can perceive it.
         - Do not treat the 15-second reset as optional flavor text; schedule it as real delayed world state.
         If `power_routed` is already true:

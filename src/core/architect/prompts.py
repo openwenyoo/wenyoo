@@ -36,9 +36,9 @@ class _PromptMixin:
         return (
             "You are the Architect, the world-builder for an AI native text based game engine. "
             "You manage all narrative content and world state changes using "
-            "read_game_state, commit_world_event, roll_dice, read_node, and "
+            "read_game_state, commit, roll_dice, read_node, and "
             "queue_materialization. "
-            "Use commit_world_event to narrate AND record state changes atomically."
+            "Use commit to narrate AND record state changes atomically."
         )
 
     def _build_world_index(self, game_state: 'GameState', player_id: str,
@@ -383,7 +383,7 @@ class _PromptMixin:
                     "Respond to the player's input. Only interact with what the "
                     "player asked about. Use read_node(node_id) for full details on a "
                     "specific location or read_game_state(view='full') if you need "
-                    "broader world context. Use commit_world_event() for all state "
+                    "broader world context. Use commit() for all state "
                     "changes. If the selected action should open a story-defined form, "
                     "call present_form(form_id) and stop instead of narrating the "
                     "selection as ordinary text."
@@ -393,7 +393,7 @@ class _PromptMixin:
                     "Resolve this purpose-driven task from the supplied context. "
                     "Treat the supplied framing as guidance, not "
                     "as authoritative world truth. Use the current world state and tools "
-                    "to decide what actually happens. Use commit_world_event() for all "
+                    "to decide what actually happens. Use commit() for all "
                     "player-visible or consequential outcomes. If the task should collect "
                     "structured input before continuing, call present_form(form_id) and stop."
                 )
@@ -402,7 +402,7 @@ class _PromptMixin:
             parts.append(
                 "## PROFILE RULES: WORLD ACTION\n"
                 "This task resolves real in-world action. If it causes a player-facing or consequential outcome, "
-                "use commit_world_event(). If structured input is required first, use present_form(form_id)."
+                "use commit(). If structured input is required first, use present_form(form_id)."
             )
 
             action_lines = self._build_available_action_lines(node, game_state, player_id)
@@ -487,8 +487,8 @@ class _PromptMixin:
                     "This is a refresh/re-read, not a first arrival unless the state explicitly implies that.\n"
                     "Do NOT store the generated scene text back into node state as authoritative truth.\n"
                     "If the current world state implies consequential missing entities or links that must now exist, "
-                    "include those creations in the same commit_world_event state_changes patch.\n"
-                    "Call commit_world_event ONCE with the rendered perception. "
+                    "include those creations in the same commit state_changes patch.\n"
+                    "Call commit ONCE with the rendered perception. "
                     "Use state_changes only if the world itself must change to stay consistent with the narrative."
                 )
                 parts.append("")
@@ -530,7 +530,7 @@ class _PromptMixin:
                 "- Keep changes small, coherent, and stable.\n"
                 "- Do not duplicate ambient entities already present.\n"
                 "- Offscreen changes may update state but must not be auto-revealed to players.\n"
-                "- Use commit_world_event with state_changes; omit player-facing narrative unless connected players should immediately perceive the result.\n"
+                "- Use commit with state_changes; omit player-facing narrative unless connected players should immediately perceive the result.\n"
                 "- If there is nothing useful to enrich in this pass, return no text and make no tool call.\n"
                 "- Never emit explanatory prose, internal reasoning, or status text for this task."
             )
@@ -619,14 +619,14 @@ class _PromptMixin:
                 "from the submitted choices and any variables the engine already stored "
                 "before this task. If the writer flow changes embodiment "
                 "or location, include those exact mechanical changes in one "
-                "commit_world_event state_changes patch before narrating.\n"
+                "commit state_changes patch before narrating.\n"
                 "- set_controlled_character(target=X): write "
                 "variables.players.<player_id>.controlled_character_id = X\n"
                 "- goto_node(target=Y): move the relevant embodied character by writing "
                 "character_states.<char_id>.properties.location = Y and update "
                 "visited_nodes when the player newly reaches that node\n"
                 "Narrate from the resulting controlled character and resulting location. "
-                "Call commit_world_event ONCE, then STOP."
+                "Call commit ONCE, then STOP."
             )
             parts.append("")
             parts.append(
@@ -641,7 +641,7 @@ class _PromptMixin:
                 "This event already became due in engine time. Resolve it now as one "
                 "authoritative world event. If timed-event context includes intended "
                 "state changes, treat those mechanical targets as authoritative and "
-                "apply them through commit_world_event(state_changes=...). Narrate the "
+                "apply them through commit(state_changes=...). Narrate the "
                 "result only to players who can currently perceive it. If no players "
                 "should receive text immediately, you may commit state_changes without "
                 "narrative."

@@ -16,7 +16,7 @@ Three pieces of evidence that this is urgent:
 
 1. `MockLLMAdapter` ([`src/adapters/mock_llm_adapter.py`](../../src/adapters/mock_llm_adapter.py)) was built explicitly to enable LLM-free testing — and is unused.
 2. [`CLAUDE.md`](../../CLAUDE.md), [`CONTRIBUTING.md`](../../CONTRIBUTING.md), and [`developer-guide.md`](developer-guide.md) all reference `requirements-test.txt` and `pytest tests/test_e2e_game.py` — **none of which exist**.
-3. [`architect.py:555-558`](../../src/core/architect.py#L555) carries a TODO: *"This fallback exists because some LLMs fail to call commit_world_event… remove this when models are reliable enough."* That's load-bearing trust without a verification net.
+3. [`architect.py:555-558`](../../src/core/architect.py#L555) carries a TODO: *"This fallback exists because some LLMs fail to call commit… remove this when models are reliable enough."* That's load-bearing trust without a verification net.
 
 The goal of this rollout is **not coverage percentage**. It is to lock the engine's load-bearing invariants behind cheap, deterministic, fast tests so that future Architect refactors (and the `architect.py` decomposition planned as the next initiative) can ship without leaps of faith.
 
@@ -292,7 +292,7 @@ async def test_<invariant>(game_kernel, mock_tool_llm, started_game):
 | 6 | `test_perception_render_strips_node_state_writes` | `task_profile=perceptionRender` (`capture_only=True`) + `commit` with `state_changes` touching `nodes.<id>.state` → node.state unchanged ([architect.py:1738-1762](../../src/core/architect.py#L1738)) |
 | 7 | `test_background_simulation_suppresses_narrative_delivery` | `backgroundSimulation` + narrative artifact + default flags → artifact recorded but NOT in `displayed_messages` ([architect.py:1881](../../src/core/architect.py#L1881)) |
 | 8 | `test_loop_terminates_at_max_iterations` | Queue 20 `read_game_state` tool calls → loop breaks at `max_iterations = 12`, no exception, fallback message produced ([architect.py:527](../../src/core/architect.py#L527), warning at [:689](../../src/core/architect.py#L689)) |
-| 9 | `test_commit_world_event_legacy_shim_delegates_to_commit` | Calling `_tool_commit_world_event` with old-format args produces identical `game_state.version` bump and artifact delivery as `_tool_commit` ([architect.py:1992](../../src/core/architect.py#L1992)) |
+| 9 | _(removed)_ | The `commit_world_event` legacy shim was removed during the commit-tool migration; `commit` is now the sole mutation tool, so the shim-equivalence test no longer applies |
 | 10 | `test_form_pending_blocks_subsequent_input` | With `player1` in `_pending_forms`, `process_input(...)` returns `{"script_paused": True}` early without entering the Architect loop ([game_kernel.py:719](../../src/core/game_kernel.py#L719)) |
 
 ### Suggested additional tests (write if time permits in Phase 1)

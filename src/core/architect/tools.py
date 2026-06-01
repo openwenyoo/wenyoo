@@ -58,11 +58,6 @@ class _ToolMixin:
             }
         })
 
-        # Legacy aliases: handler-only, not exposed to LLM via tool definitions.
-        # If the LLM somehow calls these names, the dispatch still works.
-        self._tool_registry["commit_world_event"] = self._tool_commit_world_event
-        self._tool_registry["return_structured_result"] = self._tool_return_structured_result
-
         self._register("roll_dice", self._tool_roll_dice, {
             "type": "function",
             "function": {
@@ -428,21 +423,6 @@ class _ToolMixin:
             ctx["presented_form"] = {"form_id": form_id}
         return result
 
-    async def _tool_return_structured_result(self, args: Dict, ctx: Dict) -> Dict:
-        """Legacy shim: convert return_structured_result args to commit() format."""
-        result = args.get("result")
-        if not isinstance(result, dict):
-            return {"error": "return_structured_result requires result to be an object"}
-
-        commit_args: Dict[str, Any] = {
-            "artifacts": [{
-                "kind": ARTIFACT_KIND_STRUCTURED,
-                "payload": result,
-                "summary": (args.get("summary") or "").strip(),
-            }]
-        }
-        return await self._tool_commit(commit_args, ctx)
-
     def _make_serializable(self, obj: Any) -> Any:
         """Recursively convert non-JSON-serializable objects to plain dicts/strings."""
         if obj is None or isinstance(obj, (str, int, float, bool)):
@@ -479,7 +459,7 @@ class _ToolMixin:
                         node_id,
                     )
                 except Exception as e:
-                    logger.error(f"commit_world_event: failed to push characters update: {e}")
+                    logger.error(f"commit: failed to push characters update: {e}")
 
         return applied
 
@@ -643,72 +623,6 @@ class _ToolMixin:
             result["structured_count"] = len(structured_artifacts)
 
         return result
-
-    async def _tool_commit_world_event(self, args: Dict, ctx: Dict) -> Dict:
-        """Legacy shim: convert commit_world_event args to commit() format and delegate."""
-
-        def _coerce_json_value(value: Any) -> Any:
-            if not isinstance(value, str):
-                return value
-            stripped = value.strip()
-            if not stripped:
-                return value
-            if stripped[0] not in "[{":
-                return value
-            try:
-                return json.loads(stripped)
-            except Exception:
-                return value
-
-        def _coerce_string_list(value: Any) -> List[str]:
-            coerced = _coerce_json_value(value)
-            if isinstance(coerced, list):
-                return [item for item in coerced if isinstance(item, str)]
-            if isinstance(coerced, str) and coerced:
-                return [coerced]
-            return []
-
-        # ── Convert to artifacts ──
-        narrative = args.get("narrative", "")
-        deliveries_arg = _coerce_json_value(args.get("deliveries") or [])
-        audience = args.get("audience", "players_here")
-        target_player_ids = _coerce_string_list(args.get("target_player_ids") or [])
-        location_id = args.get("location_id")
-        exclude_player_ids = _coerce_string_list(args.get("exclude_player_ids") or [])
-
-        artifacts: List[Dict[str, Any]] = []
-        if narrative:
-            artifacts.append({
-                "kind": ARTIFACT_KIND_NARRATIVE,
-                "payload": narrative,
-                "audience": audience,
-                "target_player_ids": target_player_ids,
-                "location_id": location_id,
-                "exclude_player_ids": exclude_player_ids,
-            })
-        for entry in (deliveries_arg if isinstance(deliveries_arg, list) else []):
-            if not isinstance(entry, dict):
-                continue
-            entry_narrative = entry.get("narrative", "")
-            if not entry_narrative:
-                continue
-            artifacts.append({
-                "kind": ARTIFACT_KIND_NARRATIVE,
-                "payload": entry_narrative,
-                "audience": entry.get("audience", "players_here"),
-                "target_player_ids": _coerce_string_list(entry.get("target_player_ids") or []),
-                "location_id": entry.get("location_id"),
-                "exclude_player_ids": _coerce_string_list(entry.get("exclude_player_ids") or []),
-            })
-
-        commit_args: Dict[str, Any] = {}
-        if artifacts:
-            commit_args["artifacts"] = artifacts
-        state_changes = args.get("state_changes")
-        if state_changes:
-            commit_args["state_changes"] = state_changes
-
-        return await self._tool_commit(commit_args, ctx)
 
     async def _maybe_schedule_background_materialization(
         self,

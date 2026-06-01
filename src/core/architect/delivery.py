@@ -27,8 +27,7 @@ class _DeliveryMixin:
         """Deliver recorded artifacts to players according to upper-layer policy.
 
         This method is the single point where artifact-to-client delivery
-        decisions are made.  It replaces the delivery_policy checks that
-        previously lived inside _tool_commit_world_event.
+        decisions are made.
         """
         if not artifacts:
             return
