@@ -508,8 +508,30 @@ class _ToolMixin:
             if stripped.startswith("["):
                 try:
                     artifacts_raw = json.loads(stripped)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Malformed nested JSON (e.g. unescaped quotes inside the
+                    # narrative payload). Fail loudly so the model retries with a
+                    # native array instead of silently dropping the narrative and
+                    # reporting a (state-only) success.
+                    logger.warning("commit artifacts string failed to parse: %s", e)
+                    return {
+                        "error": (
+                            "artifacts could not be parsed: it was passed as a "
+                            "string containing invalid JSON. Pass artifacts as a "
+                            "native JSON array of objects (not a JSON-encoded "
+                            "string), so payload text with quotes is escaped "
+                            "automatically. Re-issue the full commit."
+                        )
+                    }
+        # A non-empty artifacts string that didn't even look like an array, or any
+        # other non-list value, means the narrative would be dropped — reject it.
+        if isinstance(artifacts_raw, str) and artifacts_raw.strip():
+            return {
+                "error": (
+                    "artifacts must be a native JSON array of objects, not a "
+                    "string. Re-issue the full commit with artifacts as an array."
+                )
+            }
         artifacts_arg = artifacts_raw if isinstance(artifacts_raw, list) else []
 
         player_id = ctx["player_id"]
