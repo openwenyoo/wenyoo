@@ -24,9 +24,13 @@ class BaseLLMAdapter(ILLMProvider):
         base_url: str, 
         model: str = "qwen-plus-latest",
         timeout_connect: float = 10.0,
-        timeout_read: float = 120.0
+        timeout_read: float = 120.0,
+        reasoning: bool = False
     ):
         self.model = model
+        # Thinking-mode model (returns reasoning_content that must be echoed back
+        # on assistant tool-call turns). Consumed by the Architect tool loop.
+        self.reasoning = reasoning
         
         # Configure timeout to handle slow API providers
         # Use shorter connect timeout for faster retries if first connection fails

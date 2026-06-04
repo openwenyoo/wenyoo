@@ -183,7 +183,8 @@ def create_llm_provider(config: Config):
             base_url=config.llm.base_url,
             model=config.llm.model,
             timeout_connect=config.llm.timeout_connect,
-            timeout_read=config.llm.timeout_read
+            timeout_read=config.llm.timeout_read,
+            reasoning=config.llm.reasoning
         )
     
     elif provider_type == "claude":

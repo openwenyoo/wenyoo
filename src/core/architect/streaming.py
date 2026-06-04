@@ -236,6 +236,7 @@ class _StreamingMixin:
         )
 
         content_parts = []
+        reasoning_parts = []  # thinking-mode models stream reasoning_content
         tool_calls_map = {}  # index -> {id, function_name, arguments}
         role = None
 
@@ -288,6 +289,13 @@ class _StreamingMixin:
             if delta.content:
                 content_parts.append(delta.content)
 
+            # Thinking-mode models (e.g. DeepSeek) stream a separate
+            # reasoning_content channel that must be echoed back on the
+            # assistant turn that carries the resulting tool_calls.
+            delta_reasoning = getattr(delta, "reasoning_content", None)
+            if delta_reasoning:
+                reasoning_parts.append(delta_reasoning)
+
         # Finalize extractors
         for ext in extractors.values():
             await ext.finish()
@@ -298,6 +306,7 @@ class _StreamingMixin:
             ctx["_narrative_already_streamed"] = True
 
         full_content = "".join(content_parts) if content_parts else None
+        full_reasoning = "".join(reasoning_parts) if reasoning_parts else None
 
         if tool_calls_map:
             tool_calls_list = []
@@ -316,12 +325,14 @@ class _StreamingMixin:
                 role=role or "assistant",
                 content=full_content,
                 tool_calls=tool_calls_list,
+                reasoning_content=full_reasoning,
             )
         else:
             response_msg = SimpleNamespace(
                 role=role or "assistant",
                 content=full_content,
                 tool_calls=None,
+                reasoning_content=full_reasoning,
             )
 
         return response_msg

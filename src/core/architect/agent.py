@@ -207,23 +207,36 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
                 return str(obj)
             gs_json = json.dumps(gs_result, ensure_ascii=False, default=_safe_default_pre)
 
-            messages.append({
-                "role": "assistant",
-                "content": None,
-                "tool_calls": [{
-                    "id": preload_id,
-                    "type": "function",
-                    "function": {
-                        "name": "read_game_state",
-                        "arguments": "{\"view\":\"local\",\"max_history\":4}",
-                    }
-                }]
-            })
-            messages.append({
-                "role": "tool",
-                "tool_call_id": preload_id,
-                "content": gs_json,
-            })
+            if getattr(llm_provider, "reasoning", False):
+                # Thinking-mode models reject a fabricated assistant tool-call
+                # turn that lacks reasoning_content. Inject the same preloaded
+                # state as a user message instead -- still saves the first
+                # round-trip without violating the reasoning_content invariant.
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        "[Preloaded local game state from read_game_state"
+                        "(view=local, max_history=4)]\n" + gs_json
+                    ),
+                })
+            else:
+                messages.append({
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [{
+                        "id": preload_id,
+                        "type": "function",
+                        "function": {
+                            "name": "read_game_state",
+                            "arguments": "{\"view\":\"local\",\"max_history\":4}",
+                        }
+                    }]
+                })
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": preload_id,
+                    "content": gs_json,
+                })
             logger.debug("Architect: pre-injected local read_game_state (%d chars)", len(gs_json))
 
         max_iterations = 12
@@ -397,6 +410,11 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
             "role": getattr(msg, 'role', 'assistant'),
             "content": getattr(msg, 'content', None),
         }
+        # Thinking-mode models require reasoning_content to be echoed back on
+        # assistant turns that carry tool_calls (e.g. DeepSeek thinking mode).
+        reasoning = getattr(msg, 'reasoning_content', None)
+        if reasoning is not None:
+            d["reasoning_content"] = reasoning
         tool_calls = getattr(msg, 'tool_calls', None)
         if tool_calls:
             d["tool_calls"] = [

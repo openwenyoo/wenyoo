@@ -25,6 +25,11 @@ class LLMConfig:
     api_key_env: str = "LLM_API_KEY"
     timeout_connect: float = 10.0  # Connection timeout in seconds (shorter for faster retries)
     timeout_read: float = 120.0   # Read timeout in seconds
+    # Thinking/reasoning models (e.g. DeepSeek thinking mode) return a
+    # `reasoning_content` field that must be echoed back on assistant turns
+    # carrying tool_calls. Enable to make the Architect tool loop preserve it
+    # and skip the fabricated assistant tool-call preload.
+    reasoning: bool = False
     
     @property
     def api_key(self) -> Optional[str]:
@@ -172,6 +177,7 @@ def _dict_to_config(data: dict) -> Config:
             api_key_env=llm_data.get("api_key_env", "LLM_API_KEY"),
             timeout_connect=float(llm_data.get("timeout_connect", 30.0)),
             timeout_read=float(llm_data.get("timeout_read", 120.0)),
+            reasoning=bool(llm_data.get("reasoning", False)),
         ),
         server=ServerConfig(
             host=server_data.get("host", "127.0.0.1"),
