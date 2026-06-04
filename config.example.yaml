@@ -82,7 +82,7 @@ config_groups:
       #   LM Studio:    http://localhost:1234/v1
       #   Ollama:       http://localhost:11434/v1
       #   Together.ai:  https://api.together.xyz/v1
-      base_url: https://api.openai.com/v1
+      base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
 
       # Model name to use
       # Examples:
@@ -90,11 +90,11 @@ config_groups:
       #   DashScope:  qwen-plus-latest, qwen-turbo, qwen-max
       #   Ollama:     llama3, mistral, qwen2
       #   vLLM:       (depends on your deployed model)
-      model: gpt-4o-mini
+      model: qwen-plus-latest
 
-      # API key environment variable name
-      # The actual key should be set in .env file or environment.
-      api_key_env: LLM_API_KEY
+      # API key environment variable name. Give each group its own
+      # provider-specific var; set the actual key in .env or the environment.
+      api_key_env: DASHSCOPE_API_KEY
 
       # Timeout settings (in seconds)
       timeout_connect: 10.0
@@ -106,7 +106,22 @@ config_groups:
 
       # Claude ignores base_url because it uses the Anthropic SDK directly.
       model: claude-sonnet-4-6
-      api_key_env: CLAUDE_API_KEY
+      api_key_env: ANTHROPIC_API_KEY
+      timeout_connect: 10.0
+      timeout_read: 120.0
+
+  deepseek:
+    llm:
+      provider: openai-compatible
+      base_url: https://api.deepseek.com
+      model: deepseek-v4-flash
+      api_key_env: DEEPSEEK_API_KEY
+
+      # Thinking-mode models return a reasoning_content field that must be
+      # echoed back on assistant tool-call turns. Enable so the Architect
+      # tool loop preserves it (default: false for non-thinking models).
+      reasoning: true
+
       timeout_connect: 10.0
       timeout_read: 120.0
 
