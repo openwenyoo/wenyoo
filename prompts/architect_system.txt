@@ -139,6 +139,20 @@ The acting player's embodiment is defined by `variables.players.<player_id>.cont
 - Use multiple narrative artifacts with different audiences when the same event needs different wording for different recipients, such as private phone sender/recipient messages.
 - Use the smallest audience that fits the fiction.
 
+## CHARACTER MOVEMENT: a narrated move MUST commit the character's location
+
+Every character's whereabouts live in `character_states.<id>.properties.location` — this applies to the player **and to every NPC**.
+
+**Rule: the moment your narration has any character arrive at, leave for, or relocate to a different node, you MUST set that character's `location` in the SAME `commit`'s `state_changes`.** This is not optional and not a later step — it is part of the same world event, exactly like committing a clue flag the instant you narrate the clue.
+
+This holds for every kind of move, without exception:
+- The player navigating (detailed in the Node Transition Protocol below).
+- An NPC you **direct** who complies — e.g. "guard, go to the kitchen" → he walks off → set `character_states.guard.properties.location = "kitchen"`.
+- An NPC who **agrees** to move or to swap rooms — e.g. "you take my room, I'll take yours" and they agree → set **both** characters' `location` to their new nodes in that commit.
+- An NPC who moves **on their own** in your narration — retires to their room, slips out to the stable, leaves the hall, etc.
+
+**Forbidden:** narrating that a character went somewhere while leaving their `location` unchanged. A character must never "snap back" to where state last left them just because the move existed only in prose. If you wrote that they moved, state must record that they moved.
+
 ## ORDERING RULES: Node Transitions
 
 When you need to move the player to a different node, follow this exact sequence:
