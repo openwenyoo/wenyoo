@@ -811,6 +811,7 @@ JSON array:"""
         game_state.set_variable(f"_form_{form_id}_meta", processed_metadata)
         game_state.set_variable("form", processed_data)
 
+        applied_effects: List[Any] = []
         if on_submit:
             if on_submit.store_variables:
                 for store_config in on_submit.store_variables:
@@ -842,9 +843,13 @@ JSON array:"""
                     self.lua_runtime = LuaRuntimeService(self)
                 self.lua_runtime.execute_script(on_submit.script, player_id, game_state)
 
+            applied_effects = self._apply_engine_on_submit_effects(
+                on_submit, game_state, player_id, story
+            )
+
         if self.llm_provider:
             try:
-                on_submit_summary = self._summarize_on_submit(on_submit) if on_submit else ""
+                on_submit_summary = self._summarize_on_submit(on_submit, applied_effects) if on_submit else ""
                 task = ArchitectTask(
                     task_type="process_form_result",
                     task_profile=infer_task_profile("process_form_result"),
@@ -863,6 +868,15 @@ JSON array:"""
         del self._pending_forms[player_id]
 
         return {"success": True, "script_paused": False}
+
+    def has_pending_form(self, player_id: str) -> bool:
+        """True if the player has a form awaiting submission.
+
+        While a form is pending the player is blocked on it (process_input
+        rejects other commands), so the scene must not be re-rendered — a
+        re-render can re-fire a node's present_form rule and show the form twice.
+        """
+        return player_id in self._pending_forms
 
     async def present_form(
         self,
@@ -958,9 +972,84 @@ JSON array:"""
                     errors[fid] = "File type not allowed"
         return errors
 
+    def _apply_engine_on_submit_effects(
+        self, on_submit, game_state: 'GameState', player_id: str, story: 'Story'
+    ) -> List[Any]:
+        """Deterministically execute the on_submit effects the engine owns.
+
+        Currently only `set_controlled_character` is engine-executed; all other
+        effect types are left for the Architect to apply via commit (they are
+        only summarized for the prompt). Returns the list of effects the engine
+        actually applied, so the Architect summary can mark them as done and
+        avoid double-applying them.
+        """
+        applied: List[Any] = []
+        if not getattr(on_submit, "effects", None):
+            return applied
+
+        for effect in on_submit.effects:
+            if getattr(effect, "type", None) != "set_controlled_character":
+                continue
+            raw_target = effect.target or ""
+            target_id = self.text_processor.substitute_variables(
+                raw_target, game_state, player_id
+            ).strip()
+            if not target_id:
+                logger.warning("set_controlled_character: empty target; skipping")
+                continue
+            character = story.get_character(target_id) if story else None
+            if not character:
+                logger.warning(
+                    f"set_controlled_character: unknown character '{target_id}'; skipping"
+                )
+                continue
+            # Refuse to steal a character already controlled by another player.
+            stolen = False
+            for other_id, other_data in game_state.variables.get('players', {}).items():
+                if other_id != player_id and other_data.get('controlled_character_id') == target_id:
+                    stolen = True
+                    break
+            if stolen:
+                logger.warning(
+                    f"set_controlled_character: '{target_id}' already controlled by "
+                    f"another player; skipping for {player_id}"
+                )
+                continue
+
+            prev_char_id = game_state.get_controlled_character_id(player_id)
+            game_state.set_player_character(player_id, character)
+
+            # Hydrate the character's starting inventory if it has none yet
+            # (mirrors PregameHandler._auto_assign_character so the effect is generic).
+            char_props = game_state.character_states.get(target_id, {}).setdefault('properties', {})
+            if not char_props.get('inventory'):
+                hydrated = []
+                for item_id in character.get_inventory():
+                    item_obj = story.get_object(item_id) if story else None
+                    if item_obj:
+                        hydrated.append(item_obj)
+                if hydrated:
+                    char_props['inventory'] = hydrated
+
+            # Mark the new location visited (mirrors move_to_node).
+            new_location = char_props.get('location')
+            if new_location and new_location not in game_state.visited_nodes:
+                game_state.visited_nodes.append(new_location)
+
+            if getattr(effect, "despawn_previous", False) and prev_char_id and prev_char_id != target_id:
+                game_state.despawn_character(prev_char_id)
+
+            applied.append(effect)
+            logger.info(
+                f"set_controlled_character: player {player_id} now controls '{target_id}'"
+                + (f" (despawned '{prev_char_id}')" if prev_char_id and prev_char_id != target_id and getattr(effect, 'despawn_previous', False) else "")
+            )
+        return applied
+
     @staticmethod
-    def _summarize_on_submit(on_submit) -> str:
+    def _summarize_on_submit(on_submit, applied_effects: Optional[List[Any]] = None) -> str:
         """Produce a summary of a FormOnSubmit for the Architect prompt."""
+        applied_ids = {id(e) for e in (applied_effects or [])}
         parts = []
         if on_submit.store_variables:
             mappings = [f"{sv.field} -> {sv.to}" for sv in on_submit.store_variables]
@@ -980,9 +1069,12 @@ JSON array:"""
                     if field_value not in (None, "", [], {}):
                         details.append(f"{field_name}={field_value}")
                 effect_type = getattr(effect, "type", None) or "unknown"
-                effect_summaries.append(
+                summary = (
                     f"{effect_type}({', '.join(details)})" if details else effect_type
                 )
+                if id(effect) in applied_ids:
+                    summary += " [ALREADY APPLIED BY ENGINE — do not re-apply]"
+                effect_summaries.append(summary)
             parts.append(f"Writer effects: {' -> '.join(effect_summaries)}")
         return ". ".join(parts) if parts else "No on_submit actions defined"
 

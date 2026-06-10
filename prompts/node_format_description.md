@@ -540,10 +540,22 @@ Canonical explicit-state mutation shape when supported by your authored flow:
 
 #### `set_controlled_character`
 
+Switches which character a player embodies (the "pointer" model).
+
 ```yaml
 - type: set_controlled_character
-  target: "{player_class}"
+  target: "{player_class}"        # literal character id or {$var} placeholder
+  despawn_previous: true           # optional: remove the prior character from the world
 ```
+
+In a **form `on_submit`** context this effect is executed **deterministically by
+the engine** (see `GameKernel.process_form_submission`): the pointer switch, the
+location sync to the new character's `properties.location`, inventory hydration,
+and `visited_nodes` update all happen mechanically before the Architect narrates.
+Set `despawn_previous: true` to retire a faceless intro "shell" character once the
+player takes over a named cast member, so the shell never appears in narration.
+The engine refuses to steal a character already controlled by another player.
+(In a non-form commit context the Architect still applies it via `state_changes`.)
 
 ---
 

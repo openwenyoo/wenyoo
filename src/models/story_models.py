@@ -827,8 +827,16 @@ class Effect(BaseModel):
     - {"type": "update_object_status", "target": "object_id", "add_status": [...], "remove_status": [...]}
     - {"type": "set_object_state", "target": "object_id", "value": "new state text"}
     - {"type": "goto_node", "target": "node_id"}
+    - {"type": "set_controlled_character", "target": "character_id", "despawn_previous": true}
     - {"type": "calculate", "target": "var_name", "operation": "add/subtract/multiply/divide", "value": number}
     - {"type": "display_text", "value": "text to display"}
+
+    Note: in a form on_submit context, `set_controlled_character` is executed
+    deterministically by the engine (see GameKernel.process_form_submission).
+    `target` may be a literal character id or a `{$var}` placeholder. When
+    `despawn_previous` is true, the previously controlled character is removed
+    from the world (used to retire a faceless "shell" character after the player
+    takes over a named cast member).
     """
     type: str
     conditions: Optional[List['StoryCondition']] = None
@@ -854,7 +862,11 @@ class Effect(BaseModel):
     target_player_ids: Optional[List[str]] = None
     location_id: Optional[str] = None
     exclude_player_ids: Optional[List[str]] = None
-    
+
+    # For set_controlled_character: when true, despawn the previously controlled
+    # character (e.g. retire a faceless intro "shell" after takeover).
+    despawn_previous: bool = False
+
     # For dice_roll
     dice: Optional[str] = None
     target_number: Optional[int] = None

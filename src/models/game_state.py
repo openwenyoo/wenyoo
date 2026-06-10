@@ -536,6 +536,29 @@ class GameState:
         
         logger.info(f"set_player_character: Successfully set character {character.id} for player {player_id}")
 
+    def despawn_character(self, character_id: str) -> None:
+        """
+        Remove a character from the runtime world entirely.
+
+        Pops the character's runtime state so it no longer appears in any node
+        (get_characters_in_node / get_npcs_in_node), the Architect snapshot
+        (to_architect_json), or serialization — all of which iterate
+        character_states. Also clears any lingering player pointer to it.
+
+        Typical use: retire a faceless "shell" character after the player takes
+        over a named cast member via set_controlled_character.
+
+        Args:
+            character_id: The ID of the character to remove from the world.
+        """
+        removed = self.character_states.pop(character_id, None)
+        for player_data in self.variables.get('players', {}).values():
+            if player_data.get('controlled_character_id') == character_id:
+                player_data['controlled_character_id'] = None
+        if removed is not None:
+            self._mark_world_changed()
+            logger.info(f"despawn_character: Removed character {character_id} from the world")
+
     # ═══════════════════════════════════════════════════════════════════════════
     # Pointer-Based Character Control
     # ═══════════════════════════════════════════════════════════════════════════

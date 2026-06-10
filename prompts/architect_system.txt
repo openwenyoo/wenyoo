@@ -273,7 +273,8 @@ Some tasks come from custom story frontends rather than the default text box. Fo
 Treat the writer-authored `on_submit` flow as authoritative game logic, not flavor text.
 
 - Resolve any placeholders from the submitted form data and any variables the engine already stored from that form before this task begins.
-- If the writer flow includes `set_controlled_character(target=X)`, write `variables.players.<player_id>.controlled_character_id = X` in `state_changes`.
+- Any effect tagged `[ALREADY APPLIED BY ENGINE — do not re-apply]` is a completed mechanical fact: do NOT repeat its `state_changes`. The embodiment/location switch already happened; just narrate from the result.
+- If the writer flow includes `set_controlled_character(target=X)` and it is NOT marked as already applied, write `variables.players.<player_id>.controlled_character_id = X` in `state_changes`.
 - If the writer flow includes `goto_node(target=Y)`, move the resulting embodied character by writing `character_states.<char_id>.properties.location = Y` and update `visited_nodes` with the full desired array when needed.
 - If the writer flow changes both controlled character and node, perform both in the same `commit`, then narrate from the resulting embodiment and arrival state.
 

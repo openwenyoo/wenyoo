@@ -592,6 +592,27 @@ on_submit:
       target: next_scene
 ```
 
+`store_variables`, `llm_process`, and `script` run deterministically in the
+engine. Most `effects` are summarized and applied by the Architect via commit,
+**except `set_controlled_character`**, which the engine executes deterministically
+in the `on_submit` context:
+
+```yaml
+on_submit:
+  store_variables:
+    - field: chosen_role
+      to: player_role
+  effects:
+    - type: set_controlled_character
+      target: "{$player_role}"     # the player now embodies this named character
+      despawn_previous: true        # retire the faceless intro "shell" character
+```
+
+This switches the player's controlled character, syncs their location to the new
+character's `properties.location` (no `goto_node` needed), hydrates the
+character's starting inventory, and — with `despawn_previous: true` — removes the
+previously controlled character from the world so it never appears in narration.
+
 ### File fields
 
 The backend validates `accept` against MIME types, so prefer MIME strings:

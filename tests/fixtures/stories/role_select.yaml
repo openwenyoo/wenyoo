@@ -1,0 +1,83 @@
+# Fixture for the deterministic set_controlled_character on_submit effect.
+# A faceless "shell" character is the only is_playable; a role-selection form
+# switches the player to a named cast member and despawns the shell.
+# Generic test cast (no relation to any shipped story).
+id: role_select
+title: Role Select Test Story
+name: Role Select Test Story
+author: test-harness
+description: A story whose intro form makes the player take over a named character.
+version: '1.0'
+start_node_id: intro
+
+initial_variables:
+  chosen_role: ""
+
+nodes:
+  intro:
+    name: Intro
+    definition: "[Description] The role-selection antechamber."
+    state: "Pick who you are."
+    actions:
+    - id: action_pick
+      text: "Choose a role"
+      intent: "Present the pick_role form."
+  hall:
+    name: Hall
+    definition: "[Description] The main hall where the cast gathers."
+    state: "A crowded hall."
+
+characters:
+  - id: shell
+    name: "Drifter"
+    is_playable: true
+    definition: "A faceless intro vessel; never described in the hall."
+    state: "An unnamed traveler."
+    properties:
+      location: intro
+      status: []
+      inventory: []
+  - id: knight
+    name: "Knight"
+    definition: "A stoic knight in plate armor."
+    state: "A knight stands at attention."
+    properties:
+      location: hall
+      status: []
+      inventory: [iron_sword]
+  - id: mage
+    name: "Mage"
+    definition: "A quiet mage in grey robes."
+    state: "A mage studies a worn tome."
+    properties:
+      location: hall
+      status: []
+      inventory: []
+
+objects:
+  - id: iron_sword
+    name: "Iron Sword"
+    definition: "A plain iron sword carried for defense."
+    state: "A plain iron sword rests at his hip."
+
+forms:
+  pick_role:
+    title: Choose Your Role
+    description: Who are you?
+    submit_text: Step inside
+    fields:
+    - id: chosen_role
+      type: select
+      label: Your role
+      required: true
+      options:
+      - { value: knight, text: "Knight" }
+      - { value: mage, text: "Mage" }
+    on_submit:
+      store_variables:
+      - field: chosen_role
+        to: chosen_role
+      effects:
+      - type: set_controlled_character
+        target: "{$chosen_role}"
+        despawn_previous: true

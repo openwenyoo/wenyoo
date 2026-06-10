@@ -550,6 +550,13 @@ class WebFrontendAdapter(FrontendAdapter):
         if not force and not self._should_send_perception(player_id):
             return None
 
+        # A pending form blocks the player on that form; re-rendering the scene
+        # now would re-invoke the Architect on the current node and can re-fire a
+        # present_form rule, showing the form twice. Perception resumes after the
+        # form is submitted (which clears the pending state).
+        if not force and self.game_kernel.has_pending_form(player_id):
+            return None
+
         node_id = game_state.get_player_location(player_id)
         if not node_id:
             return None
