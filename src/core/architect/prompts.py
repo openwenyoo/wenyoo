@@ -388,6 +388,18 @@ class _PromptMixin:
                     "call present_form(form_id) and stop instead of narrating the "
                     "selection as ordinary text."
                 )
+                parts.append("")
+                parts.append(
+                    "## OFFSCREEN PROGRESSION (this turn)\n"
+                    "After resolving the action, judge whether meaningful in-fiction time "
+                    "elapsed (sleeping, waiting, hiding, prolonged tasks) per the LOREBOOK's "
+                    "world-progression rules. Most turns elapse no meaningful time — then do "
+                    "nothing here. If meaningful time DID pass, attach to THIS SAME commit one "
+                    "structured artifact describing what offscreen NPCs do during that span "
+                    "(see the system prompt's 'Offscreen World Progression' section for the "
+                    "exact schema). Anything the player witnesses or that affects the player is "
+                    "resolved HERE in this commit's narration — never deferred to a beat."
+                )
             else:
                 parts.append(
                     "Resolve this purpose-driven task from the supplied context. "
@@ -583,6 +595,72 @@ class _PromptMixin:
                     "Favor follow-up materialization of stubs and ambient concretization that strengthens the living world."
                 )
 
+        elif task.task_type == "offscreen_npc_beat":
+            elapsed = task.extra_context.get("offscreen_elapsed", "")
+            npc_ids = task.extra_context.get("offscreen_npc_ids") or []
+            focus = task.extra_context.get("offscreen_focus", "")
+            siblings = task.extra_context.get("offscreen_sibling_beats") or []
+
+            parts.append("## OFFSCREEN NPC BEAT")
+            parts.append(
+                "While the player was occupied, in-fiction time passed offscreen. "
+                "Resolve what the following character(s) did during that span. "
+                "The player did NOT witness this — it happens out of their sight."
+            )
+            if elapsed:
+                parts.append(f"Elapsed span: {elapsed}")
+            parts.append(f"This beat's character(s): {', '.join(npc_ids)}")
+            parts.append(f"What they do: {focus}")
+            parts.append("")
+
+            parts.append("## CHARACTER(S) IN THIS BEAT")
+            for npc_id in npc_ids:
+                char_def = game_state.story.get_character(npc_id) if game_state.story else None
+                char_state = game_state.character_states.get(npc_id, {})
+                loc = (char_state.get("properties", {}) or {}).get("location")
+                name = char_def.name if char_def else npc_id
+                parts.append(f"### {npc_id} ({name}) — at node: {loc or 'unknown'}")
+                if char_def and char_def.definition:
+                    parts.append(f"Definition:\n{char_def.definition}")
+                dep = char_state.get("state") or (char_def.state if char_def else "")
+                if dep:
+                    parts.append(f"Current state: {dep}")
+                memory = char_state.get("memory") or []
+                if memory:
+                    recent = memory[-3:] if isinstance(memory, list) else [memory]
+                    parts.append("Recent memory: " + " | ".join(str(m) for m in recent))
+                parts.append("")
+
+            if siblings:
+                parts.append("## OTHER OFFSCREEN EVENTS THIS SPAN")
+                parts.append(
+                    "These happen in the same span (other beats); be consistent with them, "
+                    "but do NOT enact them — another pass owns each:"
+                )
+                for sib in siblings:
+                    sib_ids = ", ".join(sib.get("npc_ids", [])) if isinstance(sib, dict) else str(sib)
+                    sib_focus = sib.get("focus", "") if isinstance(sib, dict) else ""
+                    parts.append(f"- {sib_ids}: {sib_focus}")
+                parts.append("")
+
+            parts.append(
+                "Rules (read the LOREBOOK above for WHO does WHAT and the progression guardrails):\n"
+                "- Make exactly ONE commit with a SMALL state_changes patch.\n"
+                "- Touch ONLY this beat's character(s): their character_states (state, memory, properties "
+                "including location) — and at most ONE node's state, plus only the specific story variables "
+                "the LOREBOOK assigns to offscreen progression.\n"
+                "- NEVER rewrite definitions, create new entities, add timed_events, touch player state, or "
+                "set ending/milestone variables (e.g. night_phase, ending_reached) unless the LOREBOOK "
+                "explicitly says offscreen progression owns them. Clue flags are set on player DISCOVERY, not here.\n"
+                "- Leave only discoverable traces; reveal nothing directly to the player.\n"
+                "- Emit NO narrative artifact (state_changes only).\n"
+                "- If this action is already moot or already true given current state, make NO tool call at all.\n"
+                "- Never emit explanatory prose, internal reasoning, or status text."
+                # TODO(perceptible-cues): when a beat is flagged perceptible, allow ONE short oblique
+                # sensory narrative artifact (audience=location_players) instead of state-only.
+            )
+            parts.append("")
+
         elif task.task_type == "process_form_result":
             form_info = task.form_data or {}
             form_id = form_info.get("form_id", "unknown")
@@ -671,6 +749,12 @@ class _PromptMixin:
                 "background_budget",
                 "background_applied_changes",
                 "suppress_background_materialization",
+                # offscreen progression keys are rendered by the offscreen_npc_beat branch
+                "offscreen_beat",
+                "offscreen_elapsed",
+                "offscreen_npc_ids",
+                "offscreen_focus",
+                "offscreen_sibling_beats",
             }
             for key, value in task.extra_context.items():
                 if key.startswith("_") or key in skip_keys:

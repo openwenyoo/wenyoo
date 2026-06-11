@@ -40,6 +40,7 @@ from src.core.background_materialization import (
     BackgroundMaterializationJob,
     BackgroundMaterializationScheduler,
 )
+from src.core.offscreen_progression import OffscreenProgressionRunner
 
 if TYPE_CHECKING:
     from src.adapters.base import FrontendAdapter
@@ -95,6 +96,9 @@ class GameKernel:
         self.node_generator = NodeGenerator(self)
         self.architect = Architect(self)
         self.background_materialization = BackgroundMaterializationScheduler(self)
+        # Offscreen NPC progression runner. v1 (serial) by default; main.py flips
+        # `.parallel` on from config when forced-tool_choice providers are in use.
+        self.offscreen_progression = OffscreenProgressionRunner(self)
 
     # ========================================================================
     # Observer Pattern

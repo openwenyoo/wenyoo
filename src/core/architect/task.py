@@ -27,6 +27,7 @@ DEFAULT_TASK_PROFILE_BY_TYPE = {
     "process_form_result": TASK_PROFILE_WORKFLOW,
     "process_event": TASK_PROFILE_WORKFLOW,
     "background_materialization": TASK_PROFILE_BACKGROUND_SIMULATION,
+    "offscreen_npc_beat": TASK_PROFILE_BACKGROUND_SIMULATION,
 }
 
 

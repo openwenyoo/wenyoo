@@ -627,6 +627,7 @@ class _ToolMixin:
         )
 
         await self._maybe_schedule_background_materialization(ctx, game_state, player_id, applied)
+        self._maybe_schedule_offscreen_beats(ctx, game_state, player_id, recorded_artifacts)
 
         # ── Phase 4: Deliver artifacts to clients ──
         await self._deliver_artifacts(ctx, recorded_artifacts, applied)
@@ -716,6 +717,72 @@ class _ToolMixin:
             max_actions_to_add=1,
             applied_changes=applied,
         )
+
+    def _maybe_schedule_offscreen_beats(
+        self,
+        ctx: Dict[str, Any],
+        game_state: "GameState",
+        player_id: str,
+        recorded_artifacts: List[Dict[str, Any]],
+    ) -> None:
+        """Queue offscreen NPC progression from a foreground commit's structured artifact.
+
+        A foreground turn that lets meaningful in-fiction time pass attaches an
+        ``offscreen_progression`` structured artifact alongside its narration; we
+        parse it into a batch of small per-NPC beats and hand them to the runner.
+        """
+        if ctx.get("capture_only"):
+            return
+        # Never recurse: background materialization passes and beats themselves
+        # must not spawn more beats.
+        if ctx.get("background_materialization") or ctx.get("offscreen_beat"):
+            return
+        task_type = ctx.get("task_type")
+        if task_type not in {"player_input", "process_form_result", "process_event"}:
+            return
+
+        frontend = self.game_kernel.frontend_adapter
+        session_id = ctx.get("session_id")
+        if not session_id and frontend:
+            session_id = frontend.player_sessions.get(player_id, {}).get("session_id")
+        if not session_id:
+            return
+
+        runner = getattr(self.game_kernel, "offscreen_progression", None)
+        if runner is None:
+            return
+
+        # First qualifying commit this turn bumps the foreground sequence (used by
+        # the parallel path to detect interleaving). Latch so a second commit in
+        # the same turn doesn't double-count.
+        if not ctx.get("_offscreen_seq_noted"):
+            runner.note_foreground_commit(session_id)
+            ctx["_offscreen_seq_noted"] = True
+
+        if ctx.get("_offscreen_scheduled"):
+            return
+
+        from src.core.offscreen_progression import OffscreenBatch, parse_offscreen_progression
+
+        for art in recorded_artifacts:
+            if art.get("kind") != ARTIFACT_KIND_STRUCTURED:
+                continue
+            payload = art.get("payload")
+            if not isinstance(payload, dict) or "offscreen_progression" not in payload:
+                continue
+            parsed = parse_offscreen_progression(payload, game_state)
+            if not parsed:
+                continue
+            elapsed, beats = parsed
+            ctx["_offscreen_scheduled"] = True
+            runner.enqueue_batch(OffscreenBatch(
+                session_id=session_id,
+                player_id=player_id,
+                elapsed=elapsed,
+                beats=beats,
+                base_version=game_state.version,
+            ))
+            return
 
     async def _tool_update_entity(self, args: Dict, ctx: Dict) -> Dict:
         """Compatibility helper that maps legacy update requests to merge-patch writes."""

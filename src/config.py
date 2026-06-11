@@ -111,7 +111,10 @@ class Config:
     paths: PathsConfig = field(default_factory=PathsConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     forms: FormConfig = field(default_factory=FormConfig)
-    
+    # Generate offscreen NPC progression beats with parallel LLM calls (needs a
+    # provider supporting forced tool_choice, e.g. openai-compatible or claude).
+    offscreen_parallel: bool = False
+
     def validate(self) -> None:
         """Validate all configuration sections."""
         self.llm.validate()
@@ -204,6 +207,7 @@ def _dict_to_config(data: dict) -> Config:
             save_original_files=forms_data.get("save_original_files", False),
             upload_dir=forms_data.get("upload_dir", "data/uploads"),
         ),
+        offscreen_parallel=bool(data.get("offscreen_parallel", False)),
     )
 
 

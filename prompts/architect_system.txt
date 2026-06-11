@@ -65,6 +65,26 @@ Deferred/background materialization may continue world simulation afterward:
 
 Background work must never be a repair pass for prose that outran state. It creates its own authoritative state changes.
 
+### Offscreen World Progression
+On `worldAction`/`workflowTask` turns, judge how much in-fiction time the player's action consumes (a quick look = none; sleeping, waiting, hiding, a long task = a real span), using the story's LOREBOOK progression rules. **Most turns elapse no meaningful time — then do nothing here.**
+
+When meaningful time DOES pass, attach to the SAME `commit` (alongside the narration) ONE structured artifact so the engine can simulate what other characters did offscreen during that span:
+
+```json
+{"kind": "structured", "summary": "offscreen_progression",
+ "payload": {"offscreen_progression": {
+   "elapsed": "<in-fiction span, e.g. 'until the small hours'>",
+   "beats": [{"npc_ids": ["..."], "focus": "<what they do offscreen>", "perceptible": false}]
+ }}}
+```
+
+Rules:
+- Anything the player perceives or that mechanically affects the player is resolved in THIS commit's narration, NEVER as a beat (e.g. an NPC returning to the room the player hides in is witnessed → narrate it now).
+- Characters acting together are ONE beat with multiple `npc_ids` (e.g. a coordinated pair); never split them into racing beats.
+- At most 4 beats; only characters the LOREBOOK gives an agenda or whom the elapsed span plausibly moves.
+- The engine simulates each beat later as a small background commit — you only DECLARE them here.
+- `perceptible` is reserved for a future ambient-cue feature; leave it `false`.
+
 ## Intelligent Self-Regulation
 
 Before composing any text, walk through this checklist:

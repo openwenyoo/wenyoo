@@ -22,11 +22,12 @@ Usage::
 """
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
 from dataclasses import dataclass, field
 from types import SimpleNamespace
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 from src.core.interfaces import ILLMProvider
@@ -52,9 +53,20 @@ class CapturedCall:
     """One ``.create()`` invocation, captured for assertions."""
     messages: List[dict]
     tools: Optional[List[dict]]
-    tool_choice: Optional[str]
+    tool_choice: Optional[Any]  # str ("auto") or dict (forced function choice)
     model: Optional[str]
     stream: bool
+
+
+def _last_user_text(messages: Optional[List[dict]]) -> str:
+    """Return the last user message's text (for route matching)."""
+    if not messages:
+        return ""
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            content = m.get("content")
+            return content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
+    return ""
 
 
 # ── Internal: a single queued turn ───────────────────────────────────────────
@@ -161,7 +173,7 @@ class _Completions:
         model: Optional[str] = None,
         messages: Optional[List[dict]] = None,
         tools: Optional[List[dict]] = None,
-        tool_choice: Optional[str] = None,
+        tool_choice: Optional[Any] = None,
         stream: bool = False,
         **_: Any,
     ):
@@ -174,7 +186,12 @@ class _Completions:
                 stream=stream,
             )
         )
-        spec = self._owner._queue.pop(0) if self._owner._queue else _QueuedResponse()
+
+        # Optional barrier: block until N concurrent calls have arrived. Proves
+        # true parallelism (serial callers never reach N → wait_for times out).
+        await self._owner._maybe_hold()
+
+        spec = self._owner._select_spec(messages)
 
         if stream:
             # An async-generator object is itself the async iterator the
@@ -211,8 +228,31 @@ class ToolCallingMockLLM(ILLMProvider):
     def __init__(self, model: str = "mock"):
         self.model = model
         self._queue: List[_QueuedResponse] = []
+        self._routes: List[Tuple[str, _QueuedResponse]] = []
         self._captured: List[CapturedCall] = []
         self.async_client = _AsyncClient(self)
+        self._hold_event: Optional[asyncio.Event] = None
+        self._hold_n: int = 0
+        self._hold_count: int = 0
+
+    # ── response selection + concurrency barrier (internal) ──
+
+    def _select_spec(self, messages: Optional[List[dict]]) -> _QueuedResponse:
+        """Pick a response: matching route first (consumed once), else FIFO."""
+        text = _last_user_text(messages)
+        for i, (match, spec) in enumerate(self._routes):
+            if match in text:
+                self._routes.pop(i)
+                return spec
+        return self._queue.pop(0) if self._queue else _QueuedResponse()
+
+    async def _maybe_hold(self) -> None:
+        if self._hold_event is None:
+            return
+        self._hold_count += 1
+        if self._hold_count >= self._hold_n:
+            self._hold_event.set()
+        await self._hold_event.wait()
 
     # legacy ILLMProvider surface (unused by Architect, required by interface)
     async def generate_response(self, prompt: str, **kwargs: Any) -> str:
@@ -239,6 +279,27 @@ class ToolCallingMockLLM(ILLMProvider):
         self._queue.append(_QueuedResponse(content=content, finish_reason=reason))
         return self
 
+    def queue_routed_tool_calls(self, match: str, calls: List[dict]) -> "ToolCallingMockLLM":
+        """A ``.create()`` whose last user message contains ``match`` gets these
+        tool_calls — consulted before the FIFO queue and consumed once. Lets
+        concurrent (parallel) calls receive the right scripted commit regardless
+        of which task is scheduled first.
+        """
+        self._routes.append((match, _QueuedResponse(tool_calls=list(calls))))
+        return self
+
+    def hold_until(self, n: int) -> "ToolCallingMockLLM":
+        """Arm a barrier: each ``.create()`` blocks until ``n`` calls have arrived.
+
+        Use to prove parallelism — N beats generated concurrently all reach the
+        barrier; a serial runner never gets a 2nd concurrent call and the test's
+        ``asyncio.wait_for`` times out.
+        """
+        self._hold_event = asyncio.Event()
+        self._hold_n = n
+        self._hold_count = 0
+        return self
+
     def captured_calls(self) -> List[CapturedCall]:
         """All ``.create()`` invocations, oldest first."""
         return list(self._captured)
@@ -249,4 +310,8 @@ class ToolCallingMockLLM(ILLMProvider):
 
     def clear(self) -> None:
         self._queue.clear()
+        self._routes.clear()
         self._captured.clear()
+        self._hold_event = None
+        self._hold_n = 0
+        self._hold_count = 0

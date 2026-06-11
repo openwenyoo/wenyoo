@@ -208,6 +208,14 @@ class _Completions:
             api_kwargs["tools"] = self._openai_tools_to_anthropic(tools)
         if tool_choice == "auto":
             api_kwargs["tool_choice"] = {"type": "auto"}
+        elif tool_choice == "required":
+            api_kwargs["tool_choice"] = {"type": "any"}
+        elif isinstance(tool_choice, dict) and tool_choice.get("type") == "function":
+            # OpenAI-style forced choice -> Anthropic forced tool.
+            api_kwargs["tool_choice"] = {
+                "type": "tool",
+                "name": tool_choice.get("function", {}).get("name"),
+            }
         _apply_cache_breakpoints(api_kwargs, cache_control)
 
         resp = self._client.messages.create(**api_kwargs)
@@ -385,6 +393,14 @@ class _AsyncCompletions:
             api_kwargs["tools"] = _Completions._openai_tools_to_anthropic(tools)
         if tool_choice == "auto":
             api_kwargs["tool_choice"] = {"type": "auto"}
+        elif tool_choice == "required":
+            api_kwargs["tool_choice"] = {"type": "any"}
+        elif isinstance(tool_choice, dict) and tool_choice.get("type") == "function":
+            # OpenAI-style forced choice -> Anthropic forced tool.
+            api_kwargs["tool_choice"] = {
+                "type": "tool",
+                "name": tool_choice.get("function", {}).get("name"),
+            }
         _apply_cache_breakpoints(api_kwargs, cache_control)
 
         if stream:

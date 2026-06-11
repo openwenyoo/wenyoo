@@ -165,6 +165,32 @@ async def test_background_simulation_suppresses_narrative_delivery(game_kernel, 
     assert ctx["displayed_messages"] == []              # but not delivered
 
 
+# ── 7b ─────────────────────────────────────────────────────────────────────────
+
+async def test_offscreen_npc_beat_suppresses_narrative(game_kernel, mock_tool_llm, started_game):
+    """An offscreen_npc_beat task inherits backgroundSimulation suppression: a
+    narrative-bearing commit is recorded but never delivered (state-only beats)."""
+    gs, story = started_game
+    task = ArchitectTask(
+        task_type="offscreen_npc_beat",
+        task_profile=TASK_PROFILE_BACKGROUND_SIMULATION,
+        extra_context={
+            "offscreen_beat": True,  # recursion guard
+            "background_allow_player_facing_narrative": False,
+            "offscreen_elapsed": "until dawn",
+            "offscreen_npc_ids": ["entity_a"],
+            "offscreen_focus": "shuffles offscreen",
+            "offscreen_sibling_beats": [],
+        },
+    )
+    mock_tool_llm.queue_tool_calls([
+        tc("commit", artifacts=[{"kind": "narrative", "payload": "Offscreen, a door creaks."}]),
+    ])
+    ctx = await _handle(game_kernel, gs, story, task)
+    assert len(_narrative_artifacts(ctx)) == 1          # recorded
+    assert ctx["displayed_messages"] == []              # but not delivered
+
+
 # ── 8 ──────────────────────────────────────────────────────────────────────────
 
 async def test_loop_terminates_at_max_iterations(game_kernel, mock_tool_llm, started_game):

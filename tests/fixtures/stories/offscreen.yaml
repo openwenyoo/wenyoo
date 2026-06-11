@@ -1,0 +1,74 @@
+# Fixture for offscreen world progression (NPC beats during time-passing turns).
+# Player starts at start_node; npc_a+npc_b are a coordinated pair at far_node;
+# npc_c is alone at other_node; npc_here is colocated with the player (witnessed).
+id: offscreen
+title: Offscreen Progression Test Story
+name: Offscreen Progression Test Story
+author: test-harness
+description: A story for exercising offscreen NPC progression beats.
+version: '1.0'
+start_node_id: start_node
+
+initial_variables:
+  lore_world_progression: |
+    When the player rests or waits, offscreen NPCs act during the elapsed span.
+    Each NPC group is one small beat; leave only discoverable traces; never
+    advance milestones automatically.
+  npc_a_progress: ""
+
+nodes:
+  start_node:
+    name: Start Node
+    definition: "[Description] The room where the player waits."
+    state: "A quiet room."
+  far_node:
+    name: Far Node
+    definition: "[Description] A distant room the player cannot see."
+    state: "Somewhere out of sight."
+  other_node:
+    name: Other Node
+    definition: "[Description] Another out-of-sight room."
+    state: "Elsewhere."
+
+characters:
+  - id: hero
+    name: "Hero"
+    is_playable: true
+    definition: "The player character."
+    state: "Standing ready."
+    properties:
+      location: start_node
+      status: []
+      inventory: []
+  - id: npc_a
+    name: "Agent A"
+    definition: "One of a coordinated pair."
+    state: "Watching."
+    properties:
+      location: far_node
+      status: []
+      inventory: []
+  - id: npc_b
+    name: "Agent B"
+    definition: "The other of a coordinated pair."
+    state: "Waiting for a signal."
+    properties:
+      location: far_node
+      status: []
+      inventory: []
+  - id: npc_c
+    name: "Loner C"
+    definition: "A solitary figure."
+    state: "Keeping to himself."
+    properties:
+      location: other_node
+      status: []
+      inventory: []
+  - id: npc_here
+    name: "Bystander"
+    definition: "An NPC in the same room as the player."
+    state: "Idling nearby."
+    properties:
+      location: start_node
+      status: []
+      inventory: []

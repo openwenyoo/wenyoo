@@ -276,6 +276,8 @@ async def main() -> None:
         state_manager=state_manager,
         llm_provider=llm_provider
     )
+    # Parallel offscreen-progression beats (needs a forced-tool_choice provider).
+    game_kernel.offscreen_progression.parallel = bool(getattr(config, "offscreen_parallel", False))
 
     # Create web frontend adapter
     frontend_adapter = WebFrontendAdapter(
