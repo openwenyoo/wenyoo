@@ -226,7 +226,8 @@ class GameKernel:
     async def start_new_game_async(self, story_id: str, player_id: str = "default", 
                                    session_id: Optional[str] = None, 
                                    character_id: Optional[str] = None,
-                                   notify_observers: bool = True) -> Optional[GameState]:
+                                   notify_observers: bool = True,
+                                   proactive_generation: bool = True) -> Optional[GameState]:
         """
         Start a new game asynchronously.
         
@@ -285,9 +286,10 @@ class GameKernel:
             )
 
             logger.info(f"Started new asynchronous game '{story_id}' for player '{player_id}'.")
-            asyncio.create_task(self.node_generator.proactively_generate_linked_nodes_async(
-                self.current_game_state, self.current_game_state.story.start_node_id
-            ))
+            if proactive_generation:
+                asyncio.create_task(self.node_generator.proactively_generate_linked_nodes_async(
+                    self.current_game_state, self.current_game_state.story.start_node_id
+                ))
             return self.current_game_state
 
         except Exception as e:
@@ -727,6 +729,20 @@ JSON array:"""
 
         # --- Architect path ---
         extra = {"input_type": input_type}
+        pending = game_state.save_metadata.setdefault("pending_clarifications", {})
+        if player_id in pending:
+            if user_input_lower in ("cancel", "/cancel", "取消"):
+                pending.pop(player_id)
+                text = "Clarification cancelled. What would you like to do next?"
+                await self.architect._send_text_to_player(text, player_id, "game")
+                game_state.add_message_to_history(role="companion", content=text, player_ids=[player_id])
+                return {"narrative_response": text, "script_paused": False}
+            clarification = dict(pending[player_id])
+            options = clarification.get("options", [])
+            answer = user_input.strip()
+            if answer.isascii() and answer.isdigit() and 1 <= int(answer) <= len(options):
+                answer = options[int(answer) - 1]
+            extra["clarification"] = {**clarification, "answer": answer}
         if session_id:
             extra["session_id"] = session_id
         if action_hint:
@@ -753,12 +769,15 @@ JSON array:"""
             extra_context=extra,
         )
         ctx = await self.architect.handle(task, game_state, player_id, story)
+        if (ctx.get("world_events") or ctx.get("presented_form")) and not ctx.get("clarification_requested"):
+            pending.pop(player_id, None)
         last_narrative = ""
         if isinstance(ctx, dict):
             displayed = ctx.get("displayed_messages", [])
             if displayed:
                 last_narrative = displayed[-1].get("text", "")
-        return {"narrative_response": last_narrative, "script_paused": False}
+        return {"narrative_response": last_narrative, "script_paused": False,
+                "fallback_used": bool(ctx.get("fallback_used"))}
 
     # ========================================================================
     # Form Submission Processing

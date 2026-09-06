@@ -118,6 +118,7 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
             "artifacts": [],
             "task_type": task.task_type,
             "task_profile": task.task_profile,
+            "player_input": task.player_input,
         }
         ctx.update(task.extra_context)
 
@@ -133,6 +134,7 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
         needs_display = task.task_type == "player_input"
         turn_handled = bool(ctx["displayed_messages"]) or bool(ctx.get("presented_form"))
         if needs_display and not turn_handled:
+            ctx["fallback_used"] = True
             logger.warning(
                 f"Architect completed {task.task_type} without any commit "
                 "-- sending fallback message to player"
@@ -287,13 +289,18 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
 
                 messages.append(self._msg_to_dict(response_msg))
 
+                batch_names = {tc.function.name for tc in response_msg.tool_calls}
+                mixed_clarification = "request_clarification" in batch_names and bool(
+                    batch_names & {"commit", "present_form", "queue_materialization"}
+                )
                 for tool_call in response_msg.tool_calls:
                     tool_name = tool_call.function.name
                     tool_args_raw = tool_call.function.arguments
                     args_preview = tool_args_raw[:500] if len(tool_args_raw) > 500 else tool_args_raw
                     logger.info(f"Architect [{iteration+1}] tool call: {tool_name}({args_preview})")
 
-                    result = await self._dispatch_tool(tool_call, ctx)
+                    result = ({"error": "Clarification must be requested before any world-changing tools; call it alone."}
+                              if mixed_clarification else await self._dispatch_tool(tool_call, ctx))
 
                     def _safe_default(obj):
                         if hasattr(obj, 'model_dump'):
@@ -322,6 +329,8 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
                     ]
                 )
                 tool_names = [tc.function.name for tc in response_msg.tool_calls]
+                if ctx.get("clarification_requested"):
+                    break
                 had_commit = "commit" in tool_names and tool_results_ok
                 had_present_form = "present_form" in tool_names and tool_results_ok
                 only_terminal_tools = all(
@@ -475,6 +484,8 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
     async def _dispatch_tool(self, tool_call, ctx: Dict[str, Any]) -> Any:
         """Dispatch a tool call to the appropriate handler."""
         name = tool_call.function.name
+        if ctx.get("clarification_requested"):
+            return {"error": "This turn is waiting for the player's clarification."}
         raw_arguments = tool_call.function.arguments or ""
         if not raw_arguments.strip():
             args = {}
@@ -498,6 +509,8 @@ class Architect(_PromptMixin, _ToolMixin, _DeliveryMixin, _StreamingMixin):
 
         try:
             result = await handler(args, ctx)
+            if name in ("commit", "queue_materialization", "present_form") and "error" not in result:
+                ctx["world_tool_used"] = True
             logger.debug(f"Architect tool '{name}' returned: {str(result)[:200]}")
             return result
         except Exception as e:

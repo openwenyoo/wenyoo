@@ -8,6 +8,9 @@ A React and ReactFlow-based visual editor for Wenyoo stories.
 - Story load and save through backend APIs
 - Node, action, trigger, object, character, parameter, lore, and global object editing
 - Story version history
+- UUID snapshots, graph-aware diffs, and automatic AI edit review
+- Validation with links to affected entities
+- Bounded automated playtesting with downloadable reports
 - Connection graph compilation from the UI
 - AI-assisted editing flows
 
@@ -15,7 +18,9 @@ A React and ReactFlow-based visual editor for Wenyoo stories.
 
 - The editor is served by the main game server at `/editor`.
 - Story saves go through the backend and write YAML to the resolved story path.
-- The player game UI is separate from the editor. Use the normal game client for playtesting.
+- The player game UI is separate from the editor. Use it for manual playtesting;
+  use **File → Story quality → Auto-test** for automated exploration.
+- See [Story Quality](../docs/editor/story-quality.md) for budgets and coverage limits.
 
 ## Development
 

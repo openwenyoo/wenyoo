@@ -95,6 +95,14 @@ Use `initial_variables` for story state, counters, flags, and lorebook-style con
 
 ### Characters and Objects
 
+Each object ID identifies one physical item. Two players' phones must use different
+IDs (for example, `phone_alpha` and `phone_beta`) even if their definitions match.
+Inventory stores those IDs; it does not instantiate a new copy for each owner.
+Duplicate ownership is rejected at startup and before runtime inventory patches.
+Transfer an item by removing its ID from one inventory and adding it to the other
+in one state patch. Existing stories that reuse an ID for separate items must
+define distinct objects and update inventories and references accordingly.
+
 Characters and objects both use the same general layered model:
 
 - `definition`: authored identity and rules

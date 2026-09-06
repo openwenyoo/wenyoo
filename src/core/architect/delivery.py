@@ -38,7 +38,6 @@ class _DeliveryMixin:
         capture_only = bool(ctx.get("capture_only"))
         is_background = task_profile == TASK_PROFILE_BACKGROUND_SIMULATION
         allow_narrative = bool(ctx.get("background_allow_player_facing_narrative", True))
-        already_streamed = bool(ctx.get("_narrative_already_streamed"))
 
         narrative_artifacts = [a for a in artifacts if a["kind"] == ARTIFACT_KIND_NARRATIVE]
         structured_artifacts = [a for a in artifacts if a["kind"] == ARTIFACT_KIND_STRUCTURED]
@@ -96,41 +95,13 @@ class _DeliveryMixin:
                 )
             else:
                 is_solo_actor = len(delivery_targets) == 1 and delivery_targets[0] == player_id
-                actor_already_streamed = already_streamed and index == 0
-
-                if actor_already_streamed and player_id in delivery_targets:
-                    processed = self.game_kernel.text_processor.process_text_for_hyperlinks(
-                        narrative_text, game_state, player_id
-                    )
-                    frontend = self.game_kernel.frontend_adapter
-                    if frontend:
-                        client_type = frontend.player_sessions.get(
-                            player_id, {}
-                        ).get('client_type', 'web')
-                        final_html = frontend.format_for_client(processed, client_type)
-                        await frontend.send_stream_end(player_id, final_html=final_html)
-                    other_targets = [t for t in delivery_targets if t != player_id]
-                    if other_targets:
-                        await self._stream_text_to_players(
-                            narrative_text, other_targets, game_state, "game",
-                            stream_to_actor=False,
-                        )
-                elif actor_already_streamed:
-                    frontend = self.game_kernel.frontend_adapter
-                    if frontend:
-                        await frontend.send_stream_end(player_id)
-                    processed = await self._stream_text_to_players(
-                        narrative_text, delivery_targets, game_state, "game",
-                        stream_to_actor=False,
-                    )
-                else:
-                    processed = await self._stream_text_to_players(
-                        narrative_text,
-                        delivery_targets,
-                        game_state,
-                        "game",
-                        stream_to_actor=(len(narrative_artifacts) == 1 and is_solo_actor),
-                    )
+                processed = await self._stream_text_to_players(
+                    narrative_text,
+                    delivery_targets,
+                    game_state,
+                    "game",
+                    stream_to_actor=(len(narrative_artifacts) == 1 and is_solo_actor),
+                )
 
                 actor_location = game_state.get_player_location(player_id)
                 history_location = (
@@ -162,9 +133,6 @@ class _DeliveryMixin:
                         "state_applied": state_applied[:5] if state_applied else [],
                     },
                 )
-
-        if already_streamed:
-            ctx.pop("_narrative_already_streamed", None)
 
     def _infer_message_location(
         self,

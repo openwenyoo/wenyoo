@@ -11,12 +11,13 @@ Use the editor if you want:
 - built-in save-to-server behavior
 - version history for editor saves
 - AI-assisted editing and import flows
+- validation, automated playtests, and semantic change review
 
 Use direct YAML editing if you want:
 
 - exact control over multi-file story layouts
 - bulk refactors in your code editor
-- tighter review diffs
+- source-level review of comments and YAML formatting
 - schema work directly against the canonical prompt docs
 
 ## What The Editor Does Well
@@ -46,4 +47,5 @@ Use direct YAML editing if you want:
 - [Editor Getting Started](getting-started.md)
 - [Editor Workflows](workflows.md)
 - [Editor Reference](reference.md)
+- [Validation, Auto-tests, and Version Review](story-quality.md)
 - [Writing Stories](../writing-stories.md)

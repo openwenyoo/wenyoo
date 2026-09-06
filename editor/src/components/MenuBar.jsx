@@ -16,6 +16,7 @@ const MenuBar = ({
     onAnalyzeStory,
     unsavedCount = 0,
     onShowVersionHistory,
+    onShowStoryQuality,
     graphStatus,
     onCompileGraph,
     graphCompileLoading = false,
@@ -104,6 +105,9 @@ const MenuBar = ({
                         </div>
                         <div className="dropdown-item" onClick={() => handleMenuItemClick(onShowVersionHistory)}>
                             {t('menu.versionHistory')}
+                        </div>
+                        <div className="dropdown-item" onClick={() => handleMenuItemClick(onShowStoryQuality)}>
+                            Story quality · Validate / Auto-test / Changes
                         </div>
                     </div>
                 )}

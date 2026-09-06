@@ -1669,6 +1669,27 @@ def describe_connection_graph_status(story_data: Dict[str, Any]) -> Dict[str, An
     }
 
 
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Keep existing YAML semantics while rejecting silently overwritten mapping keys."""
+
+    def construct_mapping(self, node, deep=False):
+        seen = set()
+        for key_node, _ in node.value:
+            if key_node.tag == "tag:yaml.org,2002:merge":
+                continue  # Explicit keys may override values inherited through <<.
+            key = self.construct_object(key_node, deep=deep)
+            try:
+                if key in seen:
+                    raise yaml.constructor.ConstructorError(
+                        "while constructing a mapping", node.start_mark,
+                        f"duplicate key '{key}'", key_node.start_mark,
+                    )
+                seen.add(key)
+            except TypeError:
+                pass  # The standard loader below reports unhashable keys.
+        return super().construct_mapping(node, deep=deep)
+
+
 def _load_yaml_with_includes(file_path: str, loaded_files: Optional[set] = None) -> Dict[str, Any]:
     """Load a YAML file and process any 'includes' directive.
     
@@ -1692,7 +1713,8 @@ def _load_yaml_with_includes(file_path: str, loaded_files: Optional[set] = None)
     loaded_files.add(normalized_path)
     
     with open(file_path, 'r', encoding='utf-8') as f:
-        story_data = yaml.safe_load(f) or {}
+        # Duplicate mapping keys otherwise silently discard authored nodes or rules.
+        story_data = yaml.load(f, Loader=_UniqueKeyLoader) or {}
     
     # Process includes
     includes = story_data.pop('includes', None)
@@ -1740,13 +1762,21 @@ def load_story_from_file(file_path: str) -> Story:
     else:
         raise ValueError("Unsupported file format. Use YAML or JSON.")
     
+    return load_story_from_data(story_data, file_path=file_path)
+
+
+def load_story_from_data(story_data: Dict[str, Any], file_path: str = "story.yaml") -> Story:
+    """Load an already resolved story payload without writing a temporary file."""
+    import copy
+    story_data = copy.deepcopy(story_data)
+
     # Extract story metadata
     story_id = story_data.get("id", os.path.splitext(os.path.basename(file_path))[0])
     name = story_data.get("name", story_data.get("title", "Untitled Story"))
     description = story_data.get("description", "")
     version = story_data.get("version", "1.0")
     author = story_data.get("author", "Unknown")
-    start_node_id = story_data.get("start_node_id", "start")
+    start_node_id = story_data.get("start_node_id", story_data.get("start_node", "start"))
     metadata = story_data.get("metadata", {})
     initial_variables = story_data.get("initial_variables", {})
     player_character_defaults = story_data.get("player_character_defaults")

@@ -550,6 +550,7 @@ export const streamAIEdit = async ({
     };
 
     try {
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('wenyoo-ai-edit-start'));
         console.log('[AI Stream] Starting SSE connection...');
         
         const response = await editorFetch('/api/editor/ai-edit-stream', {
@@ -729,6 +730,8 @@ export const streamAIEdit = async ({
     } catch (error) {
         console.error('[AI Stream] Error:', error);
         onError?.(error.message);
+    } finally {
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('wenyoo-ai-edit-end'));
     }
 };
 

@@ -213,7 +213,7 @@ export const loadStory = async (id, tempPath, viewMode, handleShapeClickFromNode
 /**
  * Save story to API
  */
-export const saveStory = async (storyId, nodes, storyData) => {
+export const buildStoryPayload = (nodes, storyData) => {
     const sanitizeObject = (obj = {}) => ({
         id: obj.id || '',
         name: obj.name || '',
@@ -314,7 +314,12 @@ export const saveStory = async (storyId, nodes, storyData) => {
         nodes: nodesMap
     };
 
-    const response = await axios.post(`/api/story/${storyId}`, storyPayload);
+    return storyPayload;
+};
+
+export const saveStory = async (storyId, nodes, storyData) => {
+    const response = await axios.post(`/api/story/${storyId}`, buildStoryPayload(nodes, storyData));
+    if (!response.data.success) throw new Error(response.data.error || 'Save failed');
     return response.data;
 };
 
@@ -346,10 +351,11 @@ export const backupOriginal = async (storyId) => {
 export const getVersions = async (storyId) => {
     try {
         const response = await axios.get(`/api/story/${storyId}/versions`);
+        if (response.data.error) throw new Error(response.data.error);
         return response.data.versions || [];
     } catch (error) {
         console.error("Error getting versions:", error);
-        return [];
+        throw error;
     }
 };
 
