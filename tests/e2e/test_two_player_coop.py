@@ -69,12 +69,14 @@ async def running_server(workspace):
     server = uvicorn.Server(uvicorn.Config(adapter.app, log_level="error", lifespan="on"))
     task = asyncio.create_task(server.serve(sockets=[sock]))
     try:
-        async with asyncio.timeout(10):
+        async def wait_until_started():
             while not server.started:
                 if task.done():
                     await task
                     raise RuntimeError("Server exited before accepting connections")
                 await asyncio.sleep(0.01)
+
+        await asyncio.wait_for(wait_until_started(), timeout=10)
         yield f"ws://127.0.0.1:{port}/ws", adapter, llm
     finally:
         server.should_exit = True
@@ -103,13 +105,15 @@ class Player:
         await self.ws.send(json.dumps(message))
 
     async def until(self, message_type, *, timeout=15):
-        async with asyncio.timeout(timeout):
+        async def receive_until_type():
             while True:
                 message = json.loads(await self.ws.recv())
                 self.events.append({"direction": "receive", **message})
                 assert message.get("type") != "error", message
                 if message.get("type") == message_type:
                     return message
+
+        return await asyncio.wait_for(receive_until_type(), timeout=timeout)
 
     async def open(self, url, llm, *, rejoin=False):
         self.ws = await connect(url)
@@ -244,9 +248,11 @@ async def test_two_players_complete_example_and_rejoin_after_restart(tmp_path):
                 narrative("The lever returns to standby.", "location_players", location_id="signal_archive"),
                 narrative("Power drops in the gallery.", "location_players", location_id="relay_gallery"),
             ])])
-            async with asyncio.timeout(20):
+            async def wait_for_power_drop():
                 while "Power drops in the gallery" not in json.dumps(await beta.until("game", timeout=20)):
                     pass
+
+            await asyncio.wait_for(wait_for_power_drop(), timeout=20)
             assert gs.variables["power_routed"] is False
             assert not gs.timed_events
             assert "relay_lens" in gs.get_player_inventory(beta.id)
