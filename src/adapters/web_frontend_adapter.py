@@ -34,6 +34,7 @@ from src.models.game_state import GameState
 # Import modular components
 from .websocket_manager import WebSocketManager
 from .routes import register_story_routes, register_llm_routes, register_game_routes, register_plan_routes
+from .routes.story_quality_routes import register_story_quality_routes
 from .handlers import SessionHandler, PregameHandler, GameLoopHandler
 from .utils.game_state_serializer import build_game_state_dict
 
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 # Path prefixes that require editor authentication when editor_secret is set.
 _EDITOR_AUTH_PREFIXES = (
     "/api/story",
+    "/api/story-quality/",
     "/api/llm/",
     "/api/editor/",
 )
@@ -305,6 +307,7 @@ class WebFrontendAdapter(FrontendAdapter):
 
         # Register API routes from modules
         register_story_routes(self.app, self.story_manager)
+        register_story_quality_routes(self.app, self.game_kernel)
         register_llm_routes(self.app, self.game_kernel, self.story_manager)
         register_game_routes(
             self.app, 

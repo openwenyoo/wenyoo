@@ -45,7 +45,7 @@ initial_variables:
     - A phone call or phone message can cross room boundaries. Unlike speaking aloud,
       it is not limited to players in the same chamber.
     - The acting player and the intended recipient must both currently possess a
-      `mobile_phone` in their inventory.
+      a personal phone in their inventory, with a distinct object ID for each physical phone.
     - Match the intended recipient against active session player names, ignoring case.
       If no active player name matches, tell the sender the call does not connect.
     - If multiple active players would match ambiguously, ask the sender to clarify.
@@ -88,11 +88,11 @@ characters:
     [Identity]
     A certified calibration operator assigned to this trial.
     [Loadout]
-    Operator Alpha begins with a personal `mobile_phone`.
+    Operator Alpha begins with a personal `mobile_phone_alpha`.
   properties:
     status: []
     inventory:
-    - mobile_phone
+    - mobile_phone_alpha
     location: briefing_chamber
   state: A focused operator in a pale field jacket, carrying a compact mobile phone.
 - id: operator_beta
@@ -102,16 +102,16 @@ characters:
     [Identity]
     A certified calibration operator assigned to this trial.
     [Loadout]
-    Operator Beta begins with a personal `mobile_phone`.
+    Operator Beta begins with a personal `mobile_phone_beta`.
   properties:
     status: []
     inventory:
-    - mobile_phone
+    - mobile_phone_beta
     location: briefing_chamber
   state: A focused operator in a dark field jacket, carrying a compact mobile phone.
 objects:
-- id: mobile_phone
-  name: Mobile Phone
+- id: mobile_phone_alpha
+  name: Alpha Phone
   definition: |
     [Identity]
     A sturdy facility-issued mobile phone with a clear speaker, a small text display,
@@ -120,10 +120,10 @@ objects:
     [Phone Contact Rules]
     ## Use the phone to contact another operator
     When a player uses the phone to call, text, or say something to another operator:
-    - Confirm that the acting player currently has `mobile_phone` in their inventory.
+    - Confirm that the acting player currently has a phone (an object with properties.kind = phone) in their inventory.
     - Match the requested recipient against active session player names, ignoring case.
     - Reject the attempt if the player is trying to contact themself.
-    - Confirm that the matched recipient also currently has `mobile_phone` in their inventory.
+    - Confirm that the matched recipient also currently has a phone (an object with properties.kind = phone) in their inventory.
     - If any requirement fails, explain the failure only to the sender.
     - If the call succeeds, use one `commit` with two narrative `artifacts`.
     - The first artifact must target the matched recipient using audience
@@ -138,6 +138,39 @@ objects:
     Treat phrases such as "use phone to say to Bar: hello", "call Bar and say hello",
     "text Bar", or similar wording as this object's interaction.
   state: A compact facility-issued mobile phone with an operator contact list.
+  properties:
+    kind: phone
+- id: mobile_phone_beta
+  name: Beta Phone
+  definition: |
+    [Identity]
+    A sturdy facility-issued mobile phone with a clear speaker, a small text display,
+    and a contact list keyed to the active operators in the current session.
+
+    [Phone Contact Rules]
+    ## Use the phone to contact another operator
+    When a player uses the phone to call, text, or say something to another operator:
+    - Confirm that the acting player currently has a phone (an object with properties.kind = phone) in their inventory.
+    - Match the requested recipient against active session player names, ignoring case.
+    - Reject the attempt if the player is trying to contact themself.
+    - Confirm that the matched recipient also currently has a phone (an object with properties.kind = phone) in their inventory.
+    - If any requirement fails, explain the failure only to the sender.
+    - If the call succeeds, use one `commit` with two narrative `artifacts`.
+    - The first artifact must target the matched recipient using audience
+      `specific_players` and that player's concrete ID in `target_player_ids`.
+    - The second artifact must target the acting player using audience `self`.
+    - Use this exact recipient wording for spoken content:
+      `<sender_name> says to you through the phone: "message"`.
+    - Use separate sender wording that confirms the phone connected and delivered the message.
+    - Never collapse the sender confirmation and recipient message into one shared narrative.
+
+    [Interpretation Guidance]
+    Treat phrases such as "use phone to say to Bar: hello", "call Bar and say hello",
+    "text Bar", or similar wording as this object's interaction.
+  state: A compact facility-issued mobile phone with an operator contact list.
+  properties:
+    kind: phone
+
 nodes:
   briefing_chamber:
     name: Briefing Chamber
@@ -193,7 +226,7 @@ nodes:
       {briefing_terminal: briefing terminal} blinks patiently beside it.
 
       This demo expects **two players**. Confirm your partner is nearby, call out your plan,
-      use your {mobile_phone: mobile phone} if you need to coordinate across distance, and
+      use your {use my phone: use my phone} if you need to coordinate across distance, and
       later hand one resonator part to the other operator so a single inventory can hold
       both components for assembly.
   signal_archive:
@@ -440,6 +473,9 @@ nodes:
 
       A final {verification_console: verification console} waits here, its display already
       filled with passing marks.
+# WARNING: The fields below are generated by the connection-graph compile step.
+# Do not edit them manually; re-run tools/compile_connections.py instead.
+connection_graph_source_md5: 60e2693eaf7dbfe27fa0d7d67d8494ab
 connections:
 - id: briefing_chamber_navigates_to_paired_lock_relay_gallery_signal_archive
   source: briefing_chamber
@@ -528,8 +564,48 @@ connections:
   source: vault_door
   targets:
   - verification_vault
-- id: mobile_phone_connects_operator_alpha_operator_beta
-  source: mobile_phone
+- id: mobile_phone_alpha_connects_operators
+  source: mobile_phone_alpha
   targets:
   - operator_alpha
   - operator_beta
+- id: mobile_phone_beta_connects_operators
+  source: mobile_phone_beta
+  targets:
+  - operator_alpha
+  - operator_beta
+- id: briefing_chamber_contains_local_objects_briefing_plaque_briefing_terminal
+  source: briefing_chamber
+  targets:
+  - briefing_terminal
+  - briefing_plaque
+- id: signal_archive_contains_local_objects_phase_lever_tuning_fork_waveform_tablet
+  source: signal_archive
+  targets:
+  - phase_lever
+  - tuning_fork
+  - waveform_tablet
+- id: relay_gallery_contains_local_objects_gallery_indicator_relay_lens
+  source: relay_gallery
+  targets:
+  - relay_lens
+  - gallery_indicator
+- id: paired_lock_contains_local_objects_assembly_dock_moon_console_sun_console_vault_door
+  source: paired_lock
+  targets:
+  - assembly_dock
+  - sun_console
+  - moon_console
+  - vault_door
+- id: verification_vault_contains_local_objects_verification_console
+  source: verification_vault
+  targets:
+  - verification_console
+- id: operator_alpha_located_at_nodes_briefing_chamber
+  source: operator_alpha
+  targets:
+  - briefing_chamber
+- id: operator_beta_located_at_nodes_briefing_chamber
+  source: operator_beta
+  targets:
+  - briefing_chamber

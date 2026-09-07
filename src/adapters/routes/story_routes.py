@@ -14,6 +14,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import LiteralScalarString
 from src.models.story_models import _load_yaml_with_includes, describe_connection_graph_status
+from src.core.story_versions import StoryVersions, atomic_write
 
 logger = logging.getLogger(__name__)
 _GENERATED_GRAPH_COMMENT = (
@@ -64,6 +65,16 @@ def _get_version_dir(base_dir: str, story_id: str) -> str:
     version_dir = os.path.join(base_dir, "story_versions", story_id)
     os.makedirs(version_dir, exist_ok=True)
     return version_dir
+
+
+def _snapshot_story_text(path):
+    """Make modular stories self-contained so future include edits cannot alter a snapshot."""
+    with open(path, encoding="utf-8") as handle:
+        text = handle.read()
+    data = yaml.safe_load(text)
+    if isinstance(data, dict) and data.get("includes"):
+        return _dump_story_yaml(_load_yaml_with_includes(str(path)))
+    return text
 
 
 def _to_roundtrip_yaml(value: Any) -> Any:
@@ -279,26 +290,20 @@ def register_story_routes(app: FastAPI, story_manager: Any):
         json_data = await request.json()
         
         try:
-            version_dir = _get_version_dir(saves_dir, story_id)
-            
-            existing_versions = [f for f in os.listdir(version_dir) if f.endswith('.yaml')]
-            next_version = len(existing_versions)
-            
+            versions = StoryVersions(_get_version_dir(saves_dir, story_id), story_id)
+            backup = None
             if os.path.exists(story_path):
-                backup_path = os.path.join(version_dir, f"{story_id}_{next_version}.yaml")
-                with open(story_path, "r", encoding="utf-8") as src:
-                    with open(backup_path, "w", encoding="utf-8") as dst:
-                        dst.write(src.read())
-                logger.info(f"Created backup version {next_version} for story {story_id}")
+                backup = versions.snapshot(_snapshot_story_text(story_path), "Before editor save")
             
             yaml_data = _dump_story_yaml(json_data, existing_path=story_path)
-            with open(story_path, "w", encoding="utf-8") as f:
-                f.write(yaml_data)
+            atomic_write(story_path, yaml_data)
+            snapshot = versions.snapshot(yaml_data, "Editor save")
             
             if hasattr(story_manager, 'invalidate_cache'):
                 story_manager.invalidate_cache()
                 
-            return {"success": True, "version": next_version}
+            return {"success": True, "version": snapshot["version"], "uuid": snapshot["uuid"],
+                    "backup_uuid": backup["uuid"] if backup else None}
         except Exception as e:
             logger.error(f"Error saving story {story_id}: {e}")
             return {"error": str(e)}
@@ -315,13 +320,9 @@ def register_story_routes(app: FastAPI, story_manager: Any):
             return {"error": "Story not found"}
         
         try:
-            version_dir = _get_version_dir(saves_dir, story_id)
-            original_path = os.path.join(version_dir, f"{story_id}_0.yaml")
-            
-            if not os.path.exists(original_path):
-                with open(story_path, "r", encoding="utf-8") as src:
-                    with open(original_path, "w", encoding="utf-8") as dst:
-                        dst.write(src.read())
+            versions = StoryVersions(_get_version_dir(saves_dir, story_id), story_id)
+            if not versions.list():
+                versions.snapshot(_snapshot_story_text(story_path), "Original (first opened)")
                 logger.info(f"Created original backup (version 0) for story {story_id}")
                 return {"success": True, "created": True}
             
@@ -338,29 +339,13 @@ def register_story_routes(app: FastAPI, story_manager: Any):
             return {"error": "Invalid story ID."}
 
         try:
-            version_dir = _get_version_dir(saves_dir, story_id)
-            
-            versions = []
-            for f in os.listdir(version_dir):
-                if f.endswith('.yaml'):
-                    file_path = os.path.join(version_dir, f)
-                    stat = os.stat(file_path)
-                    version_num = int(f.replace(f"{story_id}_", "").replace(".yaml", ""))
-                    versions.append({
-                        "version": version_num,
-                        "filename": f,
-                        "timestamp": stat.st_mtime,
-                        "size": stat.st_size
-                    })
-            
-            versions.sort(key=lambda x: x["version"])
-            return {"versions": versions}
+            return {"versions": StoryVersions(_get_version_dir(saves_dir, story_id), story_id).list()}
         except Exception as e:
             logger.error(f"Error getting versions for story {story_id}: {e}")
             return {"error": str(e)}
 
     @app.get("/api/story/{story_id}/version/{version}")
-    async def get_version(story_id: str, version: int):
+    async def get_version(story_id: str, version: str):
         """Get content of a specific version."""
         story_id = _sanitize_story_id(story_id)
         if not story_id:
@@ -368,7 +353,7 @@ def register_story_routes(app: FastAPI, story_manager: Any):
 
         try:
             version_dir = _get_version_dir(saves_dir, story_id)
-            version_path = os.path.join(version_dir, f"{story_id}_{version}.yaml")
+            version_path = StoryVersions(version_dir, story_id).resolve(version)
             
             if not os.path.exists(version_path):
                 return {"error": f"Version {version} not found"}
@@ -381,7 +366,7 @@ def register_story_routes(app: FastAPI, story_manager: Any):
             return {"error": str(e)}
 
     @app.post("/api/story/{story_id}/restore/{version}")
-    async def restore_version(story_id: str, version: int):
+    async def restore_version(story_id: str, version: str):
         """Restore a story to a specific version."""
         story_id = _sanitize_story_id(story_id)
         if not story_id:
@@ -393,26 +378,19 @@ def register_story_routes(app: FastAPI, story_manager: Any):
         
         try:
             version_dir = _get_version_dir(saves_dir, story_id)
-            version_path = os.path.join(version_dir, f"{story_id}_{version}.yaml")
+            versions = StoryVersions(version_dir, story_id)
+            version_path = versions.resolve(version)
             
             if not os.path.exists(version_path):
                 return {"error": f"Version {version} not found"}
             
-            existing_versions = [f for f in os.listdir(version_dir) if f.endswith('.yaml')]
-            next_version = len(existing_versions)
-            backup_path = os.path.join(version_dir, f"{story_id}_{next_version}.yaml")
-            
-            with open(story_path, "r", encoding="utf-8") as src:
-                with open(backup_path, "w", encoding="utf-8") as dst:
-                    dst.write(src.read())
-            
+            backup = versions.snapshot(_snapshot_story_text(story_path), f"Before restoring {version}")
             with open(version_path, "r", encoding="utf-8") as src:
-                with open(story_path, "w", encoding="utf-8") as dst:
-                    dst.write(src.read())
+                atomic_write(story_path, src.read())
+            story_manager.invalidate_cache()
             
             logger.info(f"Restored story {story_id} to version {version}")
-            return {"success": True, "backed_up_as": next_version}
+            return {"success": True, "backed_up_as": backup["version"], "backup_uuid": backup["uuid"]}
         except Exception as e:
             logger.error(f"Error restoring version {version} for story {story_id}: {e}")
             return {"error": str(e)}
-

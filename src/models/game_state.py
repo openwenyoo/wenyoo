@@ -88,7 +88,7 @@ class GameState:
                     'state': char.state,
                     'memory': list(char.memory),  # Copy to avoid mutating story
                     # Properties runtime state (can override story definition)
-                    'properties': dict(char.properties),  # Copy to avoid mutating story
+                    'properties': copy.deepcopy(char.properties),
                 }
 
         # Character location tracking cache
@@ -120,6 +120,7 @@ class GameState:
         self._evaluating_derived: set = set()
 
         self.variables["players"] = {}
+        self.validate_inventory_ownership()
 
     def _serialize_json_safe(self, value: Any) -> Any:
         """Convert nested runtime values into JSON-safe data."""
@@ -461,7 +462,7 @@ class GameState:
         self.object_states[obj.id] = {
             'state': obj.state,
             # Properties runtime state
-            'properties': dict(getattr(obj, 'properties', {})),
+            'properties': copy.deepcopy(getattr(obj, 'properties', {})),
         }
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -1433,6 +1434,24 @@ class GameState:
         """
         from src.models.story_models import StoryNode, StoryAction, StoryObject, Character
 
+        # Validate the complete proposed ownership before changing anything.
+        # A transfer is valid when both inventories change in the same patch.
+        character_patches = patch.get('character_states')
+        inventory_patches = {
+            char_id: char_patch['properties']['inventory']
+            for char_id, char_patch in (character_patches if isinstance(character_patches, dict) else {}).items()
+            if isinstance(char_patch, dict) and isinstance(char_patch.get('properties'), dict)
+            and 'inventory' in char_patch['properties']
+        }
+        if inventory_patches:
+            proposed_characters = {
+                char_id: {'properties': {'inventory': state.get('properties', {}).get('inventory', [])}}
+                for char_id, state in self.character_states.items()
+            }
+            for char_id, inventory in inventory_patches.items():
+                proposed_characters[char_id] = {'properties': {'inventory': inventory}}
+            self.validate_inventory_ownership(proposed_characters)
+
         applied: List[str] = []
         read_only = {'story_id', 'created_at', 'version', 'updated_at'}
 
@@ -2010,6 +2029,18 @@ class GameState:
                 normalized.append(item_id)
         return normalized
 
+    def validate_inventory_ownership(self, character_states=None) -> None:
+        """One object ID identifies one physical item, owned by at most one character."""
+        owners = {}
+        for char_id, state in (character_states if character_states is not None else self.character_states).items():
+            for item_id in self._normalize_inventory_entries(state.get('properties', {}).get('inventory')):
+                if item_id in owners:
+                    raise ValueError(
+                        f"Object '{item_id}' occurs in both '{owners[item_id]}' and '{char_id}' inventories. "
+                        "Use a separate object ID for each physical item, or transfer it atomically."
+                    )
+                owners[item_id] = char_id
+
     def resolve_inventory_object(self, item_ref: Any) -> Optional[StoryObject]:
         """Resolve an inventory entry to its object definition when possible."""
         item_id = self._inventory_entry_to_id(item_ref)
@@ -2059,6 +2090,9 @@ class GameState:
         char_id = self.get_controlled_character_id(player_id)
         if char_id and char_id in self.character_states:
             normalized = self._normalize_inventory_entries(inventory)
+            proposed = copy.deepcopy(self.character_states)
+            proposed[char_id].setdefault('properties', {})['inventory'] = normalized
+            self.validate_inventory_ownership(proposed)
             self.character_states[char_id].setdefault('properties', {})['inventory'] = normalized
     
     def get_player_location(self, player_id: str) -> Optional[str]:
@@ -2363,6 +2397,11 @@ class GameState:
         Supports dot notation for nested properties.
         Returns True if successful.
         """
+        if key == 'inventory':
+            value = self._normalize_inventory_entries(value)
+            proposed = copy.deepcopy(self.character_states)
+            proposed.setdefault(character_id, {}).setdefault('properties', {})['inventory'] = value
+            self.validate_inventory_ownership(proposed)
         if character_id not in self.character_states:
             self.character_states[character_id] = {
                 'state': '',
@@ -2615,8 +2654,8 @@ class GameState:
         
         if obj_to_take and node_to_remove_from:
             logger.debug(f"GameState.add_to_inventory: Moving StoryObject '{obj_to_take.id}' to player '{player_id}' inventory.")
+            self.set_player_inventory(player_id, [*player_inventory, obj_to_take.id])
             node_to_remove_from.objects.remove(obj_to_take)
-            player_inventory.append(obj_to_take.id)
             self.version += 1
             self.last_modified_by = player_id
             self.updated_at = datetime.now().isoformat()
@@ -2637,7 +2676,7 @@ class GameState:
         """
         player_inventory = self.get_player_inventory(player_id)
         if item_name not in player_inventory:
-            player_inventory.append(item_name)
+            self.set_player_inventory(player_id, [*player_inventory, item_name])
 
         # Update version and timestamps
         self.version += 1
@@ -2716,6 +2755,10 @@ class GameState:
             return False
 
         recipient_inventory = self.get_player_inventory(recipient_id)
+        if sender_id == recipient_id or not self.get_controlled_character_id(recipient_id):
+            return False
+        if item_to_transfer in recipient_inventory:
+            raise ValueError(f"Recipient already owns object '{item_to_transfer}'.")
         sender_inventory.remove(item_to_transfer)
         recipient_inventory.append(item_to_transfer)
         

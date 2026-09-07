@@ -4,7 +4,7 @@ This is the ONLY phase that exercises the Architect's STREAMING path: the
 adapter sets ``game_kernel.frontend_adapter``, so the Architect takes the
 ``_streaming_llm_call`` branch (architect.py:528) and consumes the streaming
 half of the Phase-0 shim. The queued commit's ``arguments`` stream across >=2
-chunks, driving the narrative stream extractor end-to-end.
+chunks, then its accepted narrative is delivered over the WebSocket.
 
 Covered wiring: WS handshake -> register -> pregame (name/story/session) ->
 GameKernel.start_new_game -> game_start -> input -> Architect (streaming) ->

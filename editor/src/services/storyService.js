@@ -213,7 +213,7 @@ export const loadStory = async (id, tempPath, viewMode, handleShapeClickFromNode
 /**
  * Save story to API
  */
-export const saveStory = async (storyId, nodes, storyData) => {
+export const buildStoryPayload = (nodes, storyData) => {
     const sanitizeObject = (obj = {}) => ({
         id: obj.id || '',
         name: obj.name || '',
@@ -314,7 +314,12 @@ export const saveStory = async (storyId, nodes, storyData) => {
         nodes: nodesMap
     };
 
-    const response = await axios.post(`/api/story/${storyId}`, storyPayload);
+    return storyPayload;
+};
+
+export const saveStory = async (storyId, nodes, storyData) => {
+    const response = await axios.post(`/api/story/${storyId}`, buildStoryPayload(nodes, storyData));
+    if (!response.data.success) throw new Error(response.data.error || 'Save failed');
     return response.data;
 };
 
@@ -346,10 +351,11 @@ export const backupOriginal = async (storyId) => {
 export const getVersions = async (storyId) => {
     try {
         const response = await axios.get(`/api/story/${storyId}/versions`);
+        if (response.data.error) throw new Error(response.data.error);
         return response.data.versions || [];
     } catch (error) {
         console.error("Error getting versions:", error);
-        return [];
+        throw error;
     }
 };
 
@@ -377,6 +383,34 @@ export const restoreVersion = async (storyId, version) => {
         console.error("Error restoring version:", error);
         return { success: false, error: error.message };
     }
+};
+
+export const validateStory = async (story, options = {}) => {
+    const response = await axios.post(
+        '/api/story-quality/validate',
+        { story },
+        options.signal ? { signal: options.signal } : undefined,
+    );
+    return response.data;
+};
+
+export const compareStories = async (before, after, options = {}) => {
+    const response = await axios.post(
+        '/api/story-quality/diff',
+        { before, after },
+        options.signal ? { signal: options.signal } : undefined,
+    );
+    return response.data;
+};
+
+export const playtestStory = async (story, maxSteps, commands) => {
+    const response = await axios.post('/api/story-quality/playtest', {
+        story,
+        max_steps: Number(maxSteps),
+        max_depth: 4,
+        commands,
+    });
+    return response.data;
 };
 
 /**

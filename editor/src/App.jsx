@@ -31,6 +31,7 @@ import PseudoNode from './components/PseudoNode';
 import GenerateNode from './components/GenerateNode';
 import GroupNode from './components/GroupNode';
 import VersionHistoryDialog from './components/VersionHistoryDialog';
+import StoryQualityDialog from './components/StoryQualityDialog';
 import ConfirmDialog from './components/ConfirmDialog';
 import InputDialog from './components/InputDialog';
 import LoadingPanel from './components/LoadingPanel';
@@ -60,6 +61,7 @@ import OutlineSelector from './components/OutlineSelector';
 import {
     loadStory,
     saveStory,
+    buildStoryPayload,
     compileConnectionGraph,
     createNewStory,
     backupOriginal,
@@ -117,6 +119,36 @@ const AppContent = () => {
     const [showLorePanel, setShowLorePanel] = useState(false);
     const [showObjectPanel, setShowObjectPanel] = useState(false);
     const [showVersionHistory, setShowVersionHistory] = useState(false);
+    const [qualitySnapshot, setQualitySnapshot] = useState(null);
+    const savedStoryRef = useRef(null);
+    const aiReviewRef = useRef(null);
+    const [activeAIStreams, setActiveAIStreams] = useState(0);
+
+    const beginAIReview = () => {
+        aiReviewRef.current = JSON.parse(JSON.stringify(buildStoryPayload(nodes, storyData)));
+    };
+    useEffect(() => {
+        const start = () => {
+            if (!aiReviewRef.current) {
+                aiReviewRef.current = JSON.parse(JSON.stringify(buildStoryPayload(nodes, storyData)));
+            }
+            setActiveAIStreams(count => count + 1);
+        };
+        const end = () => setActiveAIStreams(count => Math.max(0, count - 1));
+        window.addEventListener('wenyoo-ai-edit-start', start);
+        window.addEventListener('wenyoo-ai-edit-end', end);
+        return () => {
+            window.removeEventListener('wenyoo-ai-edit-start', start);
+            window.removeEventListener('wenyoo-ai-edit-end', end);
+        };
+    }, [nodes, storyData]);
+    useEffect(() => {
+        if (aiReviewRef.current && !llmLoading && !planExecuting && activeAIStreams === 0) {
+            const before = aiReviewRef.current;
+            aiReviewRef.current = null;
+            setQualitySnapshot({ before, story: buildStoryPayload(nodes, storyData), tab: 'changes' });
+        }
+    }, [llmLoading, planExecuting, activeAIStreams, nodes, storyData]);
     const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, action: null, data: null });
     const [inputDialog, setInputDialog] = useState({ isOpen: false, callback: null });
     const [hoveredNodeId, setHoveredNodeId] = useState(null);
@@ -308,6 +340,7 @@ const AppContent = () => {
         try {
             const result = await loadStory(id, temp_path, viewModeRef.current, handleShapeClickFromNode);
             setStoryData(result.storyData);
+            savedStoryRef.current = JSON.parse(JSON.stringify(buildStoryPayload(result.nodes, result.storyData)));
             setNodes(result.nodes);
             setEdges(result.edges);
             setGraphStatus(result.graphStatus);
@@ -415,6 +448,7 @@ const AppContent = () => {
                 isOpen: true,
                 callback: (title) => {
                     const result = createNewStory(title, viewMode, handleShapeClickFromNode);
+                    savedStoryRef.current = {};
                     setStoryData(result.storyData);
                     setNodes(result.nodes);
                     setEdges(result.edges);
@@ -468,6 +502,7 @@ const AppContent = () => {
 
     // Loading panel handlers
     const handleLoadingPanelCreate = (title) => {
+        savedStoryRef.current = {};
         const result = createNewStory(title, viewMode, handleShapeClickFromNode);
         setStoryData(result.storyData);
         setNodes(result.nodes);
@@ -502,12 +537,19 @@ const AppContent = () => {
 
     // Restore version handler
     const handleRestoreVersion = async (version) => {
+        // Preserve the editor's unsaved work as a real snapshot before restoring.
+        await saveStory(storyId, nodes, storyData);
         const result = await restoreVersion(storyId, version);
         if (result.success) {
+            setSelectedNode(null);
+            setSelectedShape(null);
+            setSelectedConnectionId(null);
+            setSecondaryEditorOpen(false);
+            setShowCharacterPanel(false);
+            setShowObjectPanel(false);
             await loadStoryWrapper(storyId);
-            alert(t('app.restoreSuccess', { version, backupVersion: result.backed_up_as }));
         } else {
-            alert(t('app.restoreFailed', { error: result.error }));
+            throw new Error(result.error || t('app.restoreFailed', { error: '' }));
         }
     };
 
@@ -991,6 +1033,7 @@ const AppContent = () => {
 
     // AI Assistant Logic - Streaming Mode (New Function Calling Approach)
     const handleStreamingAISubmit = async () => {
+        beginAIReview();
         setLlmLoading(true);
         setAiThinkingMessage(t('app.aiStatus.starting'));
         
@@ -1206,6 +1249,7 @@ const AppContent = () => {
 
     // AI Assistant Logic - Legacy Mode (JSON Response + Engine Handle)
     const handleLegacyAISubmit = async () => {
+        beginAIReview();
         setLlmLoading(true);
         try {
             await handleLlmSubmit({
@@ -1339,6 +1383,7 @@ const AppContent = () => {
     
     // Execute the reviewed plan
     const handleExecutePlan = async (plan) => {
+        beginAIReview();
         setPlanExecuting(true);
         setPlanProgress(0);
         
@@ -1736,6 +1781,10 @@ const AppContent = () => {
                     onOpenCharacterPanel={() => setShowCharacterPanel(true)}
                     unsavedCount={unsavedCount}
                     onShowVersionHistory={() => setShowVersionHistory(true)}
+                    onShowStoryQuality={() => setQualitySnapshot({
+                        story: buildStoryPayload(nodes, storyData),
+                        before: savedStoryRef.current || {},
+                    })}
                     graphStatus={graphStatus}
                     onCompileGraph={handleCompileGraph}
                     graphCompileLoading={graphCompileLoading}
@@ -2048,7 +2097,32 @@ const AppContent = () => {
                 storyId={storyId}
                 getVersions={getVersions}
                 onRestore={handleRestoreVersion}
+                currentStory={buildStoryPayload(nodes, storyData)}
             />
+            {qualitySnapshot && <StoryQualityDialog
+                snapshot={qualitySnapshot}
+                onClose={() => setQualitySnapshot(null)}
+                onReveal={(issue) => {
+                    setQualitySnapshot(null);
+                    setShowCharacterPanel(false);
+                    setShowObjectPanel(false);
+                    setSelectedNode(null);
+                    setSelectedConnectionId(null);
+                    if (issue.entity_type === 'character') {
+                        handleEditCharacter(issue.entity_id);
+                    } else if (issue.entity_type === 'connection') {
+                        setSelectedConnectionId(issue.entity_id);
+                    } else {
+                        const node = nodes.find(n => n.id === issue.entity_id || n.data.objects?.some(o => o.id === issue.entity_id));
+                        if (node) {
+                            setSelectedNode(node);
+                            reactFlowInstance?.fitView({ nodes: [{ id: node.id }], duration: 300, padding: .4 });
+                        } else if (issue.entity_type === 'object') {
+                            setShowObjectPanel(true);
+                        }
+                    }
+                }}
+            />}
 
             <ConfirmDialog
                 isOpen={confirmDialog.isOpen}

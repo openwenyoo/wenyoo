@@ -12,6 +12,12 @@ The player web app lives at `http://localhost:8000`.
 
 ## Multiplayer
 
+If an input has several plausible meanings, the Architect can ask a focused
+clarification before acting. Reply with an option number or free text, or type
+`/cancel` to abandon the pending request. The question belongs only to your player
+and is retained when saving and loading. The Architect checks your answer against
+the current world, which may have changed while another player was acting.
+
 - One player can create a session and share the game code.
 - Other players can join with that code from the session screen.
 - The game keeps shared world state while still tracking player-specific data.

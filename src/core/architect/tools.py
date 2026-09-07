@@ -21,6 +21,22 @@ class _ToolMixin:
     def _register_tools(self):
         """Register Architect tools for runtime narration and interaction."""
 
+        self._register("request_clarification", self._tool_request_clarification, {
+            "type": "function",
+            "function": {
+                "name": "request_clarification",
+                "description": "Ask the acting player to resolve ambiguous intent before any world changes. Ends the turn.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "question": {"type": "string"},
+                        "options": {"type": "array", "items": {"type": "string"}, "maxItems": 6},
+                    },
+                    "required": ["question"],
+                },
+            },
+        })
+
         # TODO(graph-context): Keep the public "local"/"full" interface stable for
         # the Architect, but reinterpret these views once graph-based context
         # retrieval exists. "local" should become a bounded relevant subgraph
@@ -391,6 +407,32 @@ class _ToolMixin:
 
         logger.debug("Architect: read_node('%s') returned %d chars", node_id, len(str(result)))
         return result
+
+    async def _tool_request_clarification(self, args: Dict, ctx: Dict) -> Dict:
+        if ctx.get("task_type") != "player_input":
+            return {"error": "Clarification is only available for player input."}
+        if ctx.get("world_events") or ctx.get("presented_form") or ctx.get("world_tool_used"):
+            return {"error": "Ask for clarification before committing, presenting a form, or materializing entities."}
+        question = args.get("question")
+        options = args.get("options", [])
+        if not isinstance(question, str) or not question.strip() or len(question) > 1000:
+            return {"error": "Provide a non-empty question of at most 1000 characters."}
+        if (not isinstance(options, list) or len(options) > 6
+                or any(not isinstance(o, str) or not o.strip() or len(o) > 200 for o in options)):
+            return {"error": "Provide up to six short, distinct options."}
+        options = [o.strip() for o in options]
+        if len(set(options)) != len(options):
+            return {"error": "Clarification options must be distinct."}
+        pending = ctx["game_state"].save_metadata.setdefault("pending_clarifications", {})
+        original = (ctx.get("clarification") or {}).get("original_input", ctx.get("player_input", ""))
+        record = {"original_input": original, "question": question.strip(), "options": options}
+        pending[ctx["player_id"]] = record
+        ctx["clarification_requested"] = record
+        text = question.strip()
+        if options:
+            text += "\n\n" + "\n".join(f"{i + 1}. {option}" for i, option in enumerate(options))
+        await self._deliver_artifacts(ctx, [{"kind": "narrative", "payload": text, "audience": "self"}], [])
+        return {"status": "awaiting_clarification", **record}
 
     async def _tool_present_form(self, args: Dict, ctx: Dict) -> Dict:
         """Present a story form to the active player."""

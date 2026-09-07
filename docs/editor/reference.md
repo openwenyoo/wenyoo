@@ -56,8 +56,11 @@ Use it to trigger recompilation from the editor.
 
 - view saved versions
 - restore previous versions
+- compare graph-aware diffs against the current editor story or another UUID snapshot
 
 Version backups are stored by the backend under `saves/story_versions/`.
+Restore first snapshots the full current editor story, including unsaved changes.
+See [Story Quality](story-quality.md) for validation, auto-tests, and AI edit review.
 
 ## Save Semantics
 

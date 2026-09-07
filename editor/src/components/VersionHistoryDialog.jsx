@@ -1,84 +1,96 @@
 import React, { useState, useEffect } from 'react';
+import { compareStories, getVersion } from '../services/storyService';
+import { useLocale } from '../i18n';
+import StoryChanges from './StoryChanges';
+import '../styles/story-quality.css';
 
-const VersionHistoryDialog = ({ isOpen, onClose, storyId, getVersions, onRestore }) => {
+const VersionHistoryDialog = ({ isOpen, onClose, storyId, getVersions, onRestore, currentStory }) => {
+    const { t } = useLocale();
     const [versions, setVersions] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [restoring, setRestoring] = useState(false);
+    const [error, setError] = useState('');
+    const [selected, setSelected] = useState('');
+    const [comparison, setComparison] = useState('current');
+    const [diff, setDiff] = useState(null);
+    const [pendingRestore, setPendingRestore] = useState(null);
 
     useEffect(() => {
-        if (isOpen && storyId) {
-            setLoading(true);
-            getVersions(storyId).then(v => {
-                setVersions(v);
-                setLoading(false);
-            });
-        }
+        if (!isOpen || !storyId) return;
+        let active = true;
+        setLoading(true);
+        setError('');
+        setDiff(null);
+        setSelected('');
+        setPendingRestore(null);
+        getVersions(storyId).then(v => {
+            if (active) setVersions(v);
+        }).catch(err => { if (active) setError(err.message); })
+            .finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
     }, [isOpen, storyId, getVersions]);
 
+    useEffect(() => {
+        if (!isOpen || !selected) return;
+        const controller = new AbortController();
+        setDiff(null);
+        const compare = async () => {
+            try {
+                const before = await getVersion(storyId, selected);
+                const after = comparison === 'current' ? currentStory : await getVersion(storyId, comparison);
+                if (!before || before.error || !after || after.error) throw new Error(t('versions.compareLoadError'));
+                const result = await compareStories(before, after, { signal: controller.signal });
+                if (!controller.signal.aborted) setDiff(result);
+            } catch (err) {
+                if (!controller.signal.aborted) setError(err.message);
+            }
+        };
+        compare();
+        return () => controller.abort();
+    }, [isOpen, storyId, selected, comparison, currentStory, t]);
+
     const handleRestore = async (version) => {
-        if (confirm(`Restore to version ${version}? Your current changes will be backed up as a new version.`)) {
-            setRestoring(true);
-            await onRestore(version);
-            setRestoring(false);
+        setRestoring(true);
+        setError('');
+        try {
+            await onRestore(version.uuid || version.version);
             onClose();
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setRestoring(false);
         }
-    };
-
-    const formatDate = (timestamp) => {
-        const date = new Date(timestamp * 1000);
-        return date.toLocaleString();
-    };
-
-    const getVersionLabel = (version, index, total) => {
-        if (version === 0) return 'Original (when first opened)';
-        if (index === total - 1) return `Version ${version} (latest backup)`;
-        return `Version ${version}`;
     };
 
     if (!isOpen) return null;
-
-    return (
-        <div className="version-history-overlay" onClick={onClose}>
-            <div className="version-history-dialog" onClick={e => e.stopPropagation()}>
-                <div className="version-history-header">
-                    <h3>Version History</h3>
-                    <button className="close-btn" onClick={onClose}>×</button>
-                </div>
-                <div className="version-history-content">
-                    {loading ? (
-                        <div className="version-loading">Loading versions...</div>
-                    ) : versions.length === 0 ? (
-                        <div className="version-empty">No versions available yet. Save your story to create backups.</div>
-                    ) : (
-                        <div className="version-list">
-                            {versions.map((v, index) => (
-                                <div key={v.version} className="version-item">
-                                    <div className="version-info">
-                                        <span className="version-label">
-                                            {getVersionLabel(v.version, index, versions.length)}
-                                        </span>
-                                        <span className="version-date">{formatDate(v.timestamp)}</span>
-                                    </div>
-                                    <button
-                                        className="restore-btn"
-                                        onClick={() => handleRestore(v.version)}
-                                        disabled={restoring}
-                                    >
-                                        Restore
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-                <div className="version-history-footer">
-                    <p className="version-note">
-                        Restoring a version will backup your current story first.
-                    </p>
-                </div>
+    return <div className="quality-overlay">
+        <section className="quality-dialog" role="dialog" aria-modal="true" aria-labelledby="versions-title">
+            <header><div><h2 id="versions-title">{t('versions.title')}</h2><p>{t('versions.subtitle')}</p></div>
+                <button onClick={onClose} disabled={restoring}>{t('generic.close')}</button></header>
+            <div className="quality-content">
+                {error && <p role="alert">{error}</p>}
+                {pendingRestore && <div className="quality-finding" role="alert">
+                    <p>{t('versions.restoreConfirm', { version: pendingRestore.version })}</p>
+                    <button onClick={() => setPendingRestore(null)} disabled={restoring}>{t('versions.cancelRestore')}</button>{' '}
+                    <button onClick={() => handleRestore(pendingRestore)} disabled={restoring}>{t(restoring ? 'versions.restoring' : 'versions.restoreSnapshot')}</button>
+                </div>}
+                {loading ? <p>{t('versions.loading')}</p> : versions.length === 0 ? <p>{t('versions.empty')}</p> : <>
+                    <label>{t('versions.compareWith')} <select value={comparison} onChange={e => setComparison(e.target.value)}>
+                        <option value="current">{t('versions.currentStory')}</option>
+                        {versions.map(v => <option key={v.uuid} value={v.uuid}>{t('versions.versionSummary', { version: v.version, summary: v.summary })}</option>)}
+                    </select></label>
+                    {[...versions].reverse().map(v => <article className="quality-finding" key={v.uuid}>
+                        <strong>{t('versions.versionSummary', { version: v.version, summary: v.summary })}</strong>
+                        <p>{new Date(v.timestamp * 1000).toLocaleString()}</p>
+                        <small>{t('versions.snapshot', { uuid: v.uuid })}</small>
+                        <button aria-pressed={selected === v.uuid} onClick={() => setSelected(v.uuid)}>{t('versions.reviewChanges')}</button>{' '}
+                        <button onClick={() => setPendingRestore(v)} disabled={restoring}>{t('versions.restore')}</button>
+                        {selected === v.uuid && (diff ? <StoryChanges diff={diff} /> : <p>{t('versions.comparing')}</p>)}
+                    </article>)}
+                </>}
             </div>
-        </div>
-    );
+        </section>
+    </div>;
 };
 
 export default VersionHistoryDialog;

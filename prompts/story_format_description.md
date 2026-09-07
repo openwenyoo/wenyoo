@@ -151,6 +151,12 @@ Characters use the DSPP-style entity model:
 - `memory`: accumulated interaction history
 - `properties`: mechanical state such as `location`, `status`, `inventory`, `stats`, `affinity`
 
+Inventory contains object IDs, each identifying one physical item. Separate copies
+must have separate authored IDs; the engine does not instantiate copies per player.
+An ID can occur in only one character inventory, once. Transfer it with a single
+state patch that updates both inventories. Use distinct IDs in definitions,
+connections, and player defaults whenever independent item state is needed.
+
 ### Playable character example
 
 ```yaml

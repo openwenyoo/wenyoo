@@ -98,6 +98,7 @@ Architect 的工作方式不是“直接返回任意文本”，而是通过工�
 - `roll_dice`
 - `queue_materialization`
 - `present_form`
+- `request_clarification`（仅限玩家输入；结束本回合并等待确认，不修改世界状态）
 
 这很重要，因为工具建立了边界：
 

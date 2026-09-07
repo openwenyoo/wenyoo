@@ -115,7 +115,7 @@ async def _stream_from_spec(spec: _QueuedResponse) -> AsyncIterator[SimpleNamesp
     """Emit OpenAI-shaped streaming chunks for one queued turn.
 
     Tool-call ``arguments`` are split across two chunks on purpose so the
-    Architect's incremental narrative extractors actually run.
+    Architect's streamed tool-argument assembly actually runs.
     """
     # Opening role chunk.
     yield _chunk(SimpleNamespace(role="assistant", content=None, tool_calls=None), None)

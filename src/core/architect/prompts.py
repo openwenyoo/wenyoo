@@ -212,6 +212,11 @@ class _PromptMixin:
         parts.append(world_index)
         parts.append("")
         parts.append("## TASK CONTRACT")
+        if task.extra_context.get("clarification"):
+            parts.append("## CLARIFICATION RESPONSE")
+            parts.append(json.dumps(task.extra_context["clarification"], ensure_ascii=False))
+            parts.append("Interpret this answer against the original request. Recheck targets against current state. "
+                         "If still ambiguous, ask again; never guess a consequential target.")
         parts.append(f"Task type: {task.task_type}")
         parts.append(f"Task profile: {task.task_profile or infer_task_profile(task.task_type)}")
         if task.purpose:

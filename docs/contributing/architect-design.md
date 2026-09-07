@@ -121,6 +121,7 @@ The current design centers on a small set of runtime tools such as:
 - `roll_dice`
 - `queue_materialization`
 - `present_form`
+- `request_clarification` (player input only; ends the turn without world mutations)
 
 This matters because tools provide boundaries:
 
